@@ -60,8 +60,11 @@ C<sup>n*n</sup> вида : K<sub>m</sub>(v,A) = span{v,Av,A<sup>2</sup>v,...,A<s
 
 Второе замечание заключается в том, что <i>α<sub>j</sub></i> можно вычислить как <i>v<sub>j</sub><sup>*</sup>(Av<sub>j</sub> − β<sub>j</sub> v<sub>j−1</sub>)</i>, поскольку <i>v<sub>j</sub></i> и <i>v<sub>j−1</sub></i> ортогональны по конструкции. Этот альтернативный подход также поддерживается Пейджем [1980]. Учитывая эти замечания, основной алгоритм Ланцоша можно записать как в Алгоритме 1.
 
-### Алгоритм 1 (Базовый алгоритм Ланцоша — вид рекурсии)
+### Алгоритм 1 (Базовый алгоритм Ланцоша — вид рекурсии) ###
+(Lanczos Methods in SLEPc страница 3)
 
+**Входные данные:** Матрица <i>A</i>, число шагов <i>m</i> и начальный вектор <i>v<sub>1</sub></i> нормы 1.  
+**Выходные данные:** (<i>V<sub>m</sub>, T<sub>m</sub>, v<sub>m+1</sub>, β<sub>m+1</sub></i>) так, что 
 1. Выберите вектор единичной нормы <i>v<sub>1</sub></i>.
 2. Установите <i>β<sub>1</sub> = 0</i>.
 3. Для <i>j = 1, 2, . . .</i>:
@@ -84,8 +87,8 @@ C<sup>n*n</sup> вида : K<sub>m</sub>(v,A) = span{v,Av,A<sup>2</sup>v,...,A<s
 
 где <i>T<sub>m</sub></i> — это ведущая подматрица размера <i>m × m</i> матрицы <i>T</i>, а <i>V<sub>m</sub> = [v<sub>1</sub>, v<sub>2</sub>, . . . , v<sub>m</sub>]</i>. Уравнение (4) описывает остаток <i>m</i>-шаговой факторизации Арнольди. То есть процесс Ланцоша также можно рассматривать как вычисление ортогонального проекции матрицы <i>A</i> на Крыловское подпространство <i>K<sub>m</sub>(A, v<sub>1</sub>)</i>. С этой точки зрения метод Ланцоша эквивалентен методу Арнольди, см. Алгоритм 2.
 
-### Алгоритм 2 (Базовый алгоритм Ланцоша — вид проекции)
-
+### Алгоритм 2 (Базовый алгоритм Ланцоша — вид проекции) 
+(Lanczos Methods in SLEPc страница 4)
 **Входные данные:** Матрица <i>A</i>, число шагов <i>m</i> и начальный вектор <i>v<sub>1</sub></i> нормы 1.  
 **Выходные данные:** (<i>V<sub>m</sub>, T<sub>m</sub>, v<sub>m+1</sub>, β<sub>m+1</sub></i>) так, что 
 
@@ -127,9 +130,9 @@ C<sup>n*n</sup> вида : K<sub>m</sub>(v,A) = span{v,Av,A<sup>2</sup>v,...,A<s
 Далее расмотрим вариант алгоритма с перезапуском.
 
 ## Алгоритм 3 (Ланцош с дефляцией)
-
+(Lanczos Methods in SLEPc страница 8)
 **Вход**: Матрица A</code>, количество шагов m, матрицы V<sub>k</sub> - матрица V после к-го шага алгоритма, T<sub>k</sub> - матрица T после к-го шага алгоритма, при k &lt; m, и начальный вектор v<sub>k+1</sub> с нормой 1  
-**Выход**: (V<sub>m</sub>, T<sub>m</sub>, v<sub>m+1</sub>, &beta;<sub>m+1</sub>)</code> так, что <code>AV<sub>m</sub> - V<sub>m</sub>T<sub>m</sub> = &beta;<sub>m+1</sub> v<sub>m+1</sub> e<sup>*</sup><sub>m</sub>
+**Выход**: (V<sub>m</sub>, T<sub>m</sub>, v<sub>m+1</sub>, &beta;<sub>m+1</sub>)</code> так, что AV<sub>m</sub> - V<sub>m</sub>T<sub>m</sub> = &beta;<sub>m+1</sub> v<sub>m+1</sub> e<sup>*</sup><sub>m</sub>
 
 Для j = k + 1, &hellip;, m
 1. u<sub>j+1</sub> = Av<sub>j</sub>
@@ -141,7 +144,7 @@ C<sup>n*n</sup> вида : K<sub>m</sub>(v,A) = span{v,Av,A<sup>2</sup>v,...,A<s
 *Примечание*: Алгоритм 3 вычисляет только последние <code>m - k</code> столбцов матриц V<sub>m</sub> и T<sub>m</sub>, активную часть факторизации. Начальный вектор в данном случае — это v<sub>k+1</sub>. Операции в цикле схожи с Алгоритмом 2, однако ортогонализация обязательно включает заблокированные векторы Ланцоша (дефляция).
 
 ## Алгоритм 4 (Ланцош с явным перезапуском)
-
+(Lanczos Methods in SLEPc страница 8)
 **Вход**: Матрица A, начальный вектор v<sub>1</sub>, и размер подпространства m  
 **Выход**: Частичное собственное разложение AV<sub>k</sub> = V<sub>k</sub>&Theta;<sub>k</sub>, где &Theta;<sub>k</sub> = diag(&theta;<sub>1</sub>, &hellip;, &theta;<sub>k</sub>)
 
@@ -167,7 +170,7 @@ C<sup>n*n</sup> вида : K<sub>m</sub>(v,A) = span{v,Av,A<sup>2</sup>v,...,A<s
 Имплементация алгоритма Ланцоша доступна в SLEPc, начиная с версии 2.3.0. Эта реализация основана на Алгоритме 4 и включает все различные методы для обработки потери ортогональности.
 
 Алгоритм 5 (Ланцош с явным перезапуском и различными методами ортогонализации)
-
+(Lanczos Methods in SLEPc страница 12)
 **Вход**: Матрица <code>A</code>, начальный вектор <code>v<sub>1</sub></code>, и размер подпространства <code>m</code>  
 **Выход**: Частичное собственное разложение <code>AV<sub>k</sub> = V<sub>k</sub>&Theta;<sub>k</sub></code>, где <code>&Theta;<sub>k</sub> = diag(&theta;<sub>1</sub>, &hellip;, &theta;<sub>k</sub>)</code>
 
@@ -203,18 +206,15 @@ C<sup>n*n</sup> вида : K<sub>m</sub>(v,A) = span{v,Av,A<sup>2</sup>v,...,A<s
 нас интересуют три функции: SVDTwoSideLanczos,SVDOneSideLanczos и  SVDSolve_Lanczos
 начнём сначала
 ### SVDTwoSideLanczos ###
-<p><code>
-PetscErrorCode SVDTwoSideLanczos(SVD svd,PetscReal *alpha,PetscReal *beta,BV V,BV U,PetscInt k,PetscInt *n,PetscBool *breakdown)</code></p>
+<p><code>PetscErrorCode SVDTwoSideLanczos(SVD svd,PetscReal *alpha,PetscReal *beta,BV V,BV U,PetscInt k,PetscInt *n,PetscBool *breakdown)</code></p>
 тут alpha и beta: массивы в которую будут сохраняться элементы, связанные с сингулярными значениями. V,U: блоки векторов для ортонормализации, k: текущий идекс итерации ,n: указатель на количество итераицй ,breakdown: указатель на флаг, который указывает, произошел ли сбой из-за линейной зависимости.</p>
-<p><code>
-PetscInt       i;
+<p><code>PetscInt       i;
 Vec            u,v;
 PetscBool      lindep=PETSC_FALSE;
 PetscFunctionBegin;
 </code></p>
 Тут объявляются переменные и макрос для начала выполнения кода в функции PETSc.
-<p><code>
-  PetscCall(BVGetColumn(svd->V,k,&v));
+<p><code>PetscCall(BVGetColumn(svd->V,k,&v));
   PetscCall(BVGetColumn(svd->U,k,&u));
   PetscCall(MatMult(svd->A,v,u));
   PetscCall(BVRestoreColumn(svd->V,k,&v));
@@ -228,8 +228,7 @@ PetscFunctionBegin;
 </code></p>
 тут происходит извлечение к-го столбца из матриц V и U, извлечённые слобцы записываются в переменные v и u
 Далее идёт умножение матрицы А на эти вектора, после чего матрицы V и U приходят в исходное состояние. После чего выполняется ортонормализация к-го столбца матрицы U. результат сохранятеся в массив alpha, lindep указывает произошла ли линейная зависимость, если да, то итерации прекращаются, в переменной n сохранятеся количество успешыных итераций и если был передан флаг breakdown, он устанавливается на true
-<p><code>
-  for (i=k+1;i<*n;i++) {
+<p><code>for (i=k+1;i<*n;i++) {
     PetscCall(BVGetColumn(svd->V,i,&v));
     PetscCall(BVGetColumn(svd->U,i-1,&u));
     PetscCall(MatMult(svd->AT,u,v));
@@ -259,8 +258,7 @@ PetscFunctionBegin;
 Выполняется ортонормализация выполняется для V, результат сохраняется массив beta,
 Если возникает линейная зависимость цикл завершается.
 После выполняются аналогичные действия для матрицы A.
-<p><code>
-  if (!lindep) {
+<p><code>if (!lindep) {
     PetscCall(BVGetColumn(svd->V,*n,&v));
     PetscCall(BVGetColumn(svd->U,*n-1,&u));
     PetscCall(MatMult(svd->AT,u,v));
@@ -276,8 +274,7 @@ PetscFunctionBegin;
 
 ### SVDOneSideLanczos ###
 Входные данные почти теже, добавляется u_1 это вектор который будет спользоваться для хранения промежуточных значений
-<p><code>
-  static PetscErrorCode SVDOneSideLanczos(SVD svd, PetscReal *alpha, PetscReal *beta, BV V, Vec u, Vec u_1, PetscInt k, PetscInt n, PetscScalar *work)
+<p><code>static PetscErrorCode SVDOneSideLanczos(SVD svd, PetscReal *alpha, PetscReal *beta, BV V, Vec u, Vec u_1, PetscInt k, PetscInt n, PetscScalar *work)
 {
   PetscInt i, bvl, bvk;
   PetscReal a, b;
@@ -287,14 +284,12 @@ PetscFunctionBegin;
   PetscCall(BVGetActiveColumns(V, &bvl, &bvk));
 </code></p>
 Объявляются переменные и задаётся срез столбцов с которым будем работать.
-<p><code>
-  PetscCall(BVGetColumn(V, k, &z));
+<p><code>PetscCall(BVGetColumn(V, k, &z));
   PetscCall(MatMult(svd->A, z, u));
   PetscCall(BVRestoreColumn(V, k, &z));
 </code></p>
 Умножение к-го стоблца матрицы V на матрицу А
-<p><code>
-    for (i = k + 1; i < n; i++) {
+<p><code>for (i = k + 1; i < n; i++) {
     PetscCall(BVGetColumn(V, i, &z));
     PetscCall(MatMult(svd->AT, u, z));
     PetscCall(BVRestoreColumn(V, i, &z));
@@ -309,8 +304,7 @@ PetscFunctionBegin;
 Цикл, который идет от k + 1 до n, и на каждом шаге выполняются следующие действия:
 Извлекается i-я колонка из V, умножается на транспонированную матрицу А.
 Далее происходит нормализация вектора U с помощью VecNormBegin и VecNormEnd для вычисления его нормы. Затем Вектор нормализуется: каждый элемент вектора U делится на его норму.
-<p><code>
-      PetscCall(BVDotColumn(V, i, work));
+<p><code>PetscCall(BVDotColumn(V, i, work));
     PetscCall(BVMultColumn(V, -1.0, 1.0, i, work));
     PetscCall(BVNormColumn(V, i, NORM_2, &b));
     PetscCheck(PetscAbsReal(b) > 10 * PETSC_MACHINE_EPSILON,     
@@ -319,8 +313,7 @@ PetscFunctionBegin;
 </code></p>
 Ортогонализация i-того столбца.
 Если после ортогонализации вектор становится очень малым (меньше определенного порога), возникает ошибка, и предлагается использовать двухсторонний метод.
-<p><code>
-    PetscCall(BVGetColumn(V, i, &z));
+<p><code>PetscCall(BVGetColumn(V, i, &z));
     PetscCall(MatMult(svd->A, z, u_1));
     PetscCall(BVRestoreColumn(V, i, &z));
     PetscCall(VecAXPY(u_1, -b, u));
@@ -334,8 +327,7 @@ PetscFunctionBegin;
 Обновляется вектор u_1 с помощью матричного умножения.
 векторы u и u_1 меняются местами.
 Коэффициенты a и b сохраняются в массивы.
-<p><code>
-  PetscCall(BVGetColumn(V, n, &z));
+<p><code>PetscCall(BVGetColumn(V, n, &z));
   PetscCall(MatMult(svd->AT, u, z));
   PetscCall(BVRestoreColumn(V, n, &z));
   PetscCall(VecNormBegin(u, NORM_2, &a));
@@ -358,8 +350,7 @@ PetscFunctionBegin;
 
 ### SVDSolve_Lanczos ###
 Эта функция реализует основной алгоритм для решения задачи сингулярных значений методом Ланцоша.
-<p><code>
-  PetscCall(DSGetLeadingDimension(svd->ds, &ld));
+<p><code>PetscCall(DSGetLeadingDimension(svd->ds, &ld));
   PetscCall(PetscMalloc2(ld, &w, svd->ncv, &swork));
   if (lanczos->oneside) {
     PetscCall(MatCreateVecs(svd->A, NULL, &u));
@@ -374,8 +365,7 @@ PetscFunctionBegin;
 Создаются вектора для одностороннего метода.
 Если начальный вектор не задан, инициализируется случайным вектором и ортонормализуется.
 Далее идёт основной итерационный цикл:
-<p><code>
-  while (svd->reason == SVD_CONVERGED_ITERATING) {
+<p><code>while (svd->reason == SVD_CONVERGED_ITERATING) {
     svd->its++;
     nv = PetscMin(svd->nconv + svd->mpd, svd->ncv);
     PetscCall(DSGetArrayReal(svd->ds, DS_MAT_T, &alpha));
@@ -390,8 +380,7 @@ PetscFunctionBegin;
 Устанавливется размерность, после чего выделяется память под массивы alpha и beta.
 Вызывается односторонний или двусторонний алгоритм Ланцоша в зависимости от выбранного метода.
 Далее идёт сингулярное разложения матрицы T:
-<p><code>
-  PetscCall(DSSetDimensions(svd->ds, nv, svd->nconv, 0));
+<p><code>PetscCall(DSSetDimensions(svd->ds, nv, svd->nconv, 0));
   PetscCall(DSSVDSetDimensions(svd->ds, nv));
   PetscCall(SVDKrylovConvergence(svd, PETSC_FALSE, svd->nconv, nv - svd->nconv, 1.0, &k));
   if (svd->reason == SVD_CONVERGED_ITERATING) {
@@ -413,6 +402,6 @@ PetscFunctionBegin;
 </code></p>
 Матрица Т проходит сингулярное разложение, проверяется сходимость, если сходимость не доснигнута, генерируется новый начальный вектор,затем вычесляются вингулярные вектора и очищается память.
 ## Список литературы ##
-<p>Lanczos and the Riemannian SVD in information retrieval applications-Fierro-Jiang-2005.pdf</p>
+<p>Lanczos and the Riemannian SVD in information retrieval applications-Fierro-Jiang-2005 страница 359</p>
 <p><a href="https://slepc.upv.es/documentation/reports/str5.pdf">Lanczos Methods in SLEPc</a></p>
 <p><a href="https://slepc.upv.es/documentation/reports/str8.pdf">Restarted Lanczos Bidiagonalization for the SVD in SLEPc</a></p>
