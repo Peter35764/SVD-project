@@ -2,80 +2,53 @@
 
 Этот файл представляет собой обёртку для библиотеки PRIMME
 
-# Имплиментация 
+## Имплиментация 
 
 файл svdprimme.c представляет собой обёртку для библиотки primme 
-## multMatvec_PRIMME
-```c++
-static void multMatvec_PRIMME(void *xa,PRIMME_INT *ldx,void *ya,PRIMME_INT *ldy,int *blockSize,int *transpose,struct primme_svds_params *primme,int *ierr)
-{
-  PetscInt   i;
-  SVD_PRIMME *ops = (SVD_PRIMME*)primme->matrix;
-  Vec        x = ops->x,y = ops->y;
-  SVD        svd = ops->svd;
-
-  PetscFunctionBegin;
-  for (i=0;i<*blockSize;i++) {
-    if (*transpose) {
-      PetscCallAbort(PetscObjectComm((PetscObject)svd),VecPlaceArray(y,(PetscScalar*)xa+(*ldx)*i));
-      PetscCallAbort(PetscObjectComm((PetscObject)svd),VecPlaceArray(x,(PetscScalar*)ya+(*ldy)*i));
-      PetscCallAbort(PetscObjectComm((PetscObject)svd),MatMult(svd->AT,y,x));
-    } else {
-      PetscCallAbort(PetscObjectComm((PetscObject)svd),VecPlaceArray(x,(PetscScalar*)xa+(*ldx)*i));
-      PetscCallAbort(PetscObjectComm((PetscObject)svd),VecPlaceArray(y,(PetscScalar*)ya+(*ldy)*i));
-      PetscCallAbort(PetscObjectComm((PetscObject)svd),MatMult(svd->A,x,y));
-    }
-    PetscCallAbort(PetscObjectComm((PetscObject)svd),VecResetArray(x));
-    PetscCallAbort(PetscObjectComm((PetscObject)svd),VecResetArray(y));
-  }
-  PetscFunctionReturnVoid();
-}
-
-```
+### ```multMatvec_PRIMME```
 Это функция релизует умножение матрицы(или транспонированной матрицы) на вектор.
 По сути получает входные массивы векторов xa,ya и их размеры.
 В зависимости от параметра transpose вызывает либо умножение на матрицу, либо на транспонированную матрицу.
-## par_GlobalSumReal
-```c++
-static void par_GlobalSumReal(void *sendBuf,void *recvBuf,int *count,primme_svds_params *primme,int *ierr)
-{
-  if (sendBuf == recvBuf) {
-    *ierr = MPI_Allreduce(MPI_IN_PLACE,recvBuf,*count,MPIU_REAL,MPIU_SUM,PetscObjectComm((PetscObject)primme->commInfo));
-  } else {
-    *ierr = MPI_Allreduce(sendBuf,recvBuf,*count,MPIU_REAL,MPIU_SUM,PetscObjectComm((PetscObject)primme->commInfo));
-  }
-}
-```
+
+### ```par_GlobalSumReal```  
 Выполняет глобальное суммирование выщественных значений между процессами.
 Использует MPI_Allreduce длля суммированиия значений из всех процессов. Если входные и выходные данные совпадают используется оптимизированный режим MPI_IN_PLACE
-## SVDSetUp_PRIMME
+### ```SVDSetUp_PRIMME```
+Функция `SVDSetUp_PRIMME` настраивает вычисления сингулярных значений и векторов (SVD) с использованием библиотеки PRIMME. Она включает этапы проверки, инициализации параметров PRIMME, переноса настроек из SLEPc и выделения рабочего пространства.
+
 ```c++
-static PetscErrorCode SVDSetUp_PRIMME(SVD svd)
-{
-  PetscMPIInt        numProcs,procID;
-  PetscInt           n,m,nloc,mloc;
-  SVD_PRIMME         *ops = (SVD_PRIMME*)svd->data;
-  primme_svds_params *primme = &ops->primme;
+PetscMPIInt        numProcs, procID;
+SVD_PRIMME         *ops = (SVD_PRIMME*)svd->data;
+primme_svds_params *primme = &ops->primme;
 
-  PetscFunctionBegin;
-  SVDCheckStandard(svd);
-  SVDCheckDefinite(svd);
-  PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)svd),&numProcs));
-  PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)svd),&procID));
+PetscFunctionBegin;
+SVDCheckStandard(svd);
+SVDCheckDefinite(svd);
+PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)svd), &numProcs));
+PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)svd), &procID));
+```
+Извлекаются данные о параллельной среде:
+numProcs: Количество процессов.
+procID: Идентификатор текущего процесса.
+Проверяется корректность вида задачи SVD (например, стандартный или обобщенный).
 
-  /* Check some constraints and set some default values */
-  PetscCall(MatGetSize(svd->A,&m,&n));
-  PetscCall(MatGetLocalSize(svd->A,&mloc,&nloc));
-  PetscCall(SVDSetDimensions_Default(svd));
-  if (svd->max_it==PETSC_DETERMINE) svd->max_it = PETSC_INT_MAX;
-  svd->leftbasis = PETSC_TRUE;
-  SVDCheckUnsupported(svd,SVD_FEATURE_STOPPING);
-#if !defined(SLEPC_HAVE_PRIMME2p2)
-  if (svd->converged != SVDConvergedAbsolute) PetscCall(PetscInfo(svd,"Warning: using absolute convergence test\n"));
-#endif
+```c++
+PetscCall(MatGetSize(svd->A, &m, &n));
+PetscCall(MatGetLocalSize(svd->A, &mloc, &nloc));
+PetscCall(SVDSetDimensions_Default(svd));
+if (svd->max_it == PETSC_DETERMINE) svd->max_it = PETSC_INT_MAX;
+svd->leftbasis = PETSC_TRUE;
+SVDCheckUnsupported(svd, SVD_FEATURE_STOPPING);
+```
+Получаются размеры матрицы svd->A:
+m, n: Глобальные размеры матрицы.
+mloc, nloc: Локальные размеры матрицы.
+Устанавливаются значения по умолчанию:
+Максимальное число итераций (max_it).
+Флаг необходимости вычисления левой базы (leftbasis).
 
-  /* Transfer SLEPc options to PRIMME options */
-  primme_svds_free(primme);
+```c++
+primme_svds_free(primme);
   primme_svds_initialize(primme);
   primme->m             = (PRIMME_INT)m;
   primme->n             = (PRIMME_INT)n;
@@ -110,98 +83,77 @@ static PetscErrorCode SVDSetUp_PRIMME(SVD svd)
       primme->target = primme_svds_smallest;
       break;
   }
-
-  /* If user sets mpd or ncv, maxBasisSize is modified */
-  if (svd->mpd!=PETSC_DETERMINE) {
-    primme->maxBasisSize = (int)svd->mpd;
-    if (svd->ncv!=PETSC_DETERMINE) PetscCall(PetscInfo(svd,"Warning: 'ncv' is ignored by PRIMME\n"));
-  } else if (svd->ncv!=PETSC_DETERMINE) primme->maxBasisSize = (int)svd->ncv;
-
-  PetscCheck(primme_svds_set_method(ops->method,(primme_preset_method)EPS_PRIMME_DEFAULT_MIN_TIME,PRIMME_DEFAULT_METHOD,primme)>=0,PetscObjectComm((PetscObject)svd),PETSC_ERR_SUP,"PRIMME method not valid");
-
-  svd->mpd = (PetscInt)primme->maxBasisSize;
-  svd->ncv = (PetscInt)(primme->locking?svd->nsv:0)+primme->maxBasisSize;
-  ops->bs  = (PetscInt)primme->maxBlockSize;
-
-  /* Set workspace */
-  PetscCall(SVDAllocateSolution(svd,0));
-
-  /* Prepare auxiliary vectors */
-  if (!ops->x) PetscCall(MatCreateVecsEmpty(svd->A,&ops->x,&ops->y));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 ```
-Настройка контекста SVD для использования PRIMME.
-тут происходит проверка корректности матриц, инициализация структуры параметров PRIMME, передача параметров SLEPc в PRIMME и выделение памяти.
+Тут инициализируются параметры Primme
 
-## SVDSolve_PRIMME
+```c++
+switch (svd->which) {
+  case SVD_LARGEST:
+    primme->target = primme_svds_largest;
+    break;
+  case SVD_SMALLEST:
+    primme->target = primme_svds_smallest;
+    break;
+}
+```
+Определяется метод поиска:
+SVD_LARGEST: Поиск наибольших сингулярных значений.
+SVD_SMALLEST: Поиск наименьших сингулярных значений.
+
+```c++
+if (svd->mpd != PETSC_DETERMINE) {
+  primme->maxBasisSize = (int)svd->mpd;
+  if (svd->ncv != PETSC_DETERMINE) 
+    PetscCall(PetscInfo(svd, "Warning: 'ncv' is ignored by PRIMME\n"));
+} else if (svd->ncv != PETSC_DETERMINE) {
+  primme->maxBasisSize = (int)svd->ncv;
+}
+```
+Обработка пользовательских настроек
+mpd: Максимальное количество направлений поиска.
+ncv: Размер пространства Крылова.
+При конфликте настроек выводится предупреждение.
+
+
+### ```SVDSolve_PRIMME```
 
 Функция для решения задачи.
 
 ```c++
-static PetscErrorCode SVDSolve_PRIMME(SVD svd)
-{
-  SVD_PRIMME     *ops = (SVD_PRIMME*)svd->data;
-  PetscScalar    *svecs, *a;
-  PetscInt       i,ierrprimme,ld;
-  PetscReal      *svals,*rnorms;
-
-  PetscFunctionBegin;
-  /* Reset some parameters left from previous runs */
-  ops->primme.aNorm    = 0.0;
-  ops->primme.initSize = (int)svd->nini;
-  ops->primme.iseed[0] = -1;
-  ops->primme.iseed[1] = -1;
-  ops->primme.iseed[2] = -1;
-  ops->primme.iseed[3] = -1;
-
-  /* Allocating left and right singular vectors contiguously */
-  PetscCall(PetscCalloc1(ops->primme.numSvals*(ops->primme.mLocal+ops->primme.nLocal),&svecs));
-
-  /* Call PRIMME solver */
-  PetscCall(PetscMalloc2(svd->ncv,&svals,svd->ncv,&rnorms));
-  ierrprimme = PRIMME_DRIVER(svals,svecs,rnorms,&ops->primme);
-  for (i=0;i<svd->ncv;i++) svd->sigma[i] = svals[i];
-  for (i=0;i<svd->ncv;i++) svd->errest[i] = rnorms[i];
-  PetscCall(PetscFree2(svals,rnorms));
-
-  /* Copy left and right singular vectors into svd */
-  PetscCall(BVGetLeadingDimension(svd->U,&ld));
-  PetscCall(BVGetArray(svd->U,&a));
-  for (i=0;i<ops->primme.initSize;i++) PetscCall(PetscArraycpy(a+i*ld,svecs+i*ops->primme.mLocal,ops->primme.mLocal));
-  PetscCall(BVRestoreArray(svd->U,&a));
-
-  PetscCall(BVGetLeadingDimension(svd->V,&ld));
-  PetscCall(BVGetArray(svd->V,&a));
-  for (i=0;i<ops->primme.initSize;i++) PetscCall(PetscArraycpy(a+i*ld,svecs+ops->primme.mLocal*ops->primme.initSize+i*ops->primme.nLocal,ops->primme.nLocal));
-  PetscCall(BVRestoreArray(svd->V,&a));
-
-  PetscCall(PetscFree(svecs));
-
-  svd->nconv  = ops->primme.initSize >= 0 ? (PetscInt)ops->primme.initSize : 0;
-  svd->reason = svd->nconv >= svd->nsv ? SVD_CONVERGED_TOL: SVD_DIVERGED_ITS;
-  PetscCall(PetscIntCast(ops->primme.stats.numOuterIterations,&svd->its));
-
-  /* Process PRIMME error code */
-  if (ierrprimme != 0) {
-    switch (ierrprimme%100) {
-      case -1:
-        SETERRQ(PetscObjectComm((PetscObject)svd),PETSC_ERR_LIB,"PRIMME library failed with error code=%" PetscInt_FMT ": unexpected error",ierrprimme);
-      case -2:
-        SETERRQ(PetscObjectComm((PetscObject)svd),PETSC_ERR_LIB,"PRIMME library failed with error code=%" PetscInt_FMT ": allocation error",ierrprimme);
-      case -3: /* stop due to maximum number of iterations or matvecs */
-        break;
-      default:
-        PetscCheck(ierrprimme<-39,PetscObjectComm((PetscObject)svd),PETSC_ERR_LIB,"PRIMME library failed with error code=%" PetscInt_FMT ": configuration error; check PRIMME's manual",ierrprimme);
-        PetscCheck(ierrprimme>=-39,PetscObjectComm((PetscObject)svd),PETSC_ERR_LIB,"PRIMME library failed with error code=%" PetscInt_FMT ": runtime error; check PRIMME's manual",ierrprimme);
-    }
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+SVD_PRIMME *ops = (SVD_PRIMME*)svd->data;
+PetscScalar *svecs, *a;
+PetscInt i,ierrprimme,ld;
+PetscReal *svals,*rnorms;
 ```
-Сначала инициализируются параметры и выделяется память, затем вызывается функция из PRIMME для решения задачи свд, тут PRIMME_DRIVER - макрос, который зависит от конфигурации, например вещественный или комплексный.
-Затем копируются вычесленные сингулярные значения, левые и правые сингулярные векторы и нормы ошибок, после этого устанавливается статус вычеслений и обрабатываются ошибки PRIMME.
+Инициализируются необходимые переменные, указатели и структуры для выполнения задачи.
+ops — указатель на структуру данных PRIMME, содержащую параметры алгоритма.
+svecs и a — указатели для хранения векторов сингулярного разложения.
+svals и rnorms — массивы для хранения сингулярных значений и ошибок норм.
+
+```c++
+ops->primme.aNorm = 0.0;
+ops->primme.initSize = (int)svd->nini;
+ops->primme.iseed[0] = -1;
+ops->primme.iseed[1] = -1;
+ops->primme.iseed[2] = -1;
+ops->primme.iseed[3] = -1;
+```
+Сбрасываются некоторые параметры PRIMME для подготовки к новому запуску.
+aNorm — начальная норма матрицы.
+initSize — начальный размер подпространства.
+iseed — начальное состояние для генерации случайных чисел.
+```c++
+PetscCall(PetscCalloc1(ops->primme.numSvals*(ops->primme.mLocal+ops->primme.nLocal),&svecs));
+PetscCall(PetscMalloc2(svd->ncv,&svals,svd->ncv,&rnorms));
+ierrprimme = PRIMME_DRIVER(svals,svecs,rnorms,&ops->primme);
+for (i=0;i<svd->ncv;i++) svd->sigma[i] = svals[i];
+for (i=0;i<svd->ncv;i++) svd->errest[i] = rnorms[i];
+PetscCall(PetscFree2(svals,rnorms));
+svd->nconv = ops->primme.initSize >= 0 ? (PetscInt)ops->primme.initSize : 0;
+svd->reason = svd->nconv >= svd->nsv ? SVD_CONVERGED_TOL : SVD_DIVERGED_ITS;
+PetscCall(PetscIntCast(ops->primme.stats.numOuterIterations,&svd->its));
+```
+Тут решается основная задача, копируются результаты и устанавливается статус решения.
 
 Примечание:
 Основная функция PRIMME для решения задачи SVD. В зависимости от конфигурации она может использовать один из следующих вариантов:
@@ -209,8 +161,23 @@ static PetscErrorCode SVDSolve_PRIMME(SVD svd)
 2. zprimme_svds (комплексные числа, двойная точность)
 3. sprimme_svds (вещественные числа, одинарная точность)
 4. dprimme_svds (вещественные числа, двойная точность)
-
-## SVDReset_PRIMME
+```c++
+if (ierrprimme != 0) {
+  switch (ierrprimme%100) {
+    case -1:
+      SETERRQ(..., "unexpected error");
+    case -2:
+      SETERRQ(..., "allocation error");
+    case -3:
+      break;
+    default:
+      PetscCheck(..., "configuration error; check PRIMME's manual");
+      PetscCheck(..., "runtime error; check PRIMME's manual");
+  }
+}
+```
+Обаботка ошибок.
+### ```SVDReset_PRIMME```
 ```c++
 static PetscErrorCode SVDReset_PRIMME(SVD svd)
 {
@@ -226,7 +193,7 @@ static PetscErrorCode SVDReset_PRIMME(SVD svd)
 Эта функция освобождает ресурсы, связанные с PRIMME, которые были выделены в процессе выполнения. Она используется для сброса состояния объекта перед его повторным использованием или уничтожением.
 Как правило вызывается перед уничтожением объекта и перед повторной инициализации объекта для решения другой задачи.
 
-## SVDSetFromOptions_PRIMME
+### ```SVDSetFromOptions_PRIMME```
 ```c++
 static PetscErrorCode SVDSetFromOptions_PRIMME(SVD svd,PetscOptionItems *PetscOptionsObject)
 {
@@ -251,7 +218,7 @@ static PetscErrorCode SVDSetFromOptions_PRIMME(SVD svd,PetscOptionItems *PetscOp
 ```
 Эта функция считывает параметры, заданные пользователем, из командной строки или из конфигурационных файлов PETSc/SLEPc и настраивает решатель SVD PRIMME в соответствии с этими параметрами.
 
-## SVDPRIMMESetMethod
+### ```SVDPRIMMESetMethod```
 
 ```c++
 PetscErrorCode SVDPRIMMESetMethod(SVD svd,SVDPRIMMEMethod method)
@@ -264,19 +231,19 @@ PetscErrorCode SVDPRIMMESetMethod(SVD svd,SVDPRIMMEMethod method)
 }
 ```
 Какие методы можно передавать? Методы PRIMME:
-1. **SVD_PRIMME_HYBRID**
+1. **`SVD_PRIMME_HYBRID`**
     **Описание:** Гибридный метод, сочетающий несколько подходов для достижения высокой производительности.
-2. **SVD_PRIMME_DYNAMIC**
+2. **`SVD_PRIMME_DYNAMIC`**
     **Описание:** Метод с динамическим выбором стратегии на основе текущих вычислений.
-3. **SVD_PRIMME_DEFAULT_MIN_TIME**
+3. **`SVD_PRIMME_DEFAULT_MIN_TIME`**
     **Описание:** Метод, минимизирующий время выполнения.
-4. **SVD_PRIMME_LOWER**
+4. **`SVD_PRIMME_LOWER`**
     **Описание:** Метод для поиска наименьших сингулярных значений.
-5. **SVD_PRIMME_UPPER**
+5. **`SVD_PRIMME_UPPER`**
     **Описание:** Метод для поиска наибольших сингулярных значений.
-6. **SVD_PRIMME_JDQR**
+6. **`SVD_PRIMME_JDQR`**
     **Описание:** Метод Джекоби-Дэвидсона (Jacobi-Davidson) для задач на сингулярные значения.
-7. **SVD_PRIMME_GD**
+7. **`SVD_PRIMME_GD`**
     **Описание:** Градиентный метод.
 8. **`SVD_PRIMME_GD_PLUSK`**
     **Описание:** Модифицированный градиентный метод с улучшением через дополнительные базисные векторы.
@@ -284,6 +251,15 @@ PetscErrorCode SVDPRIMMESetMethod(SVD svd,SVDPRIMMEMethod method)
     **Описание:** Вариация метода `GD_PLUSK`, оптимизированная для некоторых типов матриц.
 10. **`SVD_PRIMME_DEFAULT_MIN_RESIDUAL`**
     **Описание:** Метод, минимизирующий резидуал (остаточную ошибку).
+
+### ```SVDPRIMMEGetMethod_PRIMME```
+Функция  возвращает текущий метод решения, установленный для задачи SVD с использованием библиотеки PRIMME. Этот метод позволяет пользователю узнать, какой предопределенный метод PRIMME используется для решения задачи.
+
+### ```SVDPRIMMEGetMethod ```
+Функция предназначена для получения текущего метода, используемого библиотекой PRIMME для вычисления сингулярных значений. Метод возвращается пользователю через указатель на переменную, позволяя узнать настройки текущего метода вычислений.
+
+### ``` SVDCreate_PRIMME ```
+Функция `SVDCreate_PRIMME` создает и инициализирует контекст PRIMME для решения задачи вычисления сингулярных значений (SVD). Она выделяет память, настраивает параметры PRIMME по умолчанию, и связывает соответствующие функции-обработчики для различных операций, таких как решение, настройка, очистка и отображение.
 
 ---
 
