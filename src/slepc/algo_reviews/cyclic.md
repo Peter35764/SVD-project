@@ -617,6 +617,7 @@ ctx->misaligned = (((ranges[i+1] - ranges[i]) * sizeof(PetscScalar)) % 16) ? PET
 - Матрица B;
 - Вектор x;
 - Вектор y.\
+
 Выходные данные:
 - Вектор y= B*x.\
 
@@ -654,6 +655,7 @@ static PetscErrorCode MatMult_Cyclic(Mat B,Vec x,Vec y)
 Входные данные:
 - Матрица B;
 - Вектор diag.\
+
 Выходные данные:
 - Нулевой вектор diag, сопоставимый с размерами матрица B.\
 
@@ -698,6 +700,7 @@ static PetscErrorCode MatDestroy_Cyclic(Mat B)
 - Матрица B;
 - Вектор x;
 - Вектор y.\
+
 Выходные данные:
 - Вектор y= B*x.\
 ```
@@ -735,6 +738,7 @@ static PetscErrorCode MatMult_ECross(Mat B,Vec x,Vec y)
 ### Функция MatDestroy_ECross(Mat B) - деструктор кросс-матрицы B.\
 Входные данные: 
 - Кросс-матрица B.\
+
 Выходные данные: -. 
 ```
 static PetscErrorCode MatDestroy_ECross(Mat B)
@@ -767,6 +771,7 @@ static PetscErrorCode MatDestroy_ECross(Mat B)
 - PetscReal res ошибка для найденного собственного значения.
 - PetscReal *errest указывает, куда функция должна записать вычисленную оценку ошибки.
 - void *ctx передается объект типа SVD, содержащий параметры сингулярного разложения матриц.\
+  
 Выходные данные:
 - PETSC_SUCCESS: Функция завершилась успешно, иначе код ошибки.
 - PetscReal errest вычисленная оценка ошибки сходимости.
@@ -786,6 +791,7 @@ static PetscErrorCode EPSConv_Cyclic(EPS eps,PetscScalar eigr,PetscScalar eigi,P
 
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.\
+  
 Выходные данные:
 - обновленная структура SVD: svd->sigma: Массив найденных сингулярных значений; svd->nconv: Количество найденных сингулярных значений; svd->its: Количество итераций, потребовавшихся для решения; svd->reason: Причина завершения вычислений.\
 
@@ -833,6 +839,7 @@ static PetscErrorCode SVDSolve_Cyclic(SVD svd)
 
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.\
+  
 Выходные данные:
 - обновленная структура SVD.
 ```
@@ -865,6 +872,7 @@ static PetscErrorCode SVDComputeVectors_Cyclic(SVD svd)
 - PetscReal res ошибка для найденного собственного значения.
 - PetscReal *errest указывает, куда функция должна записать вычисленную оценку ошибки.
 - void *ctx передается объект типа SVD, содержащий параметры сингулярного разложения матриц.\
+  
 Выходные данные:
 - PETSC_SUCCESS: Функция завершилась успешно, иначе код ошибки.
 - PetscReal errest вычисленная оценка ошибки сходимости.
@@ -902,7 +910,8 @@ static PetscErrorCode EPSMonitor_Cyclic(EPS eps,PetscInt its,PetscInt nconv,Pets
 
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
-- PetscOptionItems *PetscOptionsObject передает пользовательские параметры.
+- PetscOptionItems *PetscOptionsObject передает пользовательские параметры.\
+  
 Выходные данные:
 - обновленная структура SVD.
 
@@ -937,6 +946,7 @@ static PetscErrorCode SVDSetFromOptions_Cyclic(SVD svd,PetscOptionItems *PetscOp
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
 - PetscBool explicitmat - логический параметр, указывающий, использовать ли явную матрицу в вычислениях.\
+  
 Выходные данные:
 - PetscBool explicitmat.
   
@@ -959,6 +969,7 @@ static PetscErrorCode SVDCyclicSetExplicitMatrix_Cyclic(SVD svd,PetscBool explic
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
 - PetscBool explicitmat - логический параметр, указывающий, использовать ли явную матрицу в вычислениях.\
+  
 Выходные данные:
 - PetscBool explicitmat.
 
@@ -978,6 +989,7 @@ PetscErrorCode SVDCyclicSetExplicitMatrix(SVD svd,PetscBool explicitmat)
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
 - указатель на PetscBool explicitmat - логический параметр, указывающий, использовать ли явную матрицу в вычислениях.\
+  
 Выходные данные:
 - PetscBool explicitmat.
 
@@ -996,6 +1008,7 @@ static PetscErrorCode SVDCyclicGetExplicitMatrix_Cyclic(SVD svd,PetscBool *expli
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
 - объект EPS, который содержит данные для собственных значений. \
+  
 Выходные данные: -.
 
 ```
@@ -1013,6 +1026,7 @@ PetscErrorCode SVDCyclicSetEPS(SVD svd,EPS eps)
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
 - Указатель на переменную, в которую будет записан объект EPS. \
+  
 Выходные данные:
 - Указатель на объект EPS.
 
@@ -1040,6 +1054,7 @@ static PetscErrorCode SVDCyclicGetEPS_Cyclic(SVD svd,EPS *eps)
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
 - Указатель на переменную, в которую будет записан объект EPS. \
+  
 Выходные данные:-.\
 
 ```
@@ -1057,6 +1072,7 @@ PetscErrorCode SVDCyclicGetEPS(SVD svd,EPS *eps)
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
 - Объект PPetscViewer для вывода информации. \
+  
 Выходные данные:
 - PetscViewer viewer.\
 
@@ -1082,6 +1098,7 @@ static PetscErrorCode SVDView_Cyclic(SVD svd,PetscViewer viewer)
 ### Фукнция SVDReset_Cyclic(SVD svd) - используется для сброса состояния метода cyclic в задаче сингулярного разложения (SVD). Она освобождает ресурсы, связанные с этим методом, включая объект EPS и вспомогательные матрицы. \
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.\
+  
 Выходные данные:-\
 ```
 static PetscErrorCode SVDReset_Cyclic(SVD svd)
@@ -1099,6 +1116,7 @@ static PetscErrorCode SVDReset_Cyclic(SVD svd)
 ### Фукнция  SVDDestroy_Cyclic(SVD svd) - освобождает все ресурсы, связанные с методом cyclic для задачи сингулярного разложения (SVD). Она уничтожает объект EPS, освобождает память, используемую структурой данных SVD_CYCLIC, и удаляет связанные с методом cyclic функции. \
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.\
+  
 Выходные данные:-\
 
 ```
@@ -1121,6 +1139,7 @@ static PetscErrorCode SVDDestroy_Cyclic(SVD svd)
 
 Входные данные:
 - объект SVD (сингулярное разложение), который содержит данные и параметры задачи.\
+  
 Выходные данные:
 - Обновленные объект SVD.
 
