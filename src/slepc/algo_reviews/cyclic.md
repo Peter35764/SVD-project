@@ -608,6 +608,547 @@ MATOP_MULT: умножение матрицы на вектор
 ctx->misaligned = (((ranges[i+1] - ranges[i]) * sizeof(PetscScalar)) % 16) ? PETSC_TRUE : PETSC_FALSE;
 ```
 
+
+## Имплементация.
+
+### Функция MatMult_Cyclic(Mat B,Vec x,Vec y) - функция которая принимает на вход примает входную матрицу, входной вектор, выходной вектор. Позволяет умножить матрицу B на вектор x с помощью стандартных циклических операций.
+
+Входные данные: 
+- Матрица B;
+- Вектор x;
+- Вектор y.\
+Выходные данные:
+- Вектор y= B*x.\
+
+```
+static PetscErrorCode MatMult_Cyclic(Mat B,Vec x,Vec y)
+{
+  SVD_CYCLIC_SHELL  *ctx;
+  const PetscScalar *px;
+  PetscScalar       *py;
+  PetscInt          m;
+
+  PetscFunctionBegin;
+  PetscCall(MatShellGetContext(B,&ctx));
+  PetscCall(MatGetLocalSize(ctx->A,&m,NULL));
+  PetscCall(VecGetArrayRead(x,&px));
+  PetscCall(VecGetArrayWrite(y,&py));
+  PetscCall(VecPlaceArray(ctx->x1,px));
+  PetscCall(VecPlaceArray(ctx->x2,px+m));
+  PetscCall(VecPlaceArray(ctx->y1,py));
+  PetscCall(VecPlaceArray(ctx->y2,py+m));
+  PetscCall(MatMult(ctx->A,ctx->x2,ctx->y1));
+  PetscCall(MatMult(ctx->AT,ctx->x1,ctx->y2));
+  PetscCall(VecResetArray(ctx->x1));
+  PetscCall(VecResetArray(ctx->x2));
+  PetscCall(VecResetArray(ctx->y1));
+  PetscCall(VecResetArray(ctx->y2));
+  PetscCall(VecRestoreArrayRead(x,&px));
+  PetscCall(VecRestoreArrayWrite(y,&py));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Функция MatGetDiagonal_Cyclic(Mat B,Vec diag) - функция, которая возвращает нулевой вектор.
+
+Входные данные:
+- Матрица B;
+- Вектор diag.\
+Выходные данные:
+- Нулевой вектор diag, сопоставимый с размерами матрица B.\
+
+
+```
+static PetscErrorCode MatGetDiagonal_Cyclic(Mat B,Vec diag)
+{
+  PetscFunctionBegin;
+  PetscCall(VecSet(diag,0.0));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Функция MatDestroy_Cyclic(Mat B) - деструктор матрица B.
+
+Входные данные:
+- Матрица B.
+Выходные данные: -.
+```
+static PetscErrorCode MatDestroy_Cyclic(Mat B)
+{
+  SVD_CYCLIC_SHELL *ctx;
+
+  PetscFunctionBegin;
+  PetscCall(MatShellGetContext(B,&ctx));
+  PetscCall(VecDestroy(&ctx->x1));
+  PetscCall(VecDestroy(&ctx->x2));
+  PetscCall(VecDestroy(&ctx->y1));
+  PetscCall(VecDestroy(&ctx->y2));
+  if (ctx->misaligned) {
+    PetscCall(VecDestroy(&ctx->wx2));
+    PetscCall(VecDestroy(&ctx->wy2));
+  }
+  PetscCall(PetscFree(ctx));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Функция MatMult_ECross(Mat B,Vec x,Vec y) - функция которая принимает на вход примает входную матрицу, входной вектор, выходной вектор. Позволяет умножить кросс-матрицу B на вектор x для вычислений с дополнительными ограничениями или временными значениями.
+
+Входные данные: 
+- Матрица B;
+- Вектор x;
+- Вектор y.\
+Выходные данные:
+- Вектор y= B*x.\
+```
+static PetscErrorCode MatMult_ECross(Mat B,Vec x,Vec y)
+{
+  SVD_CYCLIC_SHELL  *ctx;
+  const PetscScalar *px;
+  PetscScalar       *py;
+  PetscInt          mn,m,n;
+
+  PetscFunctionBegin;
+  PetscCall(MatShellGetContext(B,&ctx));
+  PetscCall(MatGetLocalSize(ctx->A,NULL,&n));
+  PetscCall(VecGetLocalSize(y,&mn));
+  m = mn-n;
+  PetscCall(VecGetArrayRead(x,&px));
+  PetscCall(VecGetArrayWrite(y,&py));
+  PetscCall(VecPlaceArray(ctx->x1,px));
+  PetscCall(VecPlaceArray(ctx->x2,px+m));
+  PetscCall(VecPlaceArray(ctx->y1,py));
+  PetscCall(VecPlaceArray(ctx->y2,py+m));
+  PetscCall(VecCopy(ctx->x1,ctx->y1));
+  PetscCall(MatMult(ctx->A,ctx->x2,ctx->w));
+  PetscCall(MatMult(ctx->AT,ctx->w,ctx->y2));
+  PetscCall(VecResetArray(ctx->x1));
+  PetscCall(VecResetArray(ctx->x2));
+  PetscCall(VecResetArray(ctx->y1));
+  PetscCall(VecResetArray(ctx->y2));
+  PetscCall(VecRestoreArrayRead(x,&px));
+  PetscCall(VecRestoreArrayWrite(y,&py));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Функция MatDestroy_ECross(Mat B) - деструктор кросс-матрицы B.\
+Входные данные: 
+- Кросс-матрица B.\
+Выходные данные: -. 
+```
+static PetscErrorCode MatDestroy_ECross(Mat B)
+{
+  SVD_CYCLIC_SHELL *ctx;
+
+  PetscFunctionBegin;
+  PetscCall(MatShellGetContext(B,&ctx));
+  PetscCall(VecDestroy(&ctx->x1));
+  PetscCall(VecDestroy(&ctx->x2));
+  PetscCall(VecDestroy(&ctx->y1));
+  PetscCall(VecDestroy(&ctx->y2));
+  PetscCall(VecDestroy(&ctx->diag));
+  PetscCall(VecDestroy(&ctx->w));
+  if (ctx->misaligned) {
+    PetscCall(VecDestroy(&ctx->wx2));
+    PetscCall(VecDestroy(&ctx->wy2));
+  }
+  PetscCall(PetscFree(ctx));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Функция EPSConv_Cyclic(EPS eps,PetscScalar eigr,PetscScalar eigi,PetscReal res,PetscReal *errest,void *ctx) - функция, которая обеспечивает корректную оценку ошибки, определяет сходимости алгоритма.\
+
+Входные данные:
+- EPS eps - представляет контекст задачи нахождения собственных значений.
+- PetscScalar eigr хранит реальную часть текущего вычисленного собственного значения.
+- PetscScalar eigi хранит мнимую часть текущего вычисленного собственного значения.
+- PetscReal res ошибка для найденного собственного значения.
+- PetscReal *errest указывает, куда функция должна записать вычисленную оценку ошибки.
+- void *ctx передается объект типа SVD, содержащий параметры сингулярного разложения матриц.\
+Выходные данные:
+- PETSC_SUCCESS: Функция завершилась успешно, иначе код ошибки.
+- PetscReal errest вычисленная оценка ошибки сходимости.
+  
+```
+static PetscErrorCode EPSConv_Cyclic(EPS eps,PetscScalar eigr,PetscScalar eigi,PetscReal res,PetscReal *errest,void *ctx)
+{
+  SVD svd = (SVD)ctx;
+
+  PetscFunctionBegin;
+  *errest = res/PetscMax(svd->nrma,svd->nrmb);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Функция  SVDSolve_Cyclic(SVD svd) - функция, которая реализует алгоритм решения задачи сингулярного разложения с использованием циклического метода.\
+
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.\
+Выходные данные:
+- обновленная структура SVD: svd->sigma: Массив найденных сингулярных значений; svd->nconv: Количество найденных сингулярных значений; svd->its: Количество итераций, потребовавшихся для решения; svd->reason: Причина завершения вычислений.\
+
+1. Объявление локальных переменных.
+2. Вызывает функцию EPSSolve, которая решает задачу нахождения собственных значений, используя объект EPS.
+3. Определяет, сколько собственных значений сошлось, и сохраняет результат в nconv.
+4. Извлекает количество итераций, выполненных для решения задачи, и сохраняет его в поле svd->its.
+5. Получает причину завершения вычислений и записывает ее в svd->reason.
+6. Цикл для обработки всех сошедшихся собственных значений:
+- Получает i-е собственное значение: er — реальная часть, ei — мнимая часть.
+- Проверяет корректность λ=er+ei⋅i (собственного значения) для задачи сингулярного разложения. преобразуется в сингулярное значение σ.
+- Проверка: используется только положительное σ, так как сингулярные значения по определению неотрицательны.
+- Если задача является обобщенной (svd->isgeneralized) и требуется минимальное сингулярное значение (svd->which == SVD_SMALLEST), используется обратное значение $1/σ$.
+- В остальных случаях сингулярное значение не меняется.
+7.Сохраняет количество найденных сингулярных значений в svd->nconv.
+
+```
+static PetscErrorCode SVDSolve_Cyclic(SVD svd)
+{
+  SVD_CYCLIC     *cyclic = (SVD_CYCLIC*)svd->data;
+  PetscInt       i,j,nconv;
+  PetscScalar    er,ei;
+  PetscReal      sigma;
+
+  PetscFunctionBegin;
+  PetscCall(EPSSolve(cyclic->eps));
+  PetscCall(EPSGetConverged(cyclic->eps,&nconv));
+  PetscCall(EPSGetIterationNumber(cyclic->eps,&svd->its));
+  PetscCall(EPSGetConvergedReason(cyclic->eps,(EPSConvergedReason*)&svd->reason));
+  for (i=0,j=0;i<nconv;i++) {
+    PetscCall(EPSGetEigenvalue(cyclic->eps,i,&er,&ei));
+    PetscCall(SVDCyclicCheckEigenvalue(svd,er,ei,&sigma,NULL));
+    if (sigma>0.0) {
+      if (svd->isgeneralized && svd->which==SVD_SMALLEST) svd->sigma[j] = 1.0/sigma;
+      else svd->sigma[j] = sigma;
+      j++;
+    }
+  }
+  svd->nconv = j;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Функция SVDComputeVectors_Cyclic(SVD svd) - выбирает подходящую реализацию вычисления сингулярных векторов, исходя из типа задачи, и вызывает соответствующую специализированную функцию.\
+
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.\
+Выходные данные:
+- обновленная структура SVD.
+```
+static PetscErrorCode SVDComputeVectors_Cyclic(SVD svd)
+{
+  PetscFunctionBegin;
+  switch (svd->problem_type) {
+    case SVD_STANDARD:
+      PetscCall(SVDComputeVectors_Cyclic_Standard(svd));
+      break;
+    case SVD_GENERALIZED:
+      PetscCall(SVDComputeVectors_Cyclic_Generalized(svd));
+      break;
+    case SVD_HYPERBOLIC:
+      PetscCall(SVDComputeVectors_Cyclic_Hyperbolic(svd));
+      break;
+    default:
+      SETERRQ(PetscObjectComm((PetscObject)svd),PETSC_ERR_ARG_WRONG,"Unknown singular value problem type");
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Функция EPSMonitor_Cyclic(EPS eps,PetscInt its,PetscInt nconv,PetscScalar *eigr,PetscScalar *eigi,PetscReal *errest,PetscInt nest,void *ctx) - реализует мониторинг процесса нахождения собственных значений в циклическом методе, связанного с задачей сингулярного разложения (SVD). Она выполняет обновление текущих сингулярных значений и ошибок их оценки, преобразуя собственные значения в сингулярные.
+
+Входные данные:
+- EPS eps - представляет контекст задачи нахождения собственных значений.
+- PetscScalar eigr хранит реальную часть текущего вычисленного собственного значения.
+- PetscScalar eigi хранит мнимую часть текущего вычисленного собственного значения.
+- PetscReal res ошибка для найденного собственного значения.
+- PetscReal *errest указывает, куда функция должна записать вычисленную оценку ошибки.
+- void *ctx передается объект типа SVD, содержащий параметры сингулярного разложения матриц.\
+Выходные данные:
+- PETSC_SUCCESS: Функция завершилась успешно, иначе код ошибки.
+- PetscReal errest вычисленная оценка ошибки сходимости.
+
+```
+static PetscErrorCode EPSMonitor_Cyclic(EPS eps,PetscInt its,PetscInt nconv,PetscScalar *eigr,PetscScalar *eigi,PetscReal *errest,PetscInt nest,void *ctx)
+{
+  PetscInt       i,j;
+  SVD            svd = (SVD)ctx;
+  PetscScalar    er,ei;
+  PetscReal      sigma;
+  ST             st;
+
+  PetscFunctionBegin;
+  nconv = 0;
+  PetscCall(EPSGetST(eps,&st));
+  for (i=0,j=0;i<PetscMin(nest,svd->ncv);i++) {
+    er = eigr[i]; ei = eigi[i];
+    PetscCall(STBackTransform(st,1,&er,&ei));
+    PetscCall(SVDCyclicCheckEigenvalue(svd,er,ei,&sigma,NULL));
+    if (sigma>0.0) {
+      svd->sigma[j]  = sigma;
+      svd->errest[j] = errest[i];
+      if (errest[i] && errest[i] < svd->tol) nconv++;
+      j++;
+    }
+  }
+  nest = j;
+  PetscCall(SVDMonitor(svd,its,nconv,svd->sigma,svd->errest,nest));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Фукнция SVDSetFromOptions_Cyclic(SVD svd,PetscOptionItems *PetscOptionsObject) - предназначена для настройки параметров задачи сингулярного разложения (SVD) методом cyclic на основе пользовательских опций. Она: Читает параметры, заданные через командную строку или программный интерфейс. Настраивает объект SVD в соответствии с этими параметрами. Обеспечивает корректное поведение метода с учетом выбранных настроек.\
+
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
+- PetscOptionItems *PetscOptionsObject передает пользовательские параметры.
+Выходные данные:
+- обновленная структура SVD.
+
+```
+static PetscErrorCode SVDSetFromOptions_Cyclic(SVD svd,PetscOptionItems *PetscOptionsObject)
+{
+  PetscBool      set,val;
+  SVD_CYCLIC     *cyclic = (SVD_CYCLIC*)svd->data;
+  ST             st;
+
+  PetscFunctionBegin;
+  PetscOptionsHeadBegin(PetscOptionsObject,"SVD Cyclic Options");
+
+    PetscCall(PetscOptionsBool("-svd_cyclic_explicitmatrix","Use cyclic explicit matrix","SVDCyclicSetExplicitMatrix",cyclic->explicitmatrix,&val,&set));
+    if (set) PetscCall(SVDCyclicSetExplicitMatrix(svd,val));
+
+  PetscOptionsHeadEnd();
+
+  if (!cyclic->eps) PetscCall(SVDCyclicGetEPS(svd,&cyclic->eps));
+  if (!cyclic->explicitmatrix && !cyclic->usereps) {
+    /* use as default an ST with shell matrix and Jacobi */
+    PetscCall(EPSGetST(cyclic->eps,&st));
+    PetscCall(STSetMatMode(st,ST_MATMODE_SHELL));
+  }
+  PetscCall(EPSSetFromOptions(cyclic->eps));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Фукнция SVDCyclicSetExplicitMatrix_Cyclic(SVD svd,PetscBool explicitmat) - обновляет параметр использования явной матрицы в методе циклического сингулярного разложения (SVD).\ 
+
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
+- PetscBool explicitmat - логический параметр, указывающий, использовать ли явную матрицу в вычислениях.\
+Выходные данные:
+- PetscBool explicitmat.
+  
+```
+static PetscErrorCode SVDCyclicSetExplicitMatrix_Cyclic(SVD svd,PetscBool explicitmat)
+{
+  SVD_CYCLIC *cyclic = (SVD_CYCLIC*)svd->data;
+
+  PetscFunctionBegin;
+  if (cyclic->explicitmatrix != explicitmat) {
+    cyclic->explicitmatrix = explicitmat;
+    svd->state = SVD_STATE_INITIAL;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+Функция SVDCyclicSetExplicitMatrix(SVD svd,PetscBool explicitmat) - обновляет параметр использования явной матрицы сингулярного разложения (SVD).\ 
+
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
+- PetscBool explicitmat - логический параметр, указывающий, использовать ли явную матрицу в вычислениях.\
+Выходные данные:
+- PetscBool explicitmat.
+
+```
+PetscErrorCode SVDCyclicSetExplicitMatrix(SVD svd,PetscBool explicitmat)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(svd,SVD_CLASSID,1);
+  PetscValidLogicalCollectiveBool(svd,explicitmat,2);
+  PetscTryMethod(svd,"SVDCyclicSetExplicitMatrix_C",(SVD,PetscBool),(svd,explicitmat));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Фукнция SVDCyclicGetExplicitMatrix_Cyclic(SVD svd,PetscBool *explicitmat) - возвращает информацию о том, используется ли явная матрица в расчетах.\
+
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
+- указатель на PetscBool explicitmat - логический параметр, указывающий, использовать ли явную матрицу в вычислениях.\
+Выходные данные:
+- PetscBool explicitmat.
+
+```
+static PetscErrorCode SVDCyclicGetExplicitMatrix_Cyclic(SVD svd,PetscBool *explicitmat)
+{
+  SVD_CYCLIC *cyclic = (SVD_CYCLIC*)svd->data;
+
+  PetscFunctionBegin;
+  *explicitmat = cyclic->explicitmatrix;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Фукнция SVDCyclicSetEPS(SVD svd,EPS eps) - используется для настройки объекта EPS (eigensolver) в контексте задачи сингулярного разложения (SVD) методом cyclic. Объект EPS является решателем собственных значений, который используется внутри метода cyclic для вычислений.\
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
+- объект EPS, который содержит данные для собственных значений. \
+Выходные данные: -.
+
+```
+PetscErrorCode SVDCyclicSetEPS(SVD svd,EPS eps)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(svd,SVD_CLASSID,1);
+  PetscValidHeaderSpecific(eps,EPS_CLASSID,2);
+  PetscCheckSameComm(svd,1,eps,2);
+  PetscTryMethod(svd,"SVDCyclicSetEPS_C",(SVD,EPS),(svd,eps));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+### Фукнция SVDCyclicSetEPS(SVD svd,EPS eps) - используется для получения объекта решателя собственных значений (EPS) в контексте метода cyclic для сингулярного разложения (SVD). Если объект EPS еще не создан, функция выполняет его инициализацию и настройку.\
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
+- Указатель на переменную, в которую будет записан объект EPS. \
+Выходные данные:
+- Указатель на объект EPS.
+
+```
+static PetscErrorCode SVDCyclicGetEPS_Cyclic(SVD svd,EPS *eps)
+{
+  SVD_CYCLIC     *cyclic = (SVD_CYCLIC*)svd->data;
+
+  PetscFunctionBegin;
+  if (!cyclic->eps) {
+    PetscCall(EPSCreate(PetscObjectComm((PetscObject)svd),&cyclic->eps));
+    PetscCall(PetscObjectIncrementTabLevel((PetscObject)cyclic->eps,(PetscObject)svd,1));
+    PetscCall(EPSSetOptionsPrefix(cyclic->eps,((PetscObject)svd)->prefix));
+    PetscCall(EPSAppendOptionsPrefix(cyclic->eps,"svd_cyclic_"));
+    PetscCall(PetscObjectSetOptions((PetscObject)cyclic->eps,((PetscObject)svd)->options));
+    PetscCall(EPSSetWhichEigenpairs(cyclic->eps,EPS_LARGEST_REAL));
+    PetscCall(EPSMonitorSet(cyclic->eps,EPSMonitor_Cyclic,svd,NULL));
+  }
+  *eps = cyclic->eps;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Фукнция SVDCyclicGetEPS(SVD svd,EPS *eps) - вызывает метод, специфичный для текущего типа SVD.\
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
+- Указатель на переменную, в которую будет записан объект EPS. \
+Выходные данные:-.\
+
+```
+PetscErrorCode SVDCyclicGetEPS(SVD svd,EPS *eps)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(svd,SVD_CLASSID,1);
+  PetscAssertPointer(eps,2);
+  PetscUseMethod(svd,"SVDCyclicGetEPS_C",(SVD,EPS*),(svd,eps));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Фукнция SVDView_Cyclic(SVD svd,PetscViewer viewer) - предназначена для отображения информации о состоянии метода cyclic для задачи сингулярного разложения (SVD). Она выводит информацию о настройках метода в указанный PetscViewer. \
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.
+- Объект PPetscViewer для вывода информации. \
+Выходные данные:
+- PetscViewer viewer.\
+
+```
+static PetscErrorCode SVDView_Cyclic(SVD svd,PetscViewer viewer)
+{
+  SVD_CYCLIC     *cyclic = (SVD_CYCLIC*)svd->data;
+  PetscBool      isascii;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&isascii));
+  if (isascii) {
+    if (!cyclic->eps) PetscCall(SVDCyclicGetEPS(svd,&cyclic->eps));
+    PetscCall(PetscViewerASCIIPrintf(viewer,"  %s matrix\n",cyclic->explicitmatrix?"explicit":"implicit"));
+    PetscCall(PetscViewerASCIIPushTab(viewer));
+    PetscCall(EPSView(cyclic->eps,viewer));
+    PetscCall(PetscViewerASCIIPopTab(viewer));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Фукнция SVDReset_Cyclic(SVD svd) - используется для сброса состояния метода cyclic в задаче сингулярного разложения (SVD). Она освобождает ресурсы, связанные с этим методом, включая объект EPS и вспомогательные матрицы. \
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.\
+Выходные данные:-\
+```
+static PetscErrorCode SVDReset_Cyclic(SVD svd)
+{
+  SVD_CYCLIC     *cyclic = (SVD_CYCLIC*)svd->data;
+
+  PetscFunctionBegin;
+  PetscCall(EPSReset(cyclic->eps));
+  PetscCall(MatDestroy(&cyclic->C));
+  PetscCall(MatDestroy(&cyclic->D));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Фукнция  SVDDestroy_Cyclic(SVD svd) - освобождает все ресурсы, связанные с методом cyclic для задачи сингулярного разложения (SVD). Она уничтожает объект EPS, освобождает память, используемую структурой данных SVD_CYCLIC, и удаляет связанные с методом cyclic функции. \
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.\
+Выходные данные:-\
+
+```
+static PetscErrorCode SVDDestroy_Cyclic(SVD svd)
+{
+  SVD_CYCLIC     *cyclic = (SVD_CYCLIC*)svd->data;
+
+  PetscFunctionBegin;
+  PetscCall(EPSDestroy(&cyclic->eps));
+  PetscCall(PetscFree(svd->data));
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDCyclicSetEPS_C",NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDCyclicGetEPS_C",NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDCyclicSetExplicitMatrix_C",NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDCyclicGetExplicitMatrix_C",NULL));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
+### Фукнция  SVDCreate_Cyclic - создает и инициализирует объект для задачи сингулярного разложения (SVD) с использованием метода cyclic. Она настраивает структуру данных SVD и задает функции, специфичные для метода cyclic.. \
+
+Входные данные:
+- объект SVD (сингулярное разложение), который содержит данные и параметры задачи.\
+Выходные данные:
+- Обновленные объект SVD.
+
+```
+SLEPC_EXTERN PetscErrorCode SVDCreate_Cyclic(SVD svd)
+{
+  SVD_CYCLIC     *cyclic;
+
+  PetscFunctionBegin;
+  PetscCall(PetscNew(&cyclic));
+  svd->data                = (void*)cyclic;
+  svd->ops->solve          = SVDSolve_Cyclic;
+  svd->ops->solveg         = SVDSolve_Cyclic;
+  svd->ops->solveh         = SVDSolve_Cyclic;
+  svd->ops->setup          = SVDSetUp_Cyclic;
+  svd->ops->setfromoptions = SVDSetFromOptions_Cyclic;
+  svd->ops->destroy        = SVDDestroy_Cyclic;
+  svd->ops->reset          = SVDReset_Cyclic;
+  svd->ops->view           = SVDView_Cyclic;
+  svd->ops->computevectors = SVDComputeVectors_Cyclic;
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDCyclicSetEPS_C",SVDCyclicSetEPS_Cyclic));
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDCyclicGetEPS_C",SVDCyclicGetEPS_Cyclic));
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDCyclicSetExplicitMatrix_C",SVDCyclicSetExplicitMatrix_Cyclic));
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDCyclicGetExplicitMatrix_C",SVDCyclicGetExplicitMatrix_Cyclic));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
+
 # References.
 
 1. SLEPc Users Manual Scalable Library for Eigenvalue Problem Computations, Carmen Campos Jose E. Roman, Eloy Romero Andres Tomas. Раздел EPS: Eigenvalue Problem Solver, страница 17.  
