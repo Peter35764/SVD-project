@@ -6,11 +6,49 @@
 
 файл svdprimme.c представляет собой обёртку для библиотки primme 
 ### ```multMatvec_PRIMME```
+```c++
+static void multMatvec_PRIMME(void *xa,PRIMME_INT *ldx,void *ya,PRIMME_INT *ldy,int *blockSize,int *transpose,struct primme_svds_params *primme,int *ierr)
+{
+  PetscInt   i;
+  SVD_PRIMME *ops = (SVD_PRIMME*)primme->matrix;
+  Vec        x = ops->x,y = ops->y;
+  SVD        svd = ops->svd;
+
+  PetscFunctionBegin;
+  for (i=0;i<*blockSize;i++) {
+    if (*transpose) {
+      PetscCallAbort(PetscObjectComm((PetscObject)svd),VecPlaceArray(y,(PetscScalar*)xa+(*ldx)*i));
+      PetscCallAbort(PetscObjectComm((PetscObject)svd),VecPlaceArray(x,(PetscScalar*)ya+(*ldy)*i));
+      PetscCallAbort(PetscObjectComm((PetscObject)svd),MatMult(svd->AT,y,x));
+    } else {
+      PetscCallAbort(PetscObjectComm((PetscObject)svd),VecPlaceArray(x,(PetscScalar*)xa+(*ldx)*i));
+      PetscCallAbort(PetscObjectComm((PetscObject)svd),VecPlaceArray(y,(PetscScalar*)ya+(*ldy)*i));
+      PetscCallAbort(PetscObjectComm((PetscObject)svd),MatMult(svd->A,x,y));
+    }
+    PetscCallAbort(PetscObjectComm((PetscObject)svd),VecResetArray(x));
+    PetscCallAbort(PetscObjectComm((PetscObject)svd),VecResetArray(y));
+  }
+  PetscFunctionReturnVoid();
+}
+```
 Это функция релизует умножение матрицы(или транспонированной матрицы) на вектор.
 По сути получает входные массивы векторов xa,ya и их размеры.
 В зависимости от параметра transpose вызывает либо умножение на матрицу, либо на транспонированную матрицу.
+Входные данные:
+Выходные данные:
 
-### ```par_GlobalSumReal```  
+### ```par_GlobalSumReal```
+```c++
+static void par_GlobalSumReal(void *sendBuf,void *recvBuf,int *count,primme_svds_params *primme,int *ierr)
+{
+  if (sendBuf == recvBuf) {
+    *ierr = MPI_Allreduce(MPI_IN_PLACE,recvBuf,*count,MPIU_REAL,MPIU_SUM,PetscObjectComm((PetscObject)primme->commInfo));
+  } else {
+    *ierr = MPI_Allreduce(sendBuf,recvBuf,*count,MPIU_REAL,MPIU_SUM,PetscObjectComm((PetscObject)primme->commInfo));
+  }
+}
+
+```
 Выполняет глобальное суммирование выщественных значений между процессами.
 Использует MPI_Allreduce длля суммированиия значений из всех процессов. Если входные и выходные данные совпадают используется оптимизированный режим MPI_IN_PLACE
 ### ```SVDSetUp_PRIMME```
@@ -253,12 +291,60 @@ PetscErrorCode SVDPRIMMESetMethod(SVD svd,SVDPRIMMEMethod method)
     **Описание:** Метод, минимизирующий резидуал (остаточную ошибку).
 
 ### ```SVDPRIMMEGetMethod_PRIMME```
+```c++
+static PetscErrorCode SVDPRIMMEGetMethod_PRIMME(SVD svd,SVDPRIMMEMethod *method)
+{
+  SVD_PRIMME *ops = (SVD_PRIMME*)svd->data;
+
+  PetscFunctionBegin;
+  *method = (SVDPRIMMEMethod)ops->method;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
 Функция  возвращает текущий метод решения, установленный для задачи SVD с использованием библиотеки PRIMME. Этот метод позволяет пользователю узнать, какой предопределенный метод PRIMME используется для решения задачи.
 
 ### ```SVDPRIMMEGetMethod ```
+```c++
+PetscErrorCode SVDPRIMMEGetMethod(SVD svd,SVDPRIMMEMethod *method)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(svd,SVD_CLASSID,1);
+  PetscAssertPointer(method,2);
+  PetscUseMethod(svd,"SVDPRIMMEGetMethod_C",(SVD,SVDPRIMMEMethod*),(svd,method));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
 Функция предназначена для получения текущего метода, используемого библиотекой PRIMME для вычисления сингулярных значений. Метод возвращается пользователю через указатель на переменную, позволяя узнать настройки текущего метода вычислений.
 
 ### ``` SVDCreate_PRIMME ```
+```c++
+SLEPC_EXTERN PetscErrorCode SVDCreate_PRIMME(SVD svd)
+{
+  SVD_PRIMME     *primme;
+
+  PetscFunctionBegin;
+  PetscCall(PetscNew(&primme));
+  svd->data = (void*)primme;
+
+  primme_svds_initialize(&primme->primme);
+  primme->bs = 0;
+  primme->method = (primme_svds_preset_method)SVD_PRIMME_HYBRID;
+  primme->svd = svd;
+
+  svd->ops->solve          = SVDSolve_PRIMME;
+  svd->ops->setup          = SVDSetUp_PRIMME;
+  svd->ops->setfromoptions = SVDSetFromOptions_PRIMME;
+  svd->ops->destroy        = SVDDestroy_PRIMME;
+  svd->ops->reset          = SVDReset_PRIMME;
+  svd->ops->view           = SVDView_PRIMME;
+
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDPRIMMESetBlockSize_C",SVDPRIMMESetBlockSize_PRIMME));
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDPRIMMEGetBlockSize_C",SVDPRIMMEGetBlockSize_PRIMME));
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDPRIMMESetMethod_C",SVDPRIMMESetMethod_PRIMME));
+  PetscCall(PetscObjectComposeFunction((PetscObject)svd,"SVDPRIMMEGetMethod_C",SVDPRIMMEGetMethod_PRIMME));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+```
 Функция `SVDCreate_PRIMME` создает и инициализирует контекст PRIMME для решения задачи вычисления сингулярных значений (SVD). Она выделяет память, настраивает параметры PRIMME по умолчанию, и связывает соответствующие функции-обработчики для различных операций, таких как решение, настройка, очистка и отображение.
 
 ---
