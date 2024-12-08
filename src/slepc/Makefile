@@ -14,5 +14,5 @@ slepc_example: slepc_example.o #chkopts
 clean_:
 	${RM} slepc_example.o slepc_example
 
-clang_format:
+clang_format: # style linter
 	clang-format -i clang_format/*.{c,cpp,h}

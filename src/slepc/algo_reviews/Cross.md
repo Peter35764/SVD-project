@@ -433,8 +433,9 @@ comm - коммуникатор MPI, на котором выполняется 
 Выходной параметр:
 b - сокращенные значения;
 6.3) 
-```PetscCall(VecGetOwnershipRange(ctx->diag,&start,&end));
-``` 
+
+```PetscCall(VecGetOwnershipRange(ctx->diag,&start,&end));```
+
 Возвращает диапазон индексов, принадлежащих этому процессу. Вектор размещается с первыми n1 элементами на первом процессоре, следующими n2 элементами на втором и т. д. Для некоторых параллельных макетов этот диапазон может быть неопределенным.
 6.4)
 ```
@@ -630,7 +631,9 @@ else if (svd->ishyperbolic && svd->swapped) {
 Вызов SVDAllocateSolution выделяет память для хранения решения задачи собственных значений.
   PetscFunctionReturn(PETSC_SUCCESS);
 
-### Фукнция EPSMonitor_Cross(EPS eps,PetscInt its,PetscInt nconv,PetscScalar *eigr,PetscScalar *eigi,PetscReal *errest,PetscInt nest,void *ctx) - контролирует процесс решения задачи собственных значений путем мониторинга ошибок на каждом уровне вложенности и обновления соответствующих метрик, таких как точность и ошибка.
+### Фукнция EPSMonitor_Cross(EPS eps,PetscInt its,PetscInt nconv,PetscScalar *eigr,PetscScalar *eigi,PetscReal *errest,PetscInt nest,void *ctx)
+
+контролирует процесс решения задачи собственных значений путем мониторинга ошибок на каждом уровне вложенности и обновления соответствующих метрик, таких как точность и ошибка.
 
 Входные данные: 
 - указатель на структуру EPS eps, содержащую данные для решения задачи собственных значений.
