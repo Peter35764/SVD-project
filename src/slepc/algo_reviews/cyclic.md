@@ -611,23 +611,24 @@ ctx->misaligned = (((ranges[i+1] - ranges[i]) * sizeof(PetscScalar)) % 16) ? PET
 
 ### ```static PetscErrorCode SVDComputeVectors_Cyclic_Standard(SVD svd)```
 
-Вычисление сингулярных значений циклическим методом - мы имеем собственный вектор блочной матрицы C, и из него получаем сингулярные векторы, из которых он состоит и собственные значения при помощи функции EPSGetEigenpair.
+Вычисление сингулярных значений циклическим методом - имеем блочную матрицу C, собственный вектор блочной матрицы x, из него получаем сингулярные векторы, из которых он состоит и собственные значения при помощи функции EPSGetEigenpair.\ В результате сингулярные значения матрицы A вычисляются через собственные значения вспомогательной блочной матрицы C.
 
-#### Параметры:  
-* SVD svd - структура-решатель задачи нахождения сингулярного разложения
-* svd->A: матрица A, для которой выполняется SVD.
-* svd->U и svd->V: блоки U и V, куда сохраняются вычисленные сингулярные векторы. 
-* svd->data: специфичные данные для метода cyclic, приведённые к типу SVD_CYCLIC. 
+#### Параметры
 
+* **SVD svd** - структура-решатель задачи нахождения сингулярного разложения
+* **svd->A** - матрица A, для которой выполняется SVD.
+* **svd->U** и **svd->V** - блоки U и V, куда сохраняются вычисленные сингулярные векторы. 
+* **svd->data** - специфичные данные для метода cyclic, приведённые к типу SVD_CYCLIC. 
 
 #### Возвращаемое значение
-PetscErrorCode - коды ошибок
+
+- **PetscErrorCode** – коды ошибок.
 
 #### Детали имплементации
 
 1. Инициализация переменных
 
-```
+```c
   SVD_CYCLIC        *cyclic = (SVD_CYCLIC*)svd->data;
   PetscInt          i,j,m,nconv;
   PetscScalar       er,ei;
@@ -646,7 +647,7 @@ cyclic->eps: объект EPS, уже настроенный для вычисл
 * px - временная переменная
 * x - вектор для двух собственных векторов (первая половина это левый сингулярный вектор, вторая половина это правый сингулярный вектор)
 
-```
+```c
   PetscCall(MatCreateVecs(cyclic->C,&x,NULL));
   PetscCall(MatGetLocalSize(svd->A,&m,NULL));
   PetscCall(MatCreateVecsEmpty(svd->A,&x2,&x1));
@@ -656,7 +657,7 @@ cyclic->eps: объект EPS, уже настроенный для вычисл
 
 2. Начало цикла
 
-```
+```c
   PetscCall(EPSGetConverged(cyclic->eps,&nconv));
   for (i=0,j=0;i<nconv;i++) {
     PetscCall(EPSGetEigenpair(cyclic->eps,i,&er,&ei,x,NULL));
@@ -666,14 +667,14 @@ cyclic->eps: объект EPS, уже настроенный для вычисл
 
 * Получить количество сходящихся сингулярных значений и запустить цикл по вычислению sigma (сингулярного значения). Если сингулярное значение < 0, то вектор, полученый на этой итерации отбрасывается.
 
-```
+```c
     PetscCall(VecPlaceArray(x1,px));
     PetscCall(VecPlaceArray(x2,px+m));
 ```
 
 * Заполнение векторов x1 и x2 сингулярными векторами из m
 
-```
+```c
     PetscCall(BVInsertVec(svd->U,j,x1));
     PetscCall(BVScaleColumn(svd->U,j,PETSC_SQRT2));
     PetscCall(BVInsertVec(svd->V,j,x2));
@@ -681,12 +682,200 @@ cyclic->eps: объект EPS, уже настроенный для вычисл
 ```
 
 _BV: Basis Vectors, provides the concept of a block of vectors that represent the basis of a subspace_
-* Вставка вектора x1 в базис U на позицию j, домножение этого вектора уже в базисе на $\sqrt2$. То же самое с x2 и базисом V.
 
-* После завершения цикла освобождаются все векторы x* и возвращается сигнал об успешном завершении функции
+##### Почему масштабирование на $\sqrt{2}$?
 
-### ```static PetscErrorCode SVDComputeVectors_Cyclic_Standard(SVD svd)```
+Собственный вектор $x$ блочной матрицы $C$ имеет вид:  
+$$
+x = \begin{bmatrix} u \\ v \end{bmatrix},
+$$
+где:  
+- $u$ — часть вектора, соответствующая левым сингулярным векторам $A$ (размер $m$),  
+- $v$ — часть вектора, соответствующая правым сингулярным векторам $A$ (размер $n$).
 
+Эти собственные векторы нормализованы так, что их **общая евклидова норма** равна 1:  
+$$
+\| x \|_2^2 = \| u \|_2^2 + \| v \|_2^2 = 1.
+$$
+
+Так как векторы $u$ и $v$ занимают равные доли вектора $x$, их нормы одинаковы:  
+$$
+\| u \|_2^2 = \| v \|_2^2 = \frac{1}{2}.
+$$
+Чтобы привести $u$ и $v$ к норме 1, необходимо домножить их на коэффициент $\sqrt{2}$:  
+$$
+\| \sqrt{2} \cdot u \|_2 = \sqrt{2} \cdot \sqrt{\frac{1}{2}} = 1, \quad \| \sqrt{2} \cdot v \|_2 = 1.
+$$
+
+Таким образом, масштабирование на $\sqrt{2}$ обеспечивает корректную нормализацию сингулярных векторов $u$ и $v$, полученных из собственных векторов матрицы $C$.
+
+---
+
+3. Вставка вектора x1 в базис U на позицию j, домножение этого вектора уже в базисе на $\sqrt2$. То же самое с x2 и базисом V.
+
+
+4. После завершения цикла освобождаются все векторы x* и возвращается сигнал об успешном завершении функции
+
+### ```static PetscErrorCode SVDComputeVectors_Cyclic_Generalized(SVD svd)```
+
+* GSVD - не так интересно в нашем исследовании
+
+### ```static PetscErrorCode SVDComputeVectors_Cyclic_Hyperbolic(SVD svd)```
+
+Вычисление сингулярных значений циклическим методом для гиперболического случая. Используются собственные векторы блочной матрицы C и гиперболическая нормализация. Результатом является вычисление сингулярных векторов и значений для разложения матрицы A с учетом гиперболической метрики.
+
+#### Параметры
+- **SVD svd** – структура-решатель задачи нахождения сингулярного разложения.
+- **svd->A**: матрица A, для которой ищутся сингулярные значения и вектора.
+- **svd->U** и **svd->V**: блоки, куда сохраняются сингулярные векторы.
+- **svd->omega**: диагональная матрица гиперболической метрики.
+- **svd->sign**: массив знаков нормализации.
+- **svd->swapped**: флаг, указывающий на смену ролей U и V.
+- **svd->ishyperbolic**: флаг гиперболического случая.
+- **svd->data**: специфичные данные для метода cyclic, приведённые к типу **SVD_CYCLIC**.
+- **cyclic->C**: вспомогательная блочная матрица.
+- **cyclic->eps**: объект EPS, настроенный для вычисления собственных значений и векторов матрицы C.
+
+#### Возвращаемое значение
+- **PetscErrorCode** – коды ошибок.
+
+---
+
+### Детали имплементации
+
+1. Инициализация переменных
+
+```c
+SVD_CYCLIC        *cyclic = (SVD_CYCLIC*)svd->data;
+PetscInt          i, j, m, n, nconv;
+PetscScalar       er, ei;
+PetscReal         sigma, nrm;
+PetscBool         isreal;
+const PetscScalar *px;
+Vec               u, x, xi = NULL, x1, x2, x1i = NULL, x2i;
+BV                U = NULL, V = NULL;
+```
+
+- **cyclic** – указатель на структуру данных, специфичных для метода cyclic.
+- **i, j** – счетчики.
+- **m, n** – размеры локальной части матрицы A.
+- **nconv** – количество сошедшихся собственных значений.
+- **er, ei** – действительная и мнимая части собственных значений.
+- **sigma** – сингулярное значение.
+- **x, xi** – векторы для хранения собственных векторов.
+- **x1, x2** – векторы для разбиения собственного вектора на левый и правый сингулярные векторы.
+- **x1i, x2i** – дополнительные векторы для обработки комплексных собственных значений.
+- **U, V** – базисы для сохранения сингулярных векторов.
+- **alpha** - 
+
+_BV: Basis Vectors, provides the concept of a block of vectors that represent the basis of a subspace_
+
+2. Создание необходимых векторов и задание параметров:
+
+```c
+PetscCall(MatCreateVecs(cyclic->C, &x, svd->ishyperbolic ? &xi : NULL));
+PetscCall(MatGetLocalSize(svd->A, &m, NULL));
+PetscCall(MatCreateVecsEmpty(svd->OP, &x2, &x1));
+```
+
+* Создаются векторы **x** и **xi** для хранения собственных векторов. **x1** и **x2** используются для разбиения вектора на левый и правый сингулярные векторы.
+
+3. Настройка матрицы диагональной метрики и базисов U и V:
+
+```c
+U = svd->swapped ? svd->V : svd->U;
+V = svd->swapped ? svd->U : svd->V;
+PetscCall(BVGetSizes(U, &n, NULL, NULL));
+PetscCall(BV_SetMatrixDiagonal(U, svd->omega, svd->A));
+```
+
+- Проверяется флаг **swapped**, указывающий на смену ролей U и V.
+- **BV_SetMatrixDiagonal** задает гиперболическую метрику для базиса **U**. ??? загадочный вызов, которого нет ни в доках, ни в исходном коде
+
+---
+
+4. Основной цикл
+
+```c
+PetscCall(EPSGetConverged(cyclic->eps, &nconv));
+for (i = 0, j = 0; i < nconv; i++) {
+    PetscCall(EPSGetEigenpair(cyclic->eps, i, &er, &ei, x, xi));
+    PetscCall(SVDCyclicCheckEigenvalue(svd, er, ei, &sigma, &isreal));
+    if (sigma < 0.0) continue;
+```
+
+- Получаются сошедшиеся собственные значения и соответствующие векторы **x** и **xi**.
+- Проверка **sigma** для отбрасывания некорректных значений.
+
+---
+
+5. Разбиение векторов на блоки и обработка гиперболического случая
+
+- Для **комплексных** значений:
+
+```c
+PetscCall(BVInsertVec(U, j, x1));
+PetscCall(BVInsertVec(V, j, x2));
+if (!isreal) {
+    PetscCall(VecMaxAbs(x1, x1i, &alpha));
+    PetscCall(BVScaleColumn(U, j, PetscAbsScalar(alpha) / alpha));
+    PetscCall(BVScaleColumn(V, j, PetscAbsScalar(alpha) / (alpha * PETSC_i)));
+}
+```
+
+- Для **действительных** значений:
+
+```c
+PetscCall(VecNorm(x2, NORM_2, &nrmr));
+PetscCall(VecNorm(x2i, NORM_2, &nrmi));
+if (nrmi > nrmr) {
+    if (isreal) {
+        PetscCall(BVInsertVec(U, j, x1i));
+        PetscCall(BVInsertVec(V, j, x2i));
+    } else {
+        PetscCall(BVInsertVec(U, j, x1));
+        PetscCall(BVInsertVec(V, j, x2i));
+    }
+} else {
+    if (isreal) {
+        PetscCall(BVInsertVec(U, j, x1));
+        PetscCall(BVInsertVec(V, j, x2));
+    } else {
+        PetscCall(BVInsertVec(U, j, x1i));
+        PetscCall(BVScaleColumn(U, j, -1.0));
+        PetscCall(BVInsertVec(V, j, x2));
+    }
+}
+```
+
+---
+
+6. Нормализация и масштабирование сингулярных векторов
+
+```c
+PetscCall(BVNormColumn(U, j, NORM_2, &nrm));
+PetscCall(BVScaleColumn(U, j, 1.0 / PetscAbs(nrm)));
+svd->sign[j] = PetscSign(nrm);
+PetscCall(BVNormColumn(V, j, NORM_2, &nrm));
+PetscCall(BVScaleColumn(V, j, 1.0 / nrm));
+```
+
+- Выполняется нормализация векторов **U** и **V**.
+- Массив **svd->sign** сохраняет знаки нормализации.
+
+---
+
+7. Освобождение ресурсов
+
+```c
+PetscCall(VecDestroy(&x));
+PetscCall(VecDestroy(&x1));
+PetscCall(VecDestroy(&x2));
+PetscCall(VecDestroy(&xi));
+PetscCall(VecDestroy(&x1i));
+PetscCall(VecDestroy(&x2i));
+PetscFunctionReturn(PETSC_SUCCESS);
+```
 
 ### ```MatMult_Cyclic(Mat B,Vec x,Vec y)```
 принимает на вход матрицу, вектор, выходной вектор y. Позволяет умножить матрицу B на вектор x с помощью стандартных циклических операций.
