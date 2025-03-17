@@ -1,0 +1,5 @@
+# Config.cmake.in
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/svdTargets.cmake")
+check_required_components(svd)
