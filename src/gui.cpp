@@ -1,112 +1,114 @@
 #include "gui.h"
 #include <QtWidgets/QFileDialog>
 #include <QtWidgets/QMessageBox>
+#include <QtWidgets/QHeaderView>
 #include <fstream>
 #include <sstream>
 
-/*
- * 1. Потыкать таблицу(2-й патч)
- * 2. Заменить Qtable на CustomTable
- * 3. Научиться трактовать паршенное значение
- */
-
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
+    controlPanel(nullptr), resultWidget(nullptr), resultTable(nullptr),
+    tableScrollArea(nullptr), progressBar(nullptr) {
     setWindowTitle("SVD Test Application");
-    resize(400, 200);
+    resize(800, 600);
 
-    QWidget *centralWidget = new QWidget(this);
-    QVBoxLayout *layout = new QVBoxLayout(centralWidget);
-
-    algorithmSelector = new QComboBox(this);
-    algorithmSelector->addItem("Jacobi SVD", QVariant("jacobi"));
-    algorithmSelector->addItem("DQDS SVD", QVariant("dqds"));
-
-    startButton = new QPushButton("Run SVD Tests", this);
-
-    layout->addWidget(algorithmSelector);
-    layout->addWidget(startButton);
-    layout->addStretch();
-
-    setCentralWidget(centralWidget);
-
-    connect(startButton, &QPushButton::clicked, this, &MainWindow::runTests);
-
-    resultWindow = nullptr;
+    setupUI();
 }
 
 MainWindow::~MainWindow() {
-    delete resultWindow;
+    if(resultWidget) {
+        delete resultWidget;
+    }
+}
+
+void MainWindow::setupUI() {
+    // Создаем центральный виджет и основной layout
+    QWidget *centralWidget = new QWidget(this);
+    mainLayout = new QVBoxLayout(centralWidget);
+    mainLayout->setSpacing(5);
+    mainLayout->setContentsMargins(5, 5, 5, 5);
+
+    // Создаем панель управления и задаем для нее фиксированную вертикальную политику размера
+    controlPanel = new QWidget(centralWidget);
+    QVBoxLayout *controlLayout = new QVBoxLayout(controlPanel);
+    controlLayout->setSpacing(5);
+    controlLayout->setContentsMargins(5, 5, 5, 5);
+
+    algorithmSelector = new QComboBox(controlPanel);
+    algorithmSelector->addItem("Jacobi SVD", QVariant("jacobi"));
+    algorithmSelector->addItem("DQDS SVD", QVariant("dqds"));
+    startButton = new QPushButton("Run SVD Tests", controlPanel);
+
+    controlLayout->addWidget(algorithmSelector);
+    controlLayout->addWidget(startButton);
+
+    // Задаем фиксированную вертикальную политику для controlPanel, чтобы его высота не изменялась
+    controlPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+    // Добавляем панель управления в основной layout
+    mainLayout->addWidget(controlPanel, 0); // stretch 0
+
+    // Создаем контейнер для вывода результатов (изначально пустой)
+    resultWidget = new QWidget(centralWidget);
+    resultLayout = new QVBoxLayout(resultWidget);
+    resultLayout->setSpacing(5);
+    resultLayout->setContentsMargins(5, 5, 5, 5);
+    resultLayout->setAlignment(Qt::AlignTop);
+
+    mainLayout->addWidget(resultWidget, 1); // stretch 1, чтобы занимал оставшееся пространство
+
+    setCentralWidget(centralWidget);
+
+    // Подключаем сигнал кнопки запуска тестов
+    connect(startButton, &QPushButton::clicked, this, &MainWindow::runTests);
+}
+
+void MainWindow::createResultWidget() {
+    // Если ранее созданная таблица существует, удаляем её
+    if (resultTable) {
+        resultLayout->removeWidget(resultTable);
+        resultTable->deleteLater();
+        resultTable = nullptr;
+    }
+    if (tableScrollArea) {
+        resultLayout->removeWidget(tableScrollArea);
+        tableScrollArea->deleteLater();
+        tableScrollArea = nullptr;
+    }
+
+    // Создаем новую таблицу и помещаем её в QScrollArea
+    resultTable = new QTableWidget(resultWidget);
+    resultTable->setSortingEnabled(true);
+    resultTable->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    tableScrollArea = new QScrollArea(resultWidget);
+    tableScrollArea->setWidgetResizable(true);
+    tableScrollArea->setWidget(resultTable);
+
+    // Добавляем область с таблицей в layout контейнера результатов и выравниваем по верхней границе
+    resultLayout->addWidget(tableScrollArea);
 }
 
 void MainWindow::runTests() {
+    // Отключаем элементы управления во время выполнения теста
     startButton->setEnabled(false);
     algorithmSelector->setEnabled(false);
 
     QString selectedAlgo = algorithmSelector->currentData().toString();
     currentResultFile = selectedAlgo.toStdString() + "_test_table.txt";
 
-    // Параметры для svd_test_func
-    std::vector<double> ratios = {1.01, 1.2, 2, 5, 10, 50};
-    std::vector<std::pair<int,int>> sizes = {{3,3}, {5,5}, {10,10}, {20,20}, {50,50}, {100,100}};
-    int n = 20;
-/*
-    // Вызов svd_test_func в зависимости от выбранного алгоритма
-    if (selectedAlgo == "jacobi") {
-        svd_test_func<double, SVDGenerator, Eigen::JacobiSVD>(currentResultFile, ratios, sizes, n);
-    } else if (selectedAlgo == "dqds") {
-        svd_test_func<double, SVDGenerator, DQDS_SVD>(currentResultFile, ratios, sizes, n);
-    }
-*/
-    createResultWindow();
-    populateTable(currentResultFile);
+    // Здесь может вызываться функция тестирования:
+    // if (selectedAlgo == "jacobi") { ... } else if (selectedAlgo == "dqds") { ... }
 
+    createResultWidget();
+    populateTable(currentResultFile);
+    adjustTableColumns();
+
+    // Восстанавливаем возможность взаимодействия с элементами управления
     startButton->setEnabled(true);
     algorithmSelector->setEnabled(true);
 }
 
-void MainWindow::createResultWindow() {
-    // Получаем центральный виджет. Если он не установлен, создаём его.
-    QWidget *central = this->centralWidget();
-    if (!central) {
-        central = new QWidget(this);
-        setCentralWidget(central);
-    } else {
-        // Очищаем центральный виджет от всех элементов, чтобы избежать конфликтов
-        if (central->layout()) {
-            QLayoutItem *child;
-            while ((child = central->layout()->takeAt(0)) != nullptr) {
-                if (child->widget()) {
-                    child->widget()->deleteLater();
-                }
-                delete child;
-            }
-        } else {
-            // Если layout отсутствует, создаём новый
-            QVBoxLayout *newLayout = new QVBoxLayout(central);
-            central->setLayout(newLayout);
-        }
-    }
-
-    // Получаем (или создаём) layout центрального виджета
-    QVBoxLayout *layout = qobject_cast<QVBoxLayout*>(central->layout());
-    if (!layout) {
-        layout = new QVBoxLayout(central);
-        central->setLayout(layout);
-    }
-
-    // Создаём новую таблицу и добавляем её в layout
-    resultTable = new QTableWidget(central);
-    layout->addWidget(resultTable);
-
-    // QTableWidget имеет встроенные полосы прокрутки
-
-    // Добавляем кнопку сохранения
-    QPushButton *saveButton = new QPushButton("Save Table", central);
-    layout->addWidget(saveButton);
-    connect(saveButton, &QPushButton::clicked, this, &MainWindow::saveTable);
-}
-
-void MainWindow::populateTable(const std::string& filename) {
+void MainWindow::populateTable(const std::string &filename) {
     std::ifstream file(filename);
     if (!file) {
         QMessageBox::warning(this, "Error", "Could not open result file!");
@@ -140,7 +142,7 @@ void MainWindow::populateTable(const std::string& filename) {
         }
     }
 
-    // Читаем данные
+    // Чтение данных
     std::vector<std::vector<tableValue>> tempData;
     std::vector<std::string> dimensionValues;
     while (std::getline(file, line)) {
@@ -148,11 +150,10 @@ void MainWindow::populateTable(const std::string& filename) {
         std::stringstream ssRow(line);
         std::string cell;
         size_t col = 0;
-
         while (ssRow >> cell && col < finalHeaders.size()) {
             if (col == 0) { // Dimension
                 dimensionValues.push_back(cell);
-                row[col] = tableValue();
+                row[col] = tableValue(); // тип string_
             } else if ((int)col == (svIndex >= 0 ? svIndex : -1) && intervalIndex == svIndex + 1) {
                 std::string nextCell;
                 if (ssRow >> nextCell) {
@@ -190,11 +191,11 @@ void MainWindow::populateTable(const std::string& filename) {
         return;
     }
 
-    // Удаляем пустые столбцы
+    // Удаление пустых столбцов
     int colCount = finalHeaders.size();
     std::vector<bool> emptyColumn(colCount, true);
     for (int j = 0; j < colCount; ++j) {
-        if (j == 0) { // Dimension всегда заполнен
+        if (j == 0) {
             emptyColumn[j] = false;
         } else {
             for (size_t i = 0; i < tempData.size(); ++i) {
@@ -215,7 +216,6 @@ void MainWindow::populateTable(const std::string& filename) {
             filteredData[0].push_back(tableValue());
         }
     }
-
     for (size_t i = 0; i < tempData.size(); ++i) {
         std::vector<tableValue> filteredRow;
         for (int j = 0; j < colCount; ++j) {
@@ -227,17 +227,16 @@ void MainWindow::populateTable(const std::string& filename) {
     }
     tableData = filteredData;
 
-    // Устанавливаем таблицу
+    // Заполнение таблицы
     resultTable->setRowCount(tempData.size());
     resultTable->setColumnCount(filteredHeaders.size());
     QStringList qHeaders;
-    for (const auto& header : filteredHeaders) {
+    for (const auto &header : filteredHeaders) {
         qHeaders << QString::fromStdString(header);
     }
     resultTable->setHorizontalHeaderLabels(qHeaders);
     resultTable->setSortingEnabled(true);
 
-    // Заполняем таблицу
     for (size_t i = 0; i < tempData.size(); ++i) {
         for (size_t j = 0; j < filteredData[i + 1].size(); ++j) {
             CustomTableWidgetItem* item = nullptr;
@@ -259,6 +258,11 @@ void MainWindow::populateTable(const std::string& filename) {
     }
 }
 
+void MainWindow::adjustTableColumns() {
+    resultTable->resizeColumnsToContents();
+    resultTable->horizontalHeader()->setStretchLastSection(false);
+}
+
 void MainWindow::saveTable() {
     QString fileName = QFileDialog::getSaveFileName(this, "Save Table", "", "Text Files (*.txt);;All Files (*)");
     if (fileName.isEmpty()) return;
@@ -271,7 +275,7 @@ void MainWindow::saveTable() {
 
     for (size_t i = 0; i < tableData.size(); ++i) {
         for (size_t j = 0; j < tableData[i].size(); ++j) {
-            if (j == 0) { // Dimension как строка
+            if (j == 0) {
                 file << (i == 0 ? resultTable->horizontalHeaderItem(j)->text().toStdString()
                                 : resultTable->item(i - 1, j)->text().toStdString());
             } else if (tableData[i][j].sv == tableValue::double_) {
@@ -282,7 +286,8 @@ void MainWindow::saveTable() {
             } else {
                 file << "Invalid";
             }
-            if (j < tableData[i].size() - 1) file << " ";
+            if (j < tableData[i].size() - 1)
+                file << " ";
         }
         file << "\n";
     }
@@ -290,28 +295,3 @@ void MainWindow::saveTable() {
 
     QMessageBox::information(this, "Success", "Table saved successfully!");
 }
-
-/*
-void MainWindow::saveTable() {
-    QString fileName = QFileDialog::getSaveFileName(this,
-        "Save Table", "", "Text Files (*.txt);;All Files (*)");
-
-    if (fileName.isEmpty()) return;
-
-    std::ofstream file(fileName.toStdString());
-    if (!file) {
-        QMessageBox::warning(this, "Error", "Could not save file!");
-        return;
-    }
-
-    for (const auto& row : tableData) {
-        for (size_t i = 0; i < row.size(); ++i) {
-            file << row[i];
-            if (i < row.size() - 1) file << " ";
-        }
-        file << "\n";
-    }
-    file.close();
-
-    QMessageBox::information(this, "Success", "Table saved successfully!");
-}*/
