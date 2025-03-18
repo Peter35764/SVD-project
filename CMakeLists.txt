@@ -7,7 +7,7 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS YES CACHE BOOL "Export all symbols")
 
 # Поиск зависимостей
 find_package(Eigen3 NO_MODULE REQUIRED)
-find_package(Qt6 COMPONENTS Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Widgets Charts REQUIRED)
 find_package(LAPACK REQUIRED)
 
 # Попытка найти LAPACKE явно
@@ -66,7 +66,7 @@ set(CMAKE_AUTOUIC ON)
 
 add_executable(svd_gui ${GUI_SOURCE_FILES} ${GUI_HEADER_FILES})
 target_compile_features(svd_gui PRIVATE cxx_std_20)
-target_link_libraries(svd_gui PRIVATE svd Qt6::Widgets)
+target_link_libraries(svd_gui PRIVATE svd Qt6::Widgets Qt6::Charts)
 target_include_directories(svd_gui PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 install(TARGETS svd_gui RUNTIME DESTINATION bin)
 

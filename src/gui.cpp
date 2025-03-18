@@ -4,10 +4,12 @@
 #include <QtWidgets/QHeaderView>
 #include <fstream>
 #include <sstream>
+#include <QString>
+#include <QStringList>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     controlPanel(nullptr), resultWidget(nullptr), resultTable(nullptr),
-    tableScrollArea(nullptr), progressBar(nullptr) {
+    tableScrollArea(nullptr), progressBar(nullptr), chartView(nullptr), metricButtonWidget(nullptr) {
     setWindowTitle("SVD Test Application");
     resize(800, 600);
 
@@ -17,6 +19,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
 MainWindow::~MainWindow() {
     if(resultWidget) {
         delete resultWidget;
+    }
+    if(chartView) {
+        delete chartView;
+    }
+    if(metricButtonWidget) {
+        delete metricButtonWidget;
     }
 }
 
@@ -33,6 +41,7 @@ void MainWindow::setupUI() {
     controlLayout->setSpacing(5);
     controlLayout->setContentsMargins(5, 5, 5, 5);
 
+    // Элементы выбора алгоритма
     algorithmSelector = new QComboBox(controlPanel);
     algorithmSelector->addItem("Jacobi SVD", QVariant("jacobi"));
     algorithmSelector->addItem("DQDS SVD", QVariant("dqds"));
@@ -41,11 +50,18 @@ void MainWindow::setupUI() {
     controlLayout->addWidget(algorithmSelector);
     controlLayout->addWidget(startButton);
 
-    // Задаем фиксированную вертикальную политику для controlPanel, чтобы его высота не изменялась
+    // Элемент для выбора параметра визуализации (ось X)
+    parameterSelector = new QComboBox(controlPanel);
+    parameterSelector->addItem("Размер матрицы", QVariant("matrix_size"));
+    parameterSelector->addItem("Соотношение сингулярных значений", QVariant("sv_ratio"));
+    parameterSelector->addItem("Интервал", QVariant("interval"));
+    controlLayout->addWidget(parameterSelector);
+
+    // Фиксированная высота панели управления
     controlPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     // Добавляем панель управления в основной layout
-    mainLayout->addWidget(controlPanel, 0); // stretch 0
+    mainLayout->addWidget(controlPanel, 0);
 
     // Создаем контейнер для вывода результатов (изначально пустой)
     resultWidget = new QWidget(centralWidget);
@@ -54,7 +70,7 @@ void MainWindow::setupUI() {
     resultLayout->setContentsMargins(5, 5, 5, 5);
     resultLayout->setAlignment(Qt::AlignTop);
 
-    mainLayout->addWidget(resultWidget, 1); // stretch 1, чтобы занимал оставшееся пространство
+    mainLayout->addWidget(resultWidget, 1);
 
     setCentralWidget(centralWidget);
 
@@ -84,8 +100,46 @@ void MainWindow::createResultWidget() {
     tableScrollArea->setWidgetResizable(true);
     tableScrollArea->setWidget(resultTable);
 
-    // Добавляем область с таблицей в layout контейнера результатов и выравниваем по верхней границе
     resultLayout->addWidget(tableScrollArea);
+}
+
+void MainWindow::createMetricButtons() {
+    // Если ранее созданные кнопки существуют, удаляем их
+    if (metricButtonWidget) {
+        resultLayout->removeWidget(metricButtonWidget);
+        metricButtonWidget->deleteLater();
+        metricButtonWidget = nullptr;
+    }
+
+    if (!resultTable) return;
+    int colCount = resultTable->columnCount();
+    // Предполагаем, что первые 3 колонки – параметры, остальные – метрики
+    if (colCount <= 3) return;
+
+    metricButtonWidget = new QWidget(resultWidget);
+    QHBoxLayout *buttonLayout = new QHBoxLayout(metricButtonWidget);
+    buttonLayout->setSpacing(5);
+    buttonLayout->setContentsMargins(5, 5, 5, 5);
+
+    // Создаем кнопку для каждой метрики (начиная с колонки 3)
+    for (int col = 3; col < colCount; ++col) {
+        QString headerText;
+        QTableWidgetItem *headerItem = resultTable->horizontalHeaderItem(col);
+        if (headerItem)
+            headerText = headerItem->text();
+        else
+            headerText = QString("Метрика %1").arg(col);
+
+        QPushButton *metricButton = new QPushButton(headerText, metricButtonWidget);
+        // Явно захватываем this и metricColIndex для соответствия C++20
+        int metricColIndex = col;
+        connect(metricButton, &QPushButton::clicked, this, [this, metricColIndex]() {
+            plotGraphForMetric(metricColIndex);
+        });
+        buttonLayout->addWidget(metricButton);
+    }
+
+    resultLayout->addWidget(metricButtonWidget);
 }
 
 void MainWindow::runTests() {
@@ -96,14 +150,17 @@ void MainWindow::runTests() {
     QString selectedAlgo = algorithmSelector->currentData().toString();
     currentResultFile = selectedAlgo.toStdString() + "_test_table.txt";
 
-    // Здесь может вызываться функция тестирования:
+    // Здесь может вызываться функция тестирования
     // if (selectedAlgo == "jacobi") { ... } else if (selectedAlgo == "dqds") { ... }
 
     createResultWidget();
     populateTable(currentResultFile);
     adjustTableColumns();
 
-    // Восстанавливаем возможность взаимодействия с элементами управления
+    // Создаем кнопки для метрик после таблицы
+    createMetricButtons();
+
+    // Восстанавливаем возможность взаимодействия
     startButton->setEnabled(true);
     algorithmSelector->setEnabled(true);
 }
@@ -294,4 +351,106 @@ void MainWindow::saveTable() {
     file.close();
 
     QMessageBox::information(this, "Success", "Table saved successfully!");
+}
+
+void MainWindow::plotGraphForMetric(int metricColIndex) {
+    if (!resultTable) {
+        QMessageBox::warning(this, "Error", "Нет данных для построения графика!");
+        return;
+    }
+    int rowCount = resultTable->rowCount();
+    int totalCols = resultTable->columnCount();
+    if (rowCount == 0 || metricColIndex >= totalCols) {
+        QMessageBox::warning(this, "Error", "Недостаточно данных для построения графика!");
+        return;
+    }
+
+    QVector<double> xValues;
+    QVector<double> yValues;
+
+    // Определяем выбранный параметр для оси X
+    QString selectedParam = parameterSelector->currentData().toString();
+    int paramCol = 0;
+    if (selectedParam == "matrix_size") {
+        paramCol = 0;
+    } else if (selectedParam == "sv_ratio") {
+        paramCol = 1;
+    } else if (selectedParam == "interval") {
+        paramCol = 2;
+    }
+
+    // Собираем данные из таблицы
+    for (int i = 0; i < rowCount; i++) {
+        double x = 0;
+        // Извлекаем x значение в зависимости от выбранного параметра
+        if (selectedParam == "matrix_size") {
+            // Извлекаем размер матрицы из первой колонки (например, "100x100")
+            QString dimText = resultTable->item(i, 0)->text().trimmed();
+            QStringList parts = dimText.split("x", Qt::SkipEmptyParts);
+            if (!parts.isEmpty()) {
+                x = parts[0].toDouble();
+            }
+        } else if (selectedParam == "sv_ratio") {
+            // Извлекаем значение соотношения сингулярных значений из второй колонки
+            QString ratioText = resultTable->item(i, 1)->text().trimmed();
+            x = ratioText.toDouble();
+        } else if (selectedParam == "interval") {
+            // Извлекаем интервал из третьей колонки, ожидается формат "[a, b]"
+            QString intervalText = resultTable->item(i, 2)->text().trimmed();
+            if (intervalText.startsWith("[") && intervalText.endsWith("]")) {
+                intervalText = intervalText.mid(1, intervalText.length() - 2);
+                QStringList numbers = intervalText.split(",", Qt::SkipEmptyParts);
+                if (numbers.size() >= 2) {
+                    double a = numbers[0].trimmed().toDouble();
+                    double b = numbers[1].trimmed().toDouble();
+                    x = b - a; // Используем разность как представление интервала
+                }
+            }
+        }
+        xValues.push_back(x);
+
+        // Извлекаем y значение из выбранной метрики
+        QString metricText = resultTable->item(i, metricColIndex)->text().trimmed();
+        double y = metricText.toDouble();
+        yValues.push_back(y);
+    }
+
+    // Построение графика с использованием Qt Charts
+    QLineSeries *series = new QLineSeries();
+    for (int i = 0; i < xValues.size(); i++) {
+        series->append(xValues[i], yValues[i]);
+    }
+
+    QChart *chart = new QChart();
+    chart->addSeries(series);
+    chart->createDefaultAxes();
+
+    // Задаем подписи осей
+    QString xLabel;
+    if (selectedParam == "matrix_size") {
+        xLabel = "Размер матрицы";
+    } else if (selectedParam == "sv_ratio") {
+        xLabel = "Соотношение сингулярных значений";
+    } else if (selectedParam == "interval") {
+        xLabel = "Интервал (разность)";
+    }
+    // Устанавливаем подпись для оси X
+    chart->axes(Qt::Horizontal).first()->setTitleText(xLabel);
+    // Устанавливаем подпись для оси Y (размерность метрики)
+    chart->axes(Qt::Vertical).first()->setTitleText("Значение метрики");
+
+    // Устанавливаем заголовок графика как название метрики
+    QTableWidgetItem *metricHeaderItem = resultTable->horizontalHeaderItem(metricColIndex);
+    QString metricTitle = metricHeaderItem ? metricHeaderItem->text() : QString("Метрика");
+    chart->setTitle(QString("Зависимость %1 от %2").arg(metricTitle, xLabel));
+
+    // Если ранее был построен график, удаляем его
+    if (chartView) {
+        resultLayout->removeWidget(chartView);
+        chartView->deleteLater();
+    }
+
+    chartView = new QChartView(chart);
+    chartView->setRenderHint(QPainter::Antialiasing);
+    resultLayout->addWidget(chartView);
 }

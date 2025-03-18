@@ -14,7 +14,12 @@
 #include <vector>
 #include "testing.h"
 
-class MainWindow : public QMainWindow {
+// Подключаем заголовки для Qt Charts
+#include <QtCharts/QChartView>
+#include <QtCharts/QLineSeries>
+#include <QtCharts/QChart>
+
+    class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
@@ -25,8 +30,8 @@ public:
     struct tableValue {
         enum stored_value { double_, pair__, string_ };
         tableValue() : double_decimal(0), pair_of_int({0, 0}), sv(string_) {}
-        tableValue(double tmp) : double_decimal(tmp), sv(double_) {}
-        tableValue(pair_ tmp) : pair_of_int(tmp), sv(pair__) {}
+        tableValue(double tmp) : double_decimal(tmp), pair_of_int({0, 0}), sv(double_) {}
+        tableValue(pair_ tmp) : double_decimal(0), pair_of_int(tmp), sv(pair__) {}
         double double_decimal;
         pair_ pair_of_int;
         stored_value sv;
@@ -94,6 +99,7 @@ public:
 private slots:
     void runTests();
     void saveTable();
+    void plotGraphForMetric(int metricColIndex); // слот для построения графика для выбранной метрики
 
 private:
     // Элементы панели управления
@@ -101,10 +107,20 @@ private:
     QComboBox *algorithmSelector;
     QPushButton *startButton;
 
+    // Элемент для выбора параметра визуализации (ось X)
+    QComboBox *parameterSelector;
+
     // Область для вывода результатов
-    QWidget *resultWidget;     QTableWidget *resultTable;
+    QWidget *resultWidget;
+    QTableWidget *resultTable;
     QScrollArea *tableScrollArea;
     QProgressBar *progressBar;
+
+    // Область для графика
+    QChartView *chartView;
+
+    // Виджет для кнопок метрик (будет отрисован после таблицы)
+    QWidget *metricButtonWidget;
 
     std::vector<std::vector<tableValue>> tableData;
     std::string currentResultFile;
@@ -118,6 +134,7 @@ private:
     void populateTable(const std::string &filename);
     void createResultWidget();
     void adjustTableColumns();
+    void createMetricButtons(); // функция для создания кнопок для метрик
 };
 
 #endif // GUI_H
