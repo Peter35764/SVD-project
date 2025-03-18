@@ -65,26 +65,49 @@ void MainWindow::runTests() {
 }
 
 void MainWindow::createResultWindow() {
-    delete resultWindow;
-    resultWindow = nullptr;
+    // Получаем центральный виджет. Если он не установлен, создаём его.
+    QWidget *central = this->centralWidget();
+    if (!central) {
+        central = new QWidget(this);
+        setCentralWidget(central);
+    } else {
+        // Очищаем центральный виджет от всех элементов, чтобы избежать конфликтов
+        if (central->layout()) {
+            QLayoutItem *child;
+            while ((child = central->layout()->takeAt(0)) != nullptr) {
+                if (child->widget()) {
+                    child->widget()->deleteLater();
+                }
+                delete child;
+            }
+        } else {
+            // Если layout отсутствует, создаём новый
+            QVBoxLayout *newLayout = new QVBoxLayout(central);
+            central->setLayout(newLayout);
+        }
+    }
 
-    resultWindow = new QWidget();
-    resultWindow->setWindowTitle("Test Results");
-    resultWindow->resize(800, 600);
+    // Получаем (или создаём) layout центрального виджета
+    QVBoxLayout *layout = qobject_cast<QVBoxLayout*>(central->layout());
+    if (!layout) {
+        layout = new QVBoxLayout(central);
+        central->setLayout(layout);
+    }
 
-    QVBoxLayout *layout = new QVBoxLayout(resultWindow);
-
-    resultTable = new QTableWidget(resultWindow);
-    QPushButton *saveButton = new QPushButton("Save Table", resultWindow);
-
+    // Создаём новую таблицу и добавляем её в layout
+    resultTable = new QTableWidget(central);
     layout->addWidget(resultTable);
+
+    // QTableWidget имеет встроенные полосы прокрутки
+
+    // Добавляем кнопку сохранения
+    QPushButton *saveButton = new QPushButton("Save Table", central);
     layout->addWidget(saveButton);
-
     connect(saveButton, &QPushButton::clicked, this, &MainWindow::saveTable);
-
-    resultWindow->setLayout(layout);
-    resultWindow->show();
 }
+
+
+
 
 void MainWindow::populateTable(const std::string& filename) {
     tableData.clear();
@@ -100,7 +123,6 @@ void MainWindow::populateTable(const std::string& filename) {
         std::vector<std::string> row;
         std::stringstream ss(line);
         std::string cell;
-
         while (ss >> cell) {
             row.push_back(cell);
         }
@@ -110,22 +132,97 @@ void MainWindow::populateTable(const std::string& filename) {
     }
     file.close();
 
+    if (tableData.empty())
+        return;
+
+    std::vector<std::string> headers = tableData[0];
+
+    int svIndex = -1, intervalIndex = -1;
+    for (size_t j = 0; j < headers.size(); ++j) {
+        if (headers[j] == "SV")
+            svIndex = j;
+        if (headers[j] == "interval")
+            intervalIndex = j;
+    }
+
+    std::vector<std::vector<std::string>> newTableData;
+    std::vector<std::string> newHeaders;
+
+    for (size_t j = 0; j < headers.size(); ++j) {
+        if ((int)j == svIndex && intervalIndex == j + 1) {
+            newHeaders.push_back("SV interval");
+            j++; // пропускаем столбец "interval"
+        } else {
+            newHeaders.push_back(headers[j]);
+        }
+    }
+    newTableData.push_back(newHeaders);
+
+    for (size_t i = 1; i < tableData.size(); ++i) {
+        std::vector<std::string> newRow;
+        size_t colLimit = std::min(headers.size(), tableData[i].size());
+        for (size_t j = 0; j < colLimit; ++j) {
+            if ((int)j == svIndex && intervalIndex == j + 1 && (j + 1) < colLimit) {
+                newRow.push_back(tableData[i][j] + " " + tableData[i][j + 1]);
+                j++; // пропускаем столбец "interval"
+            } else {
+                newRow.push_back(tableData[i][j]);
+            }
+        }
+        newTableData.push_back(newRow);
+    }
+
+    // Удаление пустых столбцов (проверка всех строк, кроме заголовка)
+    int colCount = newHeaders.size();
+    std::vector<bool> emptyColumn(colCount, true);
+    for (int j = 0; j < colCount; ++j) {
+        for (size_t i = 1; i < newTableData.size(); ++i) {
+            // Если размер строки меньше, чем ожидается, пропускаем проверку
+            if (j < newTableData[i].size() && !newTableData[i][j].empty()) {
+                emptyColumn[j] = false;
+                break;
+            }
+        }
+    }
+
+    // Формирование итоговой таблицы без пустых столбцов
+    std::vector<std::vector<std::string>> finalTableData;
+    for (size_t i = 0; i < newTableData.size(); ++i) {
+        std::vector<std::string> finalRow;
+        for (int j = 0; j < colCount; ++j) {
+            if (!emptyColumn[j] && j < newTableData[i].size()) {
+                finalRow.push_back(newTableData[i][j]);
+            }
+        }
+        finalTableData.push_back(finalRow);
+    }
+    tableData = finalTableData;
+
+    // Проверка корректности данных для таблицы
+    if (tableData.empty() || tableData[0].empty()) {
+        QMessageBox::warning(this, "Error", "No valid data to display!");
+        return;
+    }
+
+    // Обновляем QTableWidget
     resultTable->setRowCount(tableData.size() - 1);
     resultTable->setColumnCount(tableData[0].size());
 
-    QStringList headers;
-    for (const auto& header : tableData[0]) {
-        headers << QString::fromStdString(header);
+    QStringList qHeaders;
+    for (const auto &header : tableData[0]) {
+        qHeaders << QString::fromStdString(header);
     }
-    resultTable->setHorizontalHeaderLabels(headers);
+    resultTable->setHorizontalHeaderLabels(qHeaders);
 
     for (size_t i = 1; i < tableData.size(); ++i) {
         for (size_t j = 0; j < tableData[i].size(); ++j) {
-            resultTable->setItem(i-1, j, new QTableWidgetItem(
-                QString::fromStdString(tableData[i][j])));
+            resultTable->setItem(i - 1, j,
+                                 new QTableWidgetItem(QString::fromStdString(tableData[i][j])));
         }
     }
 }
+
+
 
 void MainWindow::saveTable() {
     QString fileName = QFileDialog::getSaveFileName(this,
