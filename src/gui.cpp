@@ -106,124 +106,192 @@ void MainWindow::createResultWindow() {
     connect(saveButton, &QPushButton::clicked, this, &MainWindow::saveTable);
 }
 
-
-
-
 void MainWindow::populateTable(const std::string& filename) {
-    tableData.clear();
-
     std::ifstream file(filename);
     if (!file) {
         QMessageBox::warning(this, "Error", "Could not open result file!");
         return;
     }
 
+    // Читаем заголовки
     std::string line;
+    std::getline(file, line);
+    std::vector<std::string> headers;
+    std::stringstream ss(line);
+    std::string cell;
+    while (ss >> cell) {
+        headers.push_back(cell);
+    }
+
+    // Объединяем "SV" и "interval" в "SV interval"
+    int svIndex = -1, intervalIndex = -1;
+    for (size_t j = 0; j < headers.size(); ++j) {
+        if (headers[j] == "SV") svIndex = j;
+        if (headers[j] == "interval") intervalIndex = j;
+    }
+
+    std::vector<std::string> finalHeaders;
+    for (size_t j = 0; j < headers.size(); ++j) {
+        if ((int)j == svIndex && intervalIndex == j + 1) {
+            finalHeaders.push_back("SV interval");
+            j++; // Пропускаем "interval"
+        } else {
+            finalHeaders.push_back(headers[j]);
+        }
+    }
+
+    // Читаем данные
+    std::vector<std::vector<tableValue>> tempData;
+    std::vector<std::string> dimensionValues;
     while (std::getline(file, line)) {
-        std::vector<std::string> row;
-        std::stringstream ss(line);
+        std::vector<tableValue> row(finalHeaders.size());
+        std::stringstream ssRow(line);
         std::string cell;
-        while (ss >> cell) {
-            row.push_back(cell);
+        size_t col = 0;
+
+        while (ssRow >> cell && col < finalHeaders.size()) {
+            if (col == 0) { // Dimension
+                dimensionValues.push_back(cell);
+                row[col] = tableValue();
+            } else if ((int)col == (svIndex >= 0 ? svIndex : -1) && intervalIndex == svIndex + 1) {
+                std::string nextCell;
+                if (ssRow >> nextCell) {
+                    std::string combined = cell + " " + nextCell;
+                    int first, second;
+                    if (sscanf(combined.c_str(), "[%d, %d]", &first, &second) == 2) {
+                        row[col] = tableValue({first, second});
+                    } else {
+                        row[col] = tableValue();
+                    }
+                }
+            } else if (col == 1) { // Sigma-max/min-ratio
+                try {
+                    double value = std::stod(cell);
+                    row[col] = tableValue(value);
+                } catch (...) {
+                    row[col] = tableValue();
+                }
+            } else { // Остальные столбцы
+                try {
+                    double value = std::stod(cell);
+                    row[col] = tableValue(value);
+                } catch (...) {
+                    row[col] = tableValue();
+                }
+            }
+            col++;
         }
-        if (!row.empty()) {
-            tableData.push_back(row);
-        }
+        tempData.push_back(row);
     }
     file.close();
 
-    if (tableData.empty())
+    if (tempData.empty()) {
+        QMessageBox::warning(this, "Error", "No valid data in result file!");
         return;
-
-    std::vector<std::string> headers = tableData[0];
-
-    int svIndex = -1, intervalIndex = -1;
-    for (size_t j = 0; j < headers.size(); ++j) {
-        if (headers[j] == "SV")
-            svIndex = j;
-        if (headers[j] == "interval")
-            intervalIndex = j;
     }
 
-    std::vector<std::vector<std::string>> newTableData;
-    std::vector<std::string> newHeaders;
-
-    for (size_t j = 0; j < headers.size(); ++j) {
-        if ((int)j == svIndex && intervalIndex == j + 1) {
-            newHeaders.push_back("SV interval");
-            j++; // пропускаем столбец "interval"
-        } else {
-            newHeaders.push_back(headers[j]);
-        }
-    }
-    newTableData.push_back(newHeaders);
-
-    for (size_t i = 1; i < tableData.size(); ++i) {
-        std::vector<std::string> newRow;
-        size_t colLimit = std::min(headers.size(), tableData[i].size());
-        for (size_t j = 0; j < colLimit; ++j) {
-            if ((int)j == svIndex && intervalIndex == j + 1 && (j + 1) < colLimit) {
-                newRow.push_back(tableData[i][j] + " " + tableData[i][j + 1]);
-                j++; // пропускаем столбец "interval"
-            } else {
-                newRow.push_back(tableData[i][j]);
-            }
-        }
-        newTableData.push_back(newRow);
-    }
-
-    // Удаление пустых столбцов (проверка всех строк, кроме заголовка)
-    int colCount = newHeaders.size();
+    // Удаляем пустые столбцы
+    int colCount = finalHeaders.size();
     std::vector<bool> emptyColumn(colCount, true);
     for (int j = 0; j < colCount; ++j) {
-        for (size_t i = 1; i < newTableData.size(); ++i) {
-            // Если размер строки меньше, чем ожидается, пропускаем проверку
-            if (j < newTableData[i].size() && !newTableData[i][j].empty()) {
-                emptyColumn[j] = false;
-                break;
+        if (j == 0) { // Dimension всегда заполнен
+            emptyColumn[j] = false;
+        } else {
+            for (size_t i = 0; i < tempData.size(); ++i) {
+                if (tempData[i][j].sv != tableValue::string_) {
+                    emptyColumn[j] = false;
+                    break;
+                }
             }
         }
     }
 
-    // Формирование итоговой таблицы без пустых столбцов
-    std::vector<std::vector<std::string>> finalTableData;
-    for (size_t i = 0; i < newTableData.size(); ++i) {
-        std::vector<std::string> finalRow;
+    std::vector<std::string> filteredHeaders;
+    std::vector<std::vector<tableValue>> filteredData;
+    filteredData.push_back(std::vector<tableValue>()); // Заголовки
+    for (int j = 0; j < colCount; ++j) {
+        if (!emptyColumn[j]) {
+            filteredHeaders.push_back(finalHeaders[j]);
+            filteredData[0].push_back(tableValue());
+        }
+    }
+
+    for (size_t i = 0; i < tempData.size(); ++i) {
+        std::vector<tableValue> filteredRow;
         for (int j = 0; j < colCount; ++j) {
-            if (!emptyColumn[j] && j < newTableData[i].size()) {
-                finalRow.push_back(newTableData[i][j]);
+            if (!emptyColumn[j]) {
+                filteredRow.push_back(tempData[i][j]);
             }
         }
-        finalTableData.push_back(finalRow);
+        filteredData.push_back(filteredRow);
     }
-    tableData = finalTableData;
+    tableData = filteredData;
 
-    // Проверка корректности данных для таблицы
-    if (tableData.empty() || tableData[0].empty()) {
-        QMessageBox::warning(this, "Error", "No valid data to display!");
-        return;
-    }
-
-    // Обновляем QTableWidget
-    resultTable->setRowCount(tableData.size() - 1);
-    resultTable->setColumnCount(tableData[0].size());
-
+    // Устанавливаем таблицу
+    resultTable->setRowCount(tempData.size());
+    resultTable->setColumnCount(filteredHeaders.size());
     QStringList qHeaders;
-    for (const auto &header : tableData[0]) {
+    for (const auto& header : filteredHeaders) {
         qHeaders << QString::fromStdString(header);
     }
     resultTable->setHorizontalHeaderLabels(qHeaders);
+    resultTable->setSortingEnabled(true);
 
-    for (size_t i = 1; i < tableData.size(); ++i) {
-        for (size_t j = 0; j < tableData[i].size(); ++j) {
-            resultTable->setItem(i - 1, j,
-                                 new QTableWidgetItem(QString::fromStdString(tableData[i][j])));
+    // Заполняем таблицу
+    for (size_t i = 0; i < tempData.size(); ++i) {
+        for (size_t j = 0; j < filteredData[i + 1].size(); ++j) {
+            CustomTableWidgetItem* item = nullptr;
+            if (j == 0) { // Dimension
+                item = new CustomTableWidgetItem(QString::fromStdString(dimensionValues[i]));
+            } else if (filteredData[i + 1][j].sv == tableValue::double_) {
+                item = new CustomTableWidgetItem(filteredData[i + 1][j].double_decimal);
+                item->setText(j == 1 ? QString::number(filteredData[i + 1][j].double_decimal, 'f', 2)
+                                     : QString::number(filteredData[i + 1][j].double_decimal, 'e', 5));
+            } else if (filteredData[i + 1][j].sv == tableValue::pair__) {
+                item = new CustomTableWidgetItem(filteredData[i + 1][j].pair_of_int);
+                item->setText(QString("[%1, %2]").arg(filteredData[i + 1][j].pair_of_int.first)
+                                  .arg(filteredData[i + 1][j].pair_of_int.second));
+            } else {
+                item = new CustomTableWidgetItem("Invalid");
+            }
+            resultTable->setItem(i, j, item);
         }
     }
 }
 
+void MainWindow::saveTable() {
+    QString fileName = QFileDialog::getSaveFileName(this, "Save Table", "", "Text Files (*.txt);;All Files (*)");
+    if (fileName.isEmpty()) return;
 
+    std::ofstream file(fileName.toStdString());
+    if (!file) {
+        QMessageBox::warning(this, "Error", "Could not save file!");
+        return;
+    }
 
+    for (size_t i = 0; i < tableData.size(); ++i) {
+        for (size_t j = 0; j < tableData[i].size(); ++j) {
+            if (j == 0) { // Dimension как строка
+                file << (i == 0 ? resultTable->horizontalHeaderItem(j)->text().toStdString()
+                                : resultTable->item(i - 1, j)->text().toStdString());
+            } else if (tableData[i][j].sv == tableValue::double_) {
+                file << (j == 1 ? QString::number(tableData[i][j].double_decimal, 'f', 2).toStdString()
+                                : QString::number(tableData[i][j].double_decimal, 'e', 5).toStdString());
+            } else if (tableData[i][j].sv == tableValue::pair__) {
+                file << "[" << tableData[i][j].pair_of_int.first << ", " << tableData[i][j].pair_of_int.second << "]";
+            } else {
+                file << "Invalid";
+            }
+            if (j < tableData[i].size() - 1) file << " ";
+        }
+        file << "\n";
+    }
+    file.close();
+
+    QMessageBox::information(this, "Success", "Table saved successfully!");
+}
+
+/*
 void MainWindow::saveTable() {
     QString fileName = QFileDialog::getSaveFileName(this,
         "Save Table", "", "Text Files (*.txt);;All Files (*)");
@@ -246,4 +314,4 @@ void MainWindow::saveTable() {
     file.close();
 
     QMessageBox::information(this, "Success", "Table saved successfully!");
-}
+}*/

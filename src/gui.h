@@ -56,6 +56,40 @@ public:
             return item;
         }
 
+        bool operator<(const QTableWidgetItem &other) const override {
+            const CustomTableWidgetItem *otherItem = dynamic_cast<const CustomTableWidgetItem*>(&other);
+            if (otherItem) {
+                // Если оба элемента представляют даблы
+                if (value.sv == tableValue::double_ && otherItem->value.sv == tableValue::double_) {
+                    return value.double_decimal < otherItem->value.double_decimal;
+                }
+                // Если оба элемента представляют интервалы (пары)
+                else if (value.sv == tableValue::pair__ && otherItem->value.sv == tableValue::pair__) {
+                    return value.pair_of_int.first < otherItem->value.pair_of_int.first;
+                }
+                // Если элемент представляет размерность матрицы, сохранённую как строку вида "NxM"
+                else if (value.sv == tableValue::string_) {
+                    QString leftText = this->text();
+                    QString rightText = other.text();
+                    QStringList leftParts = leftText.split("x", Qt::SkipEmptyParts);
+                    QStringList rightParts = rightText.split("x", Qt::SkipEmptyParts);
+                    if (leftParts.size() == 2 && rightParts.size() == 2) {
+                        int leftRows = leftParts[0].toInt();
+                        int leftCols = leftParts[1].toInt();
+                        int rightRows = rightParts[0].toInt();
+                        int rightCols = rightParts[1].toInt();
+                        // Сравнение по общему количеству элементов матрицы
+                        return (leftRows * leftCols) < (rightRows * rightCols);
+                    }
+                    // Если не удалось распарсить, выполняем лексикографическое сравнение
+                    return leftText < rightText;
+                }
+            }
+            // Fallback к стандартному сравнению
+            return QTableWidgetItem::operator<(other);
+        }
+
+
     private:
         tableValue value;
     };
@@ -71,7 +105,7 @@ private:
     QTableWidget *resultTable;
     QScrollArea *tableScrollArea;
 	QProgressBar *progressBar;
-    std::vector<std::vector<std::string>> tableData;
+    std::vector<std::vector<tableValue>> tableData;
     std::string currentResultFile;  
 
     void setupUI();
