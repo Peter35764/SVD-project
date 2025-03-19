@@ -3,6 +3,7 @@
 #include <QtWidgets/QMessageBox>
 #include <QtWidgets/QHeaderView>
 #include <fstream>
+#include <qvalueaxis.h>
 #include <sstream>
 #include <QString>
 #include <QStringList>
@@ -319,10 +320,11 @@ void MainWindow::adjustTableColumns() {
     resultTable->resizeColumnsToContents();
     resultTable->horizontalHeader()->setStretchLastSection(false);
 }
-
 void MainWindow::saveTable() {
+    // Запрашиваем имя файла для сохранения
     QString fileName = QFileDialog::getSaveFileName(this, "Save Table", "", "Text Files (*.txt);;All Files (*)");
-    if (fileName.isEmpty()) return;
+    if (fileName.isEmpty())
+        return;
 
     std::ofstream file(fileName.toStdString());
     if (!file) {
@@ -330,20 +332,26 @@ void MainWindow::saveTable() {
         return;
     }
 
-    for (size_t i = 0; i < tableData.size(); ++i) {
-        for (size_t j = 0; j < tableData[i].size(); ++j) {
-            if (j == 0) {
-                file << (i == 0 ? resultTable->horizontalHeaderItem(j)->text().toStdString()
-                                : resultTable->item(i - 1, j)->text().toStdString());
-            } else if (tableData[i][j].sv == tableValue::double_) {
-                file << (j == 1 ? QString::number(tableData[i][j].double_decimal, 'f', 2).toStdString()
-                                : QString::number(tableData[i][j].double_decimal, 'e', 5).toStdString());
-            } else if (tableData[i][j].sv == tableValue::pair__) {
-                file << "[" << tableData[i][j].pair_of_int.first << ", " << tableData[i][j].pair_of_int.second << "]";
-            } else {
-                file << "Invalid";
-            }
-            if (j < tableData[i].size() - 1)
+    // Записываем заголовки таблицы
+    int colCount = resultTable->columnCount();
+    for (int j = 0; j < colCount; ++j) {
+        if (resultTable->horizontalHeaderItem(j))
+            file << resultTable->horizontalHeaderItem(j)->text().toStdString();
+        if (j < colCount - 1)
+            file << " ";
+    }
+    file << "\n";
+
+    // Записываем данные таблицы
+    int rowCount = resultTable->rowCount();
+    for (int i = 0; i < rowCount; ++i) {
+        for (int j = 0; j < colCount; ++j) {
+            QString cellText;
+            QTableWidgetItem *item = resultTable->item(i, j);
+            if (item)
+                cellText = item->text();
+            file << cellText.toStdString();
+            if (j < colCount - 1)
                 file << " ";
         }
         file << "\n";
@@ -354,102 +362,129 @@ void MainWindow::saveTable() {
 }
 
 void MainWindow::plotGraphForMetric(int metricColIndex) {
-    if (!resultTable) {
+    // Проверяем, что исходные данные загружены: tableData[0] – заголовки, данные с индекса 1
+    if (tableData.empty() || tableData.size() < 2) {
         QMessageBox::warning(this, "Error", "Нет данных для построения графика!");
         return;
     }
-    int rowCount = resultTable->rowCount();
-    int totalCols = resultTable->columnCount();
-    if (rowCount == 0 || metricColIndex >= totalCols) {
-        QMessageBox::warning(this, "Error", "Недостаточно данных для построения графика!");
-        return;
-    }
 
-    QVector<double> xValues;
-    QVector<double> yValues;
-
-    // Определяем выбранный параметр для оси X
+    QVector<QPointF> dataPoints;
     QString selectedParam = parameterSelector->currentData().toString();
-    int paramCol = 0;
-    if (selectedParam == "matrix_size") {
-        paramCol = 0;
-    } else if (selectedParam == "sv_ratio") {
-        paramCol = 1;
-    } else if (selectedParam == "interval") {
-        paramCol = 2;
-    }
 
-    // Собираем данные из таблицы
-    for (int i = 0; i < rowCount; i++) {
-        double x = 0;
-        // Извлекаем x значение в зависимости от выбранного параметра
-        if (selectedParam == "matrix_size") {
-            // Извлекаем размер матрицы из первой колонки (например, "100x100")
-            QString dimText = resultTable->item(i, 0)->text().trimmed();
-            QStringList parts = dimText.split("x", Qt::SkipEmptyParts);
-            if (!parts.isEmpty()) {
-                x = parts[0].toDouble();
-            }
-        } else if (selectedParam == "sv_ratio") {
-            // Извлекаем значение соотношения сингулярных значений из второй колонки
-            QString ratioText = resultTable->item(i, 1)->text().trimmed();
-            x = ratioText.toDouble();
-        } else if (selectedParam == "interval") {
-            // Извлекаем интервал из третьей колонки, ожидается формат "[a, b]"
-            QString intervalText = resultTable->item(i, 2)->text().trimmed();
-            if (intervalText.startsWith("[") && intervalText.endsWith("]")) {
-                intervalText = intervalText.mid(1, intervalText.length() - 2);
-                QStringList numbers = intervalText.split(",", Qt::SkipEmptyParts);
-                if (numbers.size() >= 2) {
-                    double a = numbers[0].trimmed().toDouble();
-                    double b = numbers[1].trimmed().toDouble();
-                    x = b - a; // Используем разность как представление интервала
+    if (selectedParam == "matrix_size") {
+        // Для параметра "Размер матрицы" перечитываем исходный файл, чтобы получить оригинальные записи
+        std::vector<std::string> origDimensions;
+        std::ifstream file(currentResultFile);
+        if (file) {
+            std::string line;
+            // Пропускаем строку заголовков
+            std::getline(file, line);
+            while (std::getline(file, line)) {
+                std::stringstream ss(line);
+                std::string cell;
+                if (ss >> cell) {
+                    origDimensions.push_back(cell);
                 }
             }
+            file.close();
+        } else {
+            QMessageBox::warning(this, "Error", "Не удалось открыть исходный файл для получения размерности матрицы!");
+            return;
         }
-        xValues.push_back(x);
-
-        // Извлекаем y значение из выбранной метрики
-        QString metricText = resultTable->item(i, metricColIndex)->text().trimmed();
-        double y = metricText.toDouble();
-        yValues.push_back(y);
+        // Проверяем, что число строк совпадает (tableData содержит данные с 1-ой строки)
+        if (origDimensions.size() != tableData.size() - 1) {
+            QMessageBox::warning(this, "Error", "Количество строк в исходном файле не соответствует ожидаемому.");
+            return;
+        }
+        // Перебираем оригинальные записи (в исходном порядке)
+        for (size_t i = 0; i < origDimensions.size(); ++i) {
+            QString dimText = QString::fromStdString(origDimensions[i]);
+            QStringList parts = dimText.split("x", Qt::SkipEmptyParts);
+            double x = 0.0;
+            if (!parts.isEmpty()) {
+                // Берем первое число (например, количество строк)
+                x = parts[0].toDouble();
+            }
+            // Для y используем данные из tableData (строка i+1, т.к. [0] – заголовки)
+            double y = 0.0;
+            if (metricColIndex < int(tableData[i+1].size())) {
+                if (tableData[i+1][metricColIndex].sv == tableValue::double_)
+                    y = tableData[i+1][metricColIndex].double_decimal;
+                else if (tableData[i+1][metricColIndex].sv == tableValue::pair__)
+                    y = tableData[i+1][metricColIndex].pair_of_int.first;
+            }
+            dataPoints.append(QPointF(x, y));
+        }
+    }
+    else if (selectedParam == "sv_ratio") {
+        // Для соотношения сингулярных значений используем данные из tableData (столбец 1)
+        for (size_t i = 1; i < tableData.size(); ++i) {
+            double x = tableData[i][1].double_decimal;
+            double y = 0.0;
+            if (metricColIndex < int(tableData[i].size())) {
+                if (tableData[i][metricColIndex].sv == tableValue::double_)
+                    y = tableData[i][metricColIndex].double_decimal;
+                else if (tableData[i][metricColIndex].sv == tableValue::pair__)
+                    y = tableData[i][metricColIndex].pair_of_int.first;
+            }
+            dataPoints.append(QPointF(x, y));
+        }
+    }
+    else if (selectedParam == "interval") {
+        // Для интервала используем данные из tableData (столбец 2: пара чисел)
+        for (size_t i = 1; i < tableData.size(); ++i) {
+            int a = tableData[i][2].pair_of_int.first;
+            int b = tableData[i][2].pair_of_int.second;
+            double x = b - a; // разность интервала
+            double y = 0.0;
+            if (metricColIndex < int(tableData[i].size())) {
+                if (tableData[i][metricColIndex].sv == tableValue::double_)
+                    y = tableData[i][metricColIndex].double_decimal;
+                else if (tableData[i][metricColIndex].sv == tableValue::pair__)
+                    y = tableData[i][metricColIndex].pair_of_int.first;
+            }
+            dataPoints.append(QPointF(x, y));
+        }
     }
 
-    // Построение графика с использованием Qt Charts
+    // Сортируем вектор пар (x, y) по возрастанию x – это гарантирует, что точки будут соединены правильно
+    std::sort(dataPoints.begin(), dataPoints.end(), [](const QPointF &a, const QPointF &b) {
+        return a.x() < b.x();
+    });
+
+    // Создаем линию графика и заполняем ее отсортированными точками
     QLineSeries *series = new QLineSeries();
-    for (int i = 0; i < xValues.size(); i++) {
-        series->append(xValues[i], yValues[i]);
-    }
+    for (const QPointF &pt : dataPoints)
+        series->append(pt);
 
+    // Создаем график и добавляем серию
     QChart *chart = new QChart();
     chart->addSeries(series);
+
+    // Возвращаем ось Y к первоначальному виду (как в исходном коде) – создаем оси по умолчанию
     chart->createDefaultAxes();
 
-    // Задаем подписи осей
+    // Устанавливаем подписи осей
     QString xLabel;
-    if (selectedParam == "matrix_size") {
+    if (selectedParam == "matrix_size")
         xLabel = "Размер матрицы";
-    } else if (selectedParam == "sv_ratio") {
+    else if (selectedParam == "sv_ratio")
         xLabel = "Соотношение сингулярных значений";
-    } else if (selectedParam == "interval") {
+    else if (selectedParam == "interval")
         xLabel = "Интервал (разность)";
-    }
-    // Устанавливаем подпись для оси X
     chart->axes(Qt::Horizontal).first()->setTitleText(xLabel);
-    // Устанавливаем подпись для оси Y (размерность метрики)
     chart->axes(Qt::Vertical).first()->setTitleText("Значение метрики");
 
-    // Устанавливаем заголовок графика как название метрики
+    // Заголовок графика формируется по заголовку выбранной метрики
     QTableWidgetItem *metricHeaderItem = resultTable->horizontalHeaderItem(metricColIndex);
-    QString metricTitle = metricHeaderItem ? metricHeaderItem->text() : QString("Метрика");
+    QString metricTitle = metricHeaderItem ? metricHeaderItem->text() : "Метрика";
     chart->setTitle(QString("Зависимость %1 от %2").arg(metricTitle, xLabel));
 
-    // Если ранее был построен график, удаляем его
+    // Обновляем график: если график ранее был построен, удаляем его
     if (chartView) {
         resultLayout->removeWidget(chartView);
         chartView->deleteLater();
     }
-
     chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
     resultLayout->addWidget(chartView);
