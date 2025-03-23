@@ -43,9 +43,9 @@ SET(HEADER_FILES
   src/dqds.h
   src/iterative_refinement.h
   src/jacobi.h
-  # # Parf&Drozdov
-  # src/givens_refinement.h
-  # src/givens_refinement.hpp
+  # Parf&Drozdov
+  src/givens_refinement.h
+  src/givens_refinement.hpp
 )
 
 SET(SOURCE_FILES
@@ -54,8 +54,8 @@ SET(SOURCE_FILES
   src/iterative_refinement.cpp
   src/jacobi.cpp
   src/testing.cpp
-  # # Parf&Drozdov
-  # src/givens_refinement.cpp
+  # Parf&Drozdov
+  src/givens_refinement.cpp
 )
 
 # ==================================
@@ -93,10 +93,10 @@ target_link_libraries(svd_test PRIVATE svd Eigen3::Eigen lapacke)
 # target_compile_features(svd_test_jacobi PRIVATE cxx_std_20)
 # target_link_libraries(svd_test_jacobi PRIVATE svd Eigen3::Eigen lapacke)
 
-# # Сценарий тестирования, описанный в givens_refinement.cpp
-# add_executable(svd_test_givref src/givens_refinement.cpp)
-# target_compile_features(svd_test_givref PRIVATE cxx_std_20)
-# target_link_libraries(svd_test_givref PRIVATE svd Eigen3::Eigen lapacke)
+# Сценарий тестирования, описанный в givens_refinement.cpp
+add_executable(svd_test_givref src/givens_refinement.cpp)
+target_compile_features(svd_test_givref PRIVATE cxx_std_20)
+target_link_libraries(svd_test_givref PRIVATE svd Eigen3::Eigen lapacke)
 # ==================================
 
 
