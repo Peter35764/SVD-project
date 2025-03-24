@@ -43,9 +43,9 @@ SET(HEADER_FILES
   src/dqds.h
   src/iterative_refinement.h
   src/jacobi.h
-  # # Parf&Drozdov
-  # src/givens_refinement.h
-  # src/givens_refinement.hpp
+  # Parf&Drozdov
+  src/reverse_jacobi.h
+  src/reverse_jacobi.hpp
 )
 
 SET(SOURCE_FILES
@@ -54,8 +54,8 @@ SET(SOURCE_FILES
   src/iterative_refinement.cpp
   src/jacobi.cpp
   src/testing.cpp
-  # # Parf&Drozdov
-  # src/givens_refinement.cpp
+  # Parf&Drozdov
+  src/reverse_jacobi.cpp
 )
 
 # ==================================
@@ -73,30 +73,11 @@ add_executable(svd_test src/testing.cpp)
 target_compile_features(svd_test PRIVATE cxx_std_20)
 target_link_libraries(svd_test PRIVATE svd Eigen3::Eigen lapacke)
 
-# # Сценарий тестирования, описанный в generate_svd.cpp
-# add_executable(svd_test_generatesvd src/generate_svd.cpp)
-# target_compile_features(svd_test_generatesvd PRIVATE cxx_std_20)
-# target_link_libraries(svd_test_generatesvd PRIVATE svd Eigen3::Eigen lapacke)
+# Сценарий тестирования, описанный в givens_refinement.cpp
+add_executable(svd_test_revjac src/reverse_jacobi.cpp)
+target_compile_features(svd_test_revjac PRIVATE cxx_std_20)
+target_link_libraries(svd_test_revjac PRIVATE svd Eigen3::Eigen lapacke)
 
-# # Сценарий тестирования, описанный в GolubKahanSVD.cpp
-# add_executable(svd_test_golubkahan src/generate_svd.cpp)
-# target_compile_features(svd_test_golubkahan PRIVATE cxx_std_20)
-# target_link_libraries(svd_test_golubkahan PRIVATE svd Eigen3::Eigen lapacke)
-
-# # Сценарий тестирования, описанный в iterative_refinement.cpp
-# add_executable(svd_test_iterref src/iterative_refinement.cpp)
-# target_compile_features(svd_test_iterref PRIVATE cxx_std_20)
-# target_link_libraries(svd_test_iterref PRIVATE svd Eigen3::Eigen lapacke)
-
-# # Сценарий тестирования, описанный в jacobi.cpp
-# add_executable(svd_test_jacobi src/jacobi.cpp)
-# target_compile_features(svd_test_jacobi PRIVATE cxx_std_20)
-# target_link_libraries(svd_test_jacobi PRIVATE svd Eigen3::Eigen lapacke)
-
-# # Сценарий тестирования, описанный в givens_refinement.cpp
-# add_executable(svd_test_givref src/givens_refinement.cpp)
-# target_compile_features(svd_test_givref PRIVATE cxx_std_20)
-# target_link_libraries(svd_test_givref PRIVATE svd Eigen3::Eigen lapacke)
 # ==================================
 
 
