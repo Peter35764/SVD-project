@@ -1,6 +1,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <iostream>
+#include <ostream>
 
 /* Test of all matrix norms presented in Eigen worth looking into:
  *
@@ -61,29 +62,28 @@ int main()
     }
     Eigen::MatrixXd A_ill = U * S_ill_cond * V.transpose();
 
-    std::cout << "Well cond. norm():\t" << S_well_cond.norm() << std::endl;
-    std::cout << "Ill cond. norm():\t" << S_ill_cond.norm() << std::endl;
+    std::cout << "S_well\tS_ill" << std::endl;
+    std::cout << S_well_cond.norm() * S_well_cond.inverse().norm() << "\t"
+              << S_ill_cond.norm() * S_ill_cond.inverse().norm() << std::endl;
 
-    std::cout << "Well cond. opetarorNorm():\t" << S_well_cond.operatorNorm() << std::endl;
-    std::cout << "Ill cond. opetarorNorm():\t" << S_ill_cond.operatorNorm() << std::endl;
+    std::cout << std::endl;
 
-    std::cout << "Well cond. squaredNorm():\t" << S_well_cond.squaredNorm() << std::endl;
-    std::cout << "Ill cond. squaredNorm():\t" << S_ill_cond.squaredNorm() << std::endl;
-
-    std::cout << "Well cond. lpNorm<3>():\t" << S_well_cond.lpNorm<3>() << std::endl;
-    std::cout << "Ill cond. lpNorm<3>():\t" << S_ill_cond.lpNorm<3>() << std::endl;
-
-    std::cout << "Well cond. lpNorm<5>():\t" << S_well_cond.lpNorm<5>() << std::endl;
-    std::cout << "Ill cond. lpNorm<5>():\t" << S_ill_cond.lpNorm<5>() << std::endl;
-
-    std::cout << "Well cond. stableNorm():\t" << S_well_cond.stableNorm() << std::endl;
-    std::cout << "Ill cond. stableNorm():\t" << S_ill_cond.stableNorm() << std::endl;
-
-    std::cout << "Well cond. blueNorm():\t" << S_well_cond.blueNorm() << std::endl;
-    std::cout << "Ill cond. blueNorm():\t" << S_ill_cond.blueNorm() << std::endl;
-
-    std::cout << "Well cond. hypotNorm():\t" << S_well_cond.hypotNorm() << std::endl;
-    std::cout << "Ill cond. hypotNorm():\t" << S_ill_cond.hypotNorm() << std::endl;
+    std::cout << "Norm\tWell c.\tIll c." << std::endl;
+    std::cout << "norm():\t" << S_well_cond.norm() << "\t" << S_ill_cond.norm() << std::endl;
+    std::cout << "opetarorNorm():\t" << S_well_cond.operatorNorm() << "\t"
+              << S_ill_cond.operatorNorm() << std::endl;
+    std::cout << "squaredNorm():\t" << S_well_cond.squaredNorm() << "\t" << S_ill_cond.squaredNorm()
+              << std::endl;
+    std::cout << "lpNorm<3>():\t" << S_well_cond.lpNorm<3>() << "\t" << S_ill_cond.lpNorm<3>()
+              << std::endl;
+    std::cout << "lpNorm<5>():\t" << S_well_cond.lpNorm<5>() << "\t" << S_ill_cond.lpNorm<5>()
+              << std::endl;
+    std::cout << "stableNorm():\t" << S_well_cond.stableNorm() << "\t" << S_ill_cond.stableNorm()
+              << std::endl;
+    std::cout << "blueNorm():\t" << S_well_cond.blueNorm() << "\t" << S_ill_cond.blueNorm()
+              << std::endl;
+    std::cout << "hypotNorm():\t" << S_well_cond.hypotNorm() << "\t" << S_ill_cond.hypotNorm()
+              << std::endl;
 
     return 0;
 }
