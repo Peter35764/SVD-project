@@ -3,51 +3,64 @@
 
 #include <Eigen/Core>
 #include <Eigen/SVD>
+#include <random>
+#include <vector>
 
 namespace SVD_Project {
 
-// _FPNum   - floating-point number
-// N        - Size of square matrix
-template<typename _MatrixType, typename _FPNum = double, int N = Eigen::Dynamic>
-class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>>
-{
+template <typename _MatrixType>
+class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
     typedef Eigen::SVDBase<GivRef_SVD> Base;
+    typedef typename _MatrixType::Scalar Scalar;
+    typedef typename _MatrixType::Index Index;
 
-public:
-    GivRef_SVD(const _MatrixType &matrix, unsigned int computationOptions = 0);
+  public:
+    // This structure is required for tests
+    explicit GivRef_SVD(const _MatrixType &matrix,
+                        unsigned int computationOptions = 0);
+    GivRef_SVD &compute(const _MatrixType &matrix,
+                        unsigned int computationOptions = 0);
 
-    GivRef_SVD &compute(const _MatrixType &matrix, unsigned int computationOptions = 0);
+    const typename Base::MatrixUType &matrixU() const { return m_matrixU; }
+    const typename Base::MatrixVType &matrixV() const { return m_matrixV; }
+    const typename Base::SingularValuesType &singularValues() const {
+        return m_singularValues;
+    }
 
-private:
-    using SquareMatrix = Eigen::Matrix<typename _MatrixType::Scalar, N, N>;
+  private:
+    typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> SquareMatrix;
+    typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> EVector;
 
-    SquareMatrix left_J;      // Произведение всех поворпотов Гивенса слева от B
-    SquareMatrix right_J;     // Произведение всех поворпотов Гивенса справа от B
-    SquareMatrix sigm_B;      // Матрица с сингулярными значениями B
-    SquareMatrix true_sigm_B; // Матрица с точными сингулярными значениями B
-    SquareMatrix B;           // Изначальная Бидиагональная матрица
+    SquareMatrix m_matrixU, m_matrixV;
+    EVector m_singularValues;
 
-    Eigen::VectorXd Cosines; // Вектор с изначальными значениями косинусов
-    Eigen::VectorXd Sines;   // Вектор с изначальными значениями косинусов
-    Eigen::VectorXd Tans;    // Вектор с изначальными значениями тангенсов
+    SquareMatrix left_J;
+    SquareMatrix right_J;
+    SquareMatrix sigm_B;
+    SquareMatrix true_sigm_B;
+    SquareMatrix B;
 
-    Eigen::VectorXd NewCosines; // Вектор со значениями косинусов после сдвигов
-    Eigen::VectorXd NewSines;   // Вектор со значениями синусов после сдвигов
+    EVector Cosines;
+    EVector Sines;
+    EVector Tans;
+    EVector NewCosines;
+    EVector NewSines;
 
-    int trigonom_i; // Значение для перебора векторов с тригонометрическими функциями
-    int iter_num;   // Количество итераций алгоритма QR with zero shift
-    int n;          // Размер матриц
+    Index n;
+    Index trigonom_i;
+    Index iter_num;
 
-    std::vector<_FPNum> ROT(_FPNum f, _FPNum g);
+    std::vector<Scalar> ROT(Scalar f, Scalar g);
+    void Impl_QR_zero_iter();
+    void revert_negative_singular();
+    void initialize(const _MatrixType &matrix, unsigned int computationOptions);
 };
 
 } // namespace SVD_Project
 
-// traits - типозависимые свойства
-template<typename _MatrixType>
+template <typename _MatrixType>
 struct Eigen::internal::traits<SVD_Project::GivRef_SVD<_MatrixType>>
-    : Eigen::internal::traits<_MatrixType>
-{
+    : Eigen::internal::traits<_MatrixType> {
     typedef _MatrixType MatrixType;
 };
 
