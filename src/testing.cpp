@@ -1,6 +1,6 @@
 #include "generate_svd.h"
 #include "dqds.h"
-#include <mrrr.hpp>
+#include "mrrr.hpp"
 
 #include <iostream>
 #include <Eigen/Dense>
@@ -11,6 +11,10 @@
 #include <cassert>
 #include <thread>
 #include <mutex>
+#include <sstream>
+#include <random>
+#include <string>
+#include <algorithm>
 
 //Александр Нам, КМБО-04-20
 //Any questions: alexnam16@gmail.com
@@ -18,39 +22,31 @@
 // Глобальный mutex для синхронизации вывода в консоль
 std::mutex cout_mutex;
 
-//Назначение функции - тестирование и оценка точности методов SVD разложения, унаследованных от SVD Base 
+// Функция возвращает матрицу-таблицу формата:
+// | размерность | sigma_max/sigma_min | диап. синг. чисел | 
+// | sum_n(norm[I - U.transpose*U])/n | sum_n(norm[I - U*U.transpose])/n |
+// | sum_n(norm[I - V.transpose*V])/n | sum_n(norm[I - V*V.transpose])/n |
+// | max(abs((sigma_true_i - sigma_calc_i)/sigma_true_i)) |
+// Размер выборки фиксированного размера матриц определяется задаваемым параметром 'n'.
 
-/*
- Функция возвращает матрицу-таблицу формата:
- | размерность | sigma_max/sigma_min | диап. синг. чисел | 
- | sum_n(norm[I - U.transpose*U])/n | sum_n(norm[I - U*U.transpose])/n |
- | sum_n(norm[I - V.transpose*V])/n | sum_n(norm[I - V*V.transpose])/n | 
- | max(abs((sigma_true_i - sigma_calc_i)/sigma_true_i)) |;
- Размер выборки фиксированного размера матриц определяется задаваемым параметром 'n'.
-*/
+// Функция написана с теми условиями, что:
+//    1. Класс SVD разложения наследуется от класса Eigen::SVDBase, причем должен существоваться конструктор класса,
+//       который вторым параметром принимает настройку вычислений матриц U и V, т.е. thin или full.
+//    2. Генерация случайных матриц происходит с помощью SVDGenerator из generate_svd.h
+//    3. В функцию передаётся std::vector соотношений максимального и минимального сингулярного числа
+//    4. В функцию передаётся std::vector<std::pair<int,int>> размеров матриц для исследования
+//    5. В функцию передаётся int n размер выборки фиксированного размера матриц для подсчёта средних
+//    6. Функция работает достаточно долго, особенно для матриц больших размеров, поэтому выводится прогресс в процентах
+//    7. Результат исследования не печатается в консоль, а сохраняется в файл, название выбирается первым параметром
 
-/*
-Функция написана с теми условиями, что:
-    1. Класс SVD разложения наследуется от класса Eigen::SVDBase, причем должен существоваться конструктор класса,
-       который вторым параметром принимает настройку вычислений матриц U и V, т.е. thin или full.
-    2. Генерация случайных матриц происходит с помощью SVDGenerator из generate_svd.h
-    3. В функцию передаётся std::vector соотношений максимального и минимального сингулярного числа
-    4. В функцию передаётся std::vector<std::pair<int,int>> размеров матриц для исследования
-    5. В функцию передаётся int n размер выборки фиксированного размера матриц для подсчёта средних
-    6. Функция работает достаточно долго, особенно для матриц больших размеров, поэтому выводится прогресс в процентах
-    7. Результат исследования не печатается в консоль, а сохраняется в файл, название выбирается первым параметром
-*/
-
-/*
-Функция принимает параметрами: 
-- fileName: имя текстового файла, куда будет сохранен результат, т.е. таблица
-- SigmaMaxMinRatiosVec: вектор соотношений максимального и минимального сингулярных чисел;
-                        нужен т.к. ошибка может сильно отличаться у разных соотношений сингулярных чисел;
-- MatSizesVec: вектор размеров матриц для теста;
-- n: количество матриц, которые генерируются с одинаковыми параметрами для усреднения выборки и подсчёта средних
-- algorithmName: название алгоритма, используется в выводе прогресса
-- lineNumber: номер строки в терминале, которую будет обновлять данный алгоритм
-*/
+// Функция принимает параметрами: 
+// - fileName: имя текстового файла, куда будет сохранен результат, т.е. таблица
+// - SigmaMaxMinRatiosVec: вектор соотношений максимального и минимального сингулярных чисел;
+//                        нужен т.к. ошибка может сильно отличаться у разных соотношений сингулярных чисел;
+// - MatSizesVec: вектор размеров матриц для теста;
+// - n: количество матриц, которые генерируются с одинаковыми параметрами для усреднения выборки и подсчёта средних
+// - algorithmName: название алгоритма, используется в выводе прогресса
+// - lineNumber: номер строки в терминале, которую будет обновлять данный алгоритм
 template<typename T, template <typename> class gen_cl, template <typename> class svd_cl> 
 void svd_test_func(std::string fileName, 
                    const std::vector<T>& SigmaMaxMinRatiosVec, 
@@ -59,12 +55,8 @@ void svd_test_func(std::string fileName,
                    const std::string& algorithmName,
                    int lineNumber) {
 
-    // -----------объявление локальных функций и инициализация-------------
-    
-    //лямбда-функция печати таблицы, вторым параметром принимает матрицу строк(так реализована таблица)
     auto printTable = [](std::ostream& out, const std::vector<std::vector<std::string>>& data){
         if (data.empty()) return;
-        // Определение ширины столбцов
         std::vector<size_t> widths;
         for (const auto& row : data) {
             for (size_t i = 0; i < row.size(); ++i) {
@@ -72,7 +64,6 @@ void svd_test_func(std::string fileName,
                 widths[i] = std::max(widths[i], row[i].size());
             }
         }
-        // Вывод данных в поток
         for (const auto& row : data) {
             for (size_t i = 0; i < row.size(); ++i) {
                 out << std::left << std::setw(widths[i] + 3) << row[i];
@@ -81,14 +72,29 @@ void svd_test_func(std::string fileName,
         }
     };
 
-    //лямбда-функция преобразования числа в строку
+    auto printCSV = [](std::ostream& out, const std::vector<std::vector<std::string>>& data) {
+        for (const auto& row : data) {
+            bool first = true;
+            for (const auto& cell : row) {
+                if (!first)
+                    out << ",";
+                std::string cellFormatted = cell;
+                if (cellFormatted.find(',') != std::string::npos) {
+                    cellFormatted = "\"" + cellFormatted + "\"";
+                }
+                out << cellFormatted;
+                first = false;
+            }
+            out << "\n";
+        }
+    };
+
     auto num2str = [](T value){
         std::ostringstream oss;
         oss << value;
         return oss.str();
     };
 
-    //нужно для того, чтобы более менее равномерно выводить прогресс работы, больше размер матрицы -> дольше будет вычисляться;
     T generalSum = 0;
     for (const auto& MatSize : MatSizesVec){
         generalSum += (MatSize.first * MatSize.second);
@@ -97,13 +103,10 @@ void svd_test_func(std::string fileName,
     using MatrixDynamic = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
     using VectorDynamic = Eigen::Vector<T, Eigen::Dynamic>;
 
-    //интервалы, в которых будут генерироваться сингулярные числа для теста на малых по модулю сингулярных числах и больших
     const std::vector<std::pair<T,T>> Intervals = {{0,1}, {1,100}};
     
-    //используем фиксированный сид для генерации (для воспроизводимости)
-    const unsigned unified_seed = 42;
-    std::default_random_engine gen(unified_seed);
-    
+	std::random_device rd; //случайное число - значение сида
+    std::default_random_engine gen(rd()); //генерация последовательности псевдослучайных цифр 
     //название столбцов таблицы
     std::vector<std::vector<std::string>> table = {
         {"Dimension", "Sigma-max/min-ratio", "SV interval", 
@@ -117,7 +120,6 @@ void svd_test_func(std::string fileName,
     MatrixDynamic U_true, S_true, V_true, U_calc, V_calc, V_calc_transpose;
     VectorDynamic SV_calc; //аналог S_true, но не матрица, а вектор сингулярных значений
 
-    // -----------------------
     for (const auto& MatSize : MatSizesVec) {
         const int N = MatSize.first;
         const int M = MatSize.second;
@@ -129,39 +131,23 @@ void svd_test_func(std::string fileName,
 
         for (const auto& SigmaMaxMinRatio : SigmaMaxMinRatiosVec) {
             for (const auto& interval : Intervals) {
-                //interval.first и interval.second - l и r границы интервала
                 assert((interval.first < interval.second) && "Error: left boundary >= right boundary");
-
-                //определение промежутка [sigma_min, sigma_max]:
-                /*
-                    проверка на то, что отношение sigmaMax/sigmaMin <= b/a, где a и b - границы интервала,
-                    очевидно, что если неравенство не выполняется, то сингулярных чисел с заданным соотношением
-                    и в заданном интервале не существует
-                */
                 assert((interval.first * SigmaMaxMinRatio <= interval.second) &&
                        "Error: no sigma values exist with such ratio in such interval");
 
-                /*
-                  случайным образом генерируем sigma_min в допустимом интервале,
-                  заметим, что прошлый assert гарантирует, что a < b/SigmaRatio
-                */
                 std::uniform_real_distribution<T> distrSigmaMin(interval.first, interval.second / SigmaMaxMinRatio);
                 T sigma_min = distrSigmaMin(gen); 
                 T sigma_max = SigmaMaxMinRatio * sigma_min;
 
-                //заполнение вектора истинных сингулярных чисел из уже определенного диапазона:
                 std::uniform_real_distribution<T> distr(sigma_min, sigma_max);
                 assert((minNM >= 2) && "Error: no columns or rows allowed");
 
-                //инициализация аккумуляторов выводимых в таблицу значений характеристик
                 T avg_dev_UUt = 0, avg_dev_UtU = 0, avg_dev_VVt = 0, avg_dev_VtV = 0, avg_relErr_sigma = 0;
 
-                //цикл для усреднения результатов(выборка из n матриц с одинаковыми параметрами) 
                 for (int i = 1; i <= n; ++i) {   
-                    gen_cl<T> svd_gen(N, M, gen, distr, true); //инициализация параметров генерации
-                    svd_gen.generate(minNM); //генерация
+                    gen_cl<T> svd_gen(N, M, gen, distr, true);
+                    svd_gen.generate(minNM);
 
-                    //подсчет результатов:
                     U_true = svd_gen.MatrixU();
                     S_true = svd_gen.MatrixS();
                     V_true = svd_gen.MatrixV();
@@ -178,11 +164,11 @@ void svd_test_func(std::string fileName,
                                          .cwiseQuotient(S_true.diagonal())
                                          .cwiseAbs().maxCoeff() / n;
 
-                    //вывод прогресса
                     progress += static_cast<T>(M * N) / ProgressCoeff;
                     double percent = static_cast<double>(progress);
                     int barWidth = 50;
                     int pos = barWidth * static_cast<int>(percent) / 100;
+
                     std::ostringstream progressStream;
                     progressStream << algorithmName << ": " 
                                    << std::fixed << std::setprecision(4) << percent 
@@ -196,13 +182,10 @@ void svd_test_func(std::string fileName,
 
                     {
                         std::lock_guard<std::mutex> lock(cout_mutex);
-                        // Обновляем конкретную строку в консоли, используя ANSI-коды:
-                        // Перемещаем курсор на строку lineNumber, столбец 0 и очищаем её
                         std::cout << "\033[" << lineNumber << ";0H" << progressStream.str() << "\033[0K" << std::flush;
                     }
                 }
 
-                //заполнение одной строки таблицы
                 table.emplace_back(std::vector<std::string>{
                     num2str(N) + "x" + num2str(M), 
                     num2str(SigmaMaxMinRatio), 
@@ -215,7 +198,6 @@ void svd_test_func(std::string fileName,
         }
     }
 
-    //непосредственно сохранение таблицы в файл
     std::ofstream file(fileName);
     if (file) {
         printTable(file, table);
@@ -224,22 +206,35 @@ void svd_test_func(std::string fileName,
         std::lock_guard<std::mutex> lock(cout_mutex);
         std::cerr << "Error while creating/opening file!\n";
     }
+    
+    std::string csvFileName = fileName;
+    size_t pos = csvFileName.rfind(".txt");
+    if (pos != std::string::npos)
+        csvFileName.replace(pos, 4, ".csv");
+    else
+        csvFileName += ".csv";
+    
+    std::ofstream csv_file(csvFileName);
+    if (csv_file) {
+        printCSV(csv_file, table);
+        csv_file.close();
+    } else {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        std::cerr << "Error while creating/opening file " << csvFileName << "!\n";
+    }
 };
 
 int main(){
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Резервируем 10 строк для отображения прогресса каждого алгоритма.
-    // Таким образом, вывод будет ниже основного вывода тестов.
     {
         std::lock_guard<std::mutex> lock(cout_mutex);
-        for (int i = 0; i < 10; ++i) {
-            std::cout << "\n";
-        }
+        // Очистка консоли и перемещение курсора в верхний левый угол
+        std::cout << "\033[2J\033[H";
     }
 
     //генерируеся таблица в файле "jacobi_test_table.txt" теста метода Eigen::JacobiSVD
-    //с соотношением сингулярных чисел:  1.01, 1.2, 2, 5, 10, 50      ---    6
+    //с соотношением сингулярных чисел:  1.01, 1.2, 2, 5, 10, 50       ---    6
     //причем каждое соотношение относится к двум интервалам сингулярных чисел: 
     //                      маленьких {0,1}, больших {1,100} (это не параметризованно)   ---   2
     //с матрицами размеров: {3,3}, {5,5}, {10,10}, {20,20}, {50,50}, {100,100}   ---   6
@@ -279,8 +274,8 @@ int main(){
     std::chrono::duration<double> durationGlobal = end - start;
     {
         std::lock_guard<std::mutex> lock(cout_mutex);
-        // Перемещаем курсор ниже зарезервированных строк
-        std::cout << "\033[11;0H";
+        // Перемещаем курсор на первую строку для вывода итогового времени
+        std::cout << "\033[1;0H";
         std::cout << "\nFull execution time = " << durationGlobal.count() << " seconds.\n";
     }
 
