@@ -10,37 +10,31 @@ int main() {
     const int n = 4;
     MatrixXd A(n, n);
     
-    // Заполнение тестовой матрицы (можно раскомментировать случайное заполнение)
+    // Заполнение тестовой матрицы
     A << 1, 1, 1, 1,
          0, 0, 0, 1,
          1, 0, 1, 0,
          1, 1, 0, 1;
     
-    /* Для случайного заполнения:
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_real_distribution<> dis(0, 1);
-    A = MatrixXd::NullaryExpr(n, n, [&](){ return dis(gen); });
-    */
-    
     cout << "Original matrix A:\n" << A << endl << endl;
     
     try {
-        MRRR_SVD<int> svd(A);
+        // Используем ComputeFullU | ComputeFullV в качестве опций вычисления
+        MRRR_SVD<MatrixXd> svd(A, ComputeFullU | ComputeFullV);
         
         auto U = svd.matrixU();
         auto V = svd.matrixV();
-        auto S = svd.singularValues();
+        auto singularValues = svd.singularValues();
         
         cout << "Left singular vectors U:\n" << U << endl << endl;
-        cout << "Singular values matrix S:\n" << S << endl << endl;
+        cout << "Singular values vector:\n" << singularValues << endl << endl;
         cout << "Right singular vectors V:\n" << V << endl << endl;
         
-        // Проверка разложения
-        MatrixXd reconstructed = U * S * V.transpose();
+        // Восстановление матрицы A через U * S.asDiagonal() * V.transpose()
+        MatrixXd reconstructed = U * singularValues.asDiagonal() * V.transpose();
         cout << "Reconstructed matrix:\n" << reconstructed << endl << endl;
         
-        // Вычисление ошибки восстановления
+        // Вычисление ошибки восстановления (норма Фробениуса)
         MatrixXd error = A - reconstructed;
         cout << "Reconstruction error (Frobenius norm): " 
              << error.norm() << endl;

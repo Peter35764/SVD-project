@@ -3,6 +3,7 @@
 
 #include "generate_svd.h"
 #include "dqds.h"
+#include <mrrr.hpp>
 
 #include <iostream>
 #include <Eigen/Dense>
@@ -202,6 +203,10 @@ int main(){
                                  {{3,3}, {5,5}, {10,10}, {20,20}, {50,50}, {100,100}}, 
                                  20); 
 
+	svd_test_func<double, SVDGenerator, MRRR_SVD>("mrrr_test_table.txt",
+			{1.01, 1.2, 2, 5, 10, 50},
+			{{3,3}, {5,5}, {10,10}, {20,20}, {50,50}, {100,100}}, 
+			20);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> durationGlobal = end - start;

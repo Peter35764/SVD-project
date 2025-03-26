@@ -1,185 +1,148 @@
 #ifndef MRRR_HPP
 #define MRRR_HPP
 
-#include "mrrr.h"
-#include <cmath>
-#include <cstddef>
-#include <iostream>
-#include <cstdint>
-#include <lapacke.h>
-#include <Eigen/SVD>
-#include <Eigen/Eigenvalues>
-#include <ostream>
-#include <tuple>
-#include <vector>
+#include "mrrr.h"  // Если нужны объявления из mrrr.h
 
-double sq = sqrt(2);
+// Глобальная константа для вычисления √2, объявляем ее как inline для C++17
+inline const double sq = std::sqrt(2);
 
-template<typename T>
-void MRRR_SVD<T>::Set_U(const Eigen::MatrixXd& A) {
-    U = A;
+template<typename _MatrixType>
+MRRR_SVD<_MatrixType>::MRRR_SVD(const _MatrixType &matrix, unsigned int computationOptions)
+{
+    // При создании объекта сразу выполняем вычисление TGK
+    compute_tgk(matrix);
 }
 
-template<typename T>
-void MRRR_SVD<T>::Set_V(const Eigen::MatrixXd& A) {
-    V = A;
-}
-
-template<typename T>
-void MRRR_SVD<T>::Set_S(const Eigen::MatrixXd& A) {
-    S = A;
-}
-
-template<typename T>
-MRRR_SVD<T> MRRR_SVD<T>::compute_bsvd(const Eigen::MatrixXd& matrix) {
+template<typename _MatrixType>
+MRRR_SVD<_MatrixType>& MRRR_SVD<_MatrixType>::compute_tgk(const _MatrixType& matrix)
+{
+    // Бидиагонализация входной матрицы
     auto bid = Eigen::internal::UpperBidiagonalization(matrix);
     auto B = bid.bidiagonal();
+    int n = B.rows();
+    
+    // Создаём матрицу TGK(B) размером 2n x 2n и инициализируем её нулями
+    Eigen::MatrixXd TGK(2*n, 2*n);
+    TGK.setZero();
+
+    // Запоминаем множители бидиагонализации
     auto L = bid.householderU();
     auto R = bid.householderV();
+
+    // Создаем базовую матрицу для m_matrixU и m_matrixV
+    Eigen::MatrixXd Base(n, n);
+    Base.setZero();
+    this->m_matrixU = Base;
+    this->m_matrixV = Base;
     
-    int n = B.rows();        
-    Eigen::MatrixXd TGK(2*n,2*n);
-    TGK.setZero();
+    // Приводим матрицу B к виду, удобному для доступа по индексам
     Eigen::MatrixXd BB = B;
-    
-    std::cout << "B: " << std::endl << B.diagonal(0) << std::endl << B.diagonal(1) << std::endl;
-    std::cout << "BB: " << std::endl << BB << std::endl;
-    
-    int nn = 2*n;
-    for (int i = 0; i < n - 1; ++i) {
-        TGK(2*i,2*i+1) = BB(i,i); TGK(2*i+1,2*i+2) = BB(i,i+1);
-        TGK(2*i+1,2*i) = BB(i,i); TGK(2*i+2,2*i+1) = BB(i,i+1);
+    for (int i = 0; i < n - 1; ++i)
+    {
+        TGK(2*i, 2*i+1) = BB(i, i);
+        TGK(2*i+1, 2*i+2) = BB(i, i+1);
+        TGK(2*i+1, 2*i) = BB(i, i);
+        TGK(2*i+2, 2*i+1) = BB(i, i+1);
     }
-    TGK(nn-2,nn-1) = BB(n-1,n-1);
-    TGK(nn-1,nn-2) = BB(n-1,n-1);
-    
-    std::cout << "TGK: " << std::endl << TGK << std::endl;
-    
-    int32_t nzc = std::max(1,nn);
+    TGK(2*n-2, 2*n-1) = BB(n-1, n-1);
+    TGK(2*n-1, 2*n-2) = BB(n-1, n-1);
+
+    int32_t nzc = std::max(1, 2*n);
+
     double *d = new double[2*n];
-    for (int i = 0; i < 2*n; i++) {
+    for (int i = 0; i < 2*n; i++)
+    {
         d[i] = TGK.diagonal(0)[i];
     }
     
-    double *e = new double [2*n];
-    for (int i = 0; i < 2*n-1; i++) {
+    double *e = new double[2*n];
+    for (int i = 0; i < 2*n - 1; i++)
+    {
         e[i] = TGK.diagonal(-1)[i];
     }
     
-    double *w = new double[nn];
-    double *z = new double[nn*nn];
+    double *w = new double[2*n];
+    double *z = new double[2*n*2*n];
     int32_t m;
-    int32_t isuppz [2*nn];
+    int32_t isuppz[2*2*n];
     int32_t tryrac = 1;
     
     int32_t info = LAPACKE_dstemr(
         LAPACK_COL_MAJOR,
         'V',
         'A',
-        nn,
+        2*n,
         d,
         e,
-        0,
-        0,
-        0,
-        0,
+        0, 0, 0, 0,
         &m,
         w,
         z,
-        nn,
+        2*n,
         nzc,
         isuppz,
         &tryrac
     );
-    
     if (info != 0)
         throw std::runtime_error("LAPACK error: " + std::to_string(info));
-    
-    Eigen::VectorXd eigenvalues(nn);
-    for (int i = 0; i < nn; ++i) {
-        eigenvalues(i) = w[nn-i-1];
+
+    Eigen::VectorXd eigenvalues(2*n);
+    for (int i = 0; i < 2*n; ++i)
+    {
+        eigenvalues(i) = w[2*n - i - 1];
     }
     
-    std::cout << "eigenvalues: " << std::endl << eigenvalues << std::endl;
-    
-    Eigen::MatrixXd eigenvectors(nn,nn);
-    for (int i = 0; i < nn; i++) {
-        for (int j = 0; j < nn; j++) {
-            eigenvectors(i,j) = i < n ? z[(nn-i-1)*nn+j]*sq : z[(nn-i-1)*nn+j] * (-1)*sq;
+    Eigen::MatrixXd eigenvectors(2*n, 2*n);
+    for (int i = 0; i < 2*n; i++)
+    {
+        for (int j = 0; j < 2*n; j++)
+        {
+            eigenvectors(i, j) = i < n ? z[(2*n - i - 1)*2*n + j] * sq 
+                                       : z[(2*n - i - 1)*2*n + j] * (-sq);
+        }
+    }
+    for (int i = n-1; i < n+1; i++)
+    {
+        for (int j = 0; j < 2*n; j++)
+        {
+            eigenvectors(i, j) *= -1;
         }
     }
     
-    for (int i = n-1; i < n+1; i++) {
-        for (int j = 0; j < nn; j++) {
-            eigenvectors(i,j) *= -1;
+    Eigen::MatrixXd singularValuess(n, n);
+    for (int i = 0; i < n; ++i)
+    {
+        double sigma = std::abs(eigenvalues(i));
+        Eigen::VectorXd q(2*n);
+        for (int j = 0; j < 2*n; j++)
+        {
+            q[j] = eigenvectors(i, j);
         }
-    }
-    
-    std::cout << "eigenvectors: " << std::endl << eigenvectors << std::endl;
-    
-    Eigen::MatrixXd matU(n,n);
-    Eigen::MatrixXd matV(n,n);
-    Eigen::MatrixXd singularValuess(n,n);
-    int ind = 0;
-    
-    for (int i = 0; i < n; ++i) {
-        ind = i;
-        double sigma = std::abs(eigenvalues(ind));
-        if (sigma < 1e-15) { 
-            sigma = 0; ind = -i - 1;
-        } 
-        
-        Eigen::VectorXd q(nn);
-        for (int j = 0; j < nn; j++) {
-            q[j] = eigenvectors(ind,j);
-        }
-        
-        std::cout << "q: " << std::endl << q << std::endl;
-        
         Eigen::VectorXd u(n);
         Eigen::VectorXd v(n);
-        for (int j = 0; j < n; ++j) {
+        for (int j = 0; j < n; ++j)
+        {
             v[j] = q[2*j];
-            u[j] = q[2*j+1];
+            u[j] = q[2*j + 1];
         }
-        
-        singularValuess(i,i) = sigma;
-        matU.col(i) = u;
-        matV.col(i) = v;
+        singularValuess(i, i) = sigma;
+        this->m_matrixU.col(i) = u;
+        this->m_matrixV.col(i) = v;
     }
     
-    std::cout << "matU: " << std::endl << matU << std::endl;
-    std::cout << "matV: " << std::endl << matV << std::endl;
+    this->m_singularValues = singularValuess.diagonal(0);
+    this->m_matrixU = L * this->m_matrixU;
+    this->m_matrixV = R * this->m_matrixV;
+    this->m_isInitialized = true;
+    this->m_computeFullU = true;
+    this->m_computeFullV = true;
     
-    Set_S(singularValuess);
-    Set_U(L*matU);
-    Set_V(R*matV);
+    delete[] d;
+    delete[] e;
+    delete[] w;
+    delete[] z;
     
-    delete[] d; delete[] e; delete[] w; delete[] z; 
     return *this;
-}
-
-template<typename T>
-MRRR_SVD<T>::MRRR_SVD() {}
-
-template<typename T>
-MRRR_SVD<T>::MRRR_SVD(const Eigen::MatrixXd& A) {
-    compute_bsvd(A);
-}
-
-template<typename T>
-Eigen::MatrixXd MRRR_SVD<T>::matrixV() {
-    return V;
-}
-
-template<typename T>
-Eigen::MatrixXd MRRR_SVD<T>::matrixU() {
-    return U;
-}
-
-template<typename T>
-Eigen::MatrixXd MRRR_SVD<T>::singularValues() {
-    return S;
 }
 
 #endif // MRRR_HPP
