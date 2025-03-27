@@ -19,6 +19,12 @@
 \usepackage{amsfonts}
 \usepackage{amsthm}
 
+\usepackage[backend=biber, style=numeric]{biblatex} 
+\addbibresource{references.bib}
+% plain — default.
+% alphabetic — буквенные метки [Gol96].
+% ieee — стиль IEEE (требует пакет biblatex-ieee).
+
 \usepackage[nonumberlist, acronym]{glossaries}
 
 \usepackage{tcolorbox}
@@ -206,5 +212,7 @@ $B(x)=\begin{pmatrix}
 \section{"Наивный" метод}
 
 \section{Скрученные преобразования}
+\newpage
+\printbibliography
 
 \end{document}
