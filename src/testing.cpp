@@ -232,6 +232,9 @@ int main(){
         // Очистка консоли и перемещение курсора в верхний левый угол
         std::cout << "\033[2J\033[H";
     }
+	
+	std::vector<std::pair<std::string, double>> test_times;
+	std::mutex test_times_mutex;
 
     //генерируеся таблица в файле "jacobi_test_table.txt" теста метода Eigen::JacobiSVD
     //с соотношением сингулярных чисел:  1.01, 1.2, 2, 5, 10, 50       ---    6
@@ -242,40 +245,73 @@ int main(){
     //размер выборки для усреднения: 20
 
     //Запускаем параллельное тестирование алгоритмов
-    std::thread t1([](){
+    std::thread t1([&](){
+		auto t_start = std::chrono::high_resolution_clock::now();
         svd_test_func<double, SVDGenerator, Eigen::JacobiSVD>(
             "jacobi_test_table.txt",
             {1.01, 1.2, 2, 5, 10, 50},
             {{3,3}, {5,5}, {10,10}, {20,20}, {50,50}, {100,100}}, 
             20, "JacobiSVD", 1);
+		auto t_end = std::chrono::high_resolution_clock::now();
+		double duration = std::chrono::duration<double>(t_end - t_start).count();
+		{
+			std::lock_guard<std::mutex> lock(test_times_mutex);
+			test_times.emplace_back("JacobiSVD", duration);
+		}
     });
     
-    std::thread t2([](){
+    std::thread t2([&](){
+		auto t_start = std::chrono::high_resolution_clock::now();
         svd_test_func<double, SVDGenerator, DQDS_SVD>(
             "dqds_test_table.txt",
             {1.01, 1.2, 2, 5, 10, 50},
             {{3,3}, {5,5}, {10,10}, {20,20}, {50,50}, {100,100}}, 
             20, "DQDS_SVD", 2);
+		auto t_end = std::chrono::high_resolution_clock::now();
+		double duration = std::chrono::duration<double>(t_end - t_start).count();
+		{
+			std::lock_guard<std::mutex> lock(test_times_mutex);
+			test_times.emplace_back("DQDS_SVD", duration);
+		}
     });
     
-    std::thread t3([](){
+    std::thread t3([&](){
+		auto t_start = std::chrono::high_resolution_clock::now();
         svd_test_func<double, SVDGenerator, MRRR_SVD>(
             "mrrr_test_table.txt",
             {1.01, 1.2, 2, 5, 10, 50},
             {{3,3}, {5,5}, {10,10}, {20,20}, {50,50}, {100,100}}, 
             20, "MRRR_SVD", 3);
+		auto t_end = std::chrono::high_resolution_clock::now();
+		double duration = std::chrono::duration<double>(t_end - t_start).count();
+		{
+			std::lock_guard<std::mutex> lock(test_times_mutex);
+			test_times.emplace_back("MRRR_SVD", duration);
+		}
     });
 
     t1.join();
     t2.join();
     t3.join();
+	
+	
+	std::ofstream timeFile("individual_test_times.txt");
+	if (timeFile) {
+		for (const auto& entry : test_times) {
+			timeFile << entry.first << " : " << entry.second << " seconds\n";
+		}
+		timeFile.close();
+	} else {
+		std::lock_guard<std::mutex> lock(cout_mutex);
+		std::cerr << "Error while creating/opening individual_test_times.txt!\n";
+	}
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> durationGlobal = end - start;
     {
         std::lock_guard<std::mutex> lock(cout_mutex);
         // Перемещаем курсор на первую строку для вывода итогового времени
-        std::cout << "\033[1;0H";
+        std::cout << "\033[3;0H";
         std::cout << "\nFull execution time = " << durationGlobal.count() << " seconds.\n";
     }
 
