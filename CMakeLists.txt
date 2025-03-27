@@ -54,6 +54,8 @@ SET(HEADER_FILES
   src/mrrr.hpp
   src/givens_refinement.h
   src/givens_refinement.hpp
+  src/reverse_jacobi.h
+  src/reverse_jacobi.hpp
 )
 
 SET(SOURCE_FILES
@@ -62,9 +64,10 @@ SET(SOURCE_FILES
   src/iterative_refinement.cpp
   src/jacobi.cpp
   src/testing.cpp
-  # # Parf&Drozdov
+  # Parf&Drozdov
   src/mrrr.cpp
   src/givens_refinement.cpp
+  src/reverse_jacobi.cpp
 )
 
 # ==================================
