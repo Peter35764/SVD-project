@@ -49,11 +49,11 @@ SET(HEADER_FILES
   src/dqds.h
   src/iterative_refinement.h
   src/jacobi.h
-  # # Parf&Drozdov
+  # Parf&Drozdov
   src/mrrr.h
   src/mrrr.hpp
-  # src/givens_refinement.h
-  # src/givens_refinement.hpp
+  src/givens_refinement.h
+  src/givens_refinement.hpp
 )
 
 SET(SOURCE_FILES
@@ -64,7 +64,7 @@ SET(SOURCE_FILES
   src/testing.cpp
   # # Parf&Drozdov
   src/mrrr.cpp
-  # src/givens_refinement.cpp
+  src/givens_refinement.cpp
 )
 
 # ==================================
@@ -90,4 +90,4 @@ target_link_libraries(svd_test_mrrr PRIVATE svd Eigen3::Eigen lapacke)
 # ==================================
 
 # ========= Цели установки (TODO): ==========
-# добавить установку фреймворка как полноценной библиотеки и поддержку вменяемой очистки того, что устанавливает фреймворк
+# добавить установку фреймворка как библиотеки и поддержку очистки того, что устанавливает фреймворк
