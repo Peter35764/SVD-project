@@ -1,1 +1,1 @@
-#define THREADS_NUM @THREADS_NUM@
+#define THREADS @THREADS@

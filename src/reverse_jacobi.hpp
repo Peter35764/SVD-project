@@ -1,6 +1,9 @@
 #ifndef REVERSE_JACOBI_HPP
 #define REVERSE_JACOBI_HPP
 
+#include "reverse_jacobi.h" // necessary for correct display in ide, does not affect the assembly process and can be removed
+#include <boost/math/tools/minima.hpp>
+
 namespace SVD_Project {
 
 const size_t ITERATIONS = 1000;

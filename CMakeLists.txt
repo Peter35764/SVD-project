@@ -4,9 +4,22 @@ project(svd VERSION 1.0.0 DESCRIPTION "Implementations of experimental SVD algor
 
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS YES CACHE BOOL "Export all symbols")
 
+
+
+# ========== Конфигурация сборки ===========
+
+set(THREADS 1) # "количество потоков"
+
+configure_file(src/config.h.in config.h)
+include_directories(${CMAKE_BINARY_DIR})
+
 # TODO добавить создание папки генерации сборки и папки для бинарников + переписать инструкцию
 
-# ========== Зависимости: ==========
+# ==========================================
+
+
+
+# ============== Зависимости: ==============
 
 find_package(Eigen3 REQUIRED)
 find_package(lapacke REQUIRED)
@@ -34,64 +47,80 @@ find_package(Boost REQUIRED)
 # target_include_directories(svd PUBLIC ${EIGEN3_INCLUDE_DIRS})
 # target_link_libraries(svd ${LAPACKE_LIBRARIES})
 
-# ========= Генерация конфиг файла =========
-
-set(THREADS_NUM 1 CACHE STRING "количество потоков")
-configure_file(src/config.h.in config.h)
-include_directories(${CMAKE_BINARY_DIR})
-
 # ==========================================
 
 
-# ======= Файлы фреймворка: ========
+
+# =========== Файлы фреймворка: ============
 
 SET(HEADER_FILES
+  # Tests
   src/generate_svd.h
-  src/dqds.h
+
+  # Old algorithms
   src/iterative_refinement.h
   src/jacobi.h
+  src/dqds.h
+
   # Parf&Drozdov
-  src/mrrr.h
-  src/mrrr.hpp
   src/givens_refinement.h
   src/givens_refinement.hpp
   src/reverse_jacobi.h
   src/reverse_jacobi.hpp
+  src/mrrr.h
+  src/mrrr.hpp
 )
 
 SET(SOURCE_FILES
+  # Tests
   src/generate_svd.cpp
-  src/GolubKahanSVD.cpp
+  src/testing.cpp
+
+  # Old algorithms
   src/iterative_refinement.cpp
   src/jacobi.cpp
-  src/testing.cpp
+  src/GolubKahanSVD.cpp
+
   # Parf&Drozdov
-  src/mrrr.cpp
   src/givens_refinement.cpp
   src/reverse_jacobi.cpp
+  src/mrrr.cpp
 )
 
-# ==================================
+# ==========================================
 
 
-# ========= Цели сборки: ==========
+
+# ============= Цели сборки: ===============
 
 # Библиотека
 add_library(svd ${SOURCE_FILES} ${HEADER_FILES})
 target_compile_features(svd PRIVATE cxx_std_20)
-target_link_libraries(svd Eigen3::Eigen lapacke)
+target_link_libraries(svd Eigen3::Eigen lapacke Boost::boost)
 
-# Сценарий тестирования, описанный в testing.cpp
+# Основные тесты  (testing.cpp)
 add_executable(svd_test src/testing.cpp)
 target_compile_features(svd_test PRIVATE cxx_std_20)
 target_link_libraries(svd_test PRIVATE svd Eigen3::Eigen lapacke)
 
- # Сценарий тестирования, описанный в givens_refinement.cpp
+# Сценарий тестирования, описанный в givens_refinement.cpp  (idea 1)
+add_executable(svd_test_givref src/givens_refinement.cpp)
+target_compile_features(svd_test_givref PRIVATE cxx_std_20)
+target_link_libraries(svd_test_givref PRIVATE svd Eigen3::Eigen lapacke)
+
+# Сценарий тестирования, описанный в reverse_jacobi.cpp  (idea 2)
+add_executable(svd_test_revjac src/reverse_jacobi.cpp)
+target_compile_features(svd_test_revjac PRIVATE cxx_std_20)
+target_link_libraries(svd_test_revjac PRIVATE svd Eigen3::Eigen lapacke)
+
+ # Сценарий тестирования, описанный в mrrr.cpp  (idea 3)
 add_executable(svd_test_mrrr src/mrrr.cpp)
 target_compile_features(svd_test_mrrr PRIVATE cxx_std_20)
 target_link_libraries(svd_test_mrrr PRIVATE svd Eigen3::Eigen lapacke)
 
-# ==================================
+# ==========================================
 
-# ========= Цели установки (TODO): ==========
+
+
+# ======== Цели установки (TODO): ==========
 # добавить установку фреймворка как библиотеки и поддержку очистки того, что устанавливает фреймворк

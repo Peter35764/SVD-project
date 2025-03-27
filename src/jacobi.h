@@ -478,4 +478,4 @@ JTS_SVD<MatrixType>::compute_transposed(const MatrixType& matrix, const params_t
   return *this;
 }
 
-#endif    // JACOBI_H
+#endif // JACOBI_H

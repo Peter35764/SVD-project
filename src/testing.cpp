@@ -1,13 +1,14 @@
 #include "config.h"
 #include "dqds.h"
 #include "generate_svd.h"
-#include "mrrr.hpp"
+#include "mrrr.h"
 #include "reverse_jacobi.h"
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <fstream>
+#include <iostream>
 #include <mutex>
 #include <random>
 #include <semaphore>
@@ -18,11 +19,11 @@
 //Александр Нам, КМБО-04-20
 //Any questions: alexnam16@gmail.com
 
-std::counting_semaphore<THREADS_NUM> thread_semaphore(THREADS_NUM);
+std::counting_semaphore<THREADS> thread_semaphore(THREADS);
 std::mutex cout_mutex;
 
 // Функция возвращает матрицу-таблицу формата:
-// | размерность | sigma_max/sigma_min | диап. синг. чисел | 
+// | размерность | sigma_max/sigma_min | диап. синг. чисел |
 // | sum_n(norm[I - U.transpose*U])/n | sum_n(norm[I - U*U.transpose])/n |
 // | sum_n(norm[I - V.transpose*V])/n | sum_n(norm[I - V*V.transpose])/n |
 // | max(abs((sigma_true_i - sigma_calc_i)/sigma_true_i)) |
@@ -315,9 +316,9 @@ int main()
 
 	std::ofstream timeFile("individual_test_times.txt");
 	if (timeFile) {
-		timeFile << "Max threads: " << THREADS_NUM << "\n\n";
+        timeFile << "Max threads: " << THREADS << "\n\n";
 
-		timeFile << "Total execution time: " << durationGlobal.count() << " seconds\n\n";
+        timeFile << "Total execution time: " << durationGlobal.count() << " seconds\n\n";
 
 		timeFile << "Individual algorithm execution times:\n";
 		for (const auto& entry : test_times) {

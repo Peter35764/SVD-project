@@ -1,20 +1,7 @@
 #ifndef MRRR_H
 #define MRRR_H
 
-#include <cmath>
-#include <cstddef>
-#include <iostream>
-#include <cstdint>
-#include <lapacke.h>
-#include <Eigen/Core>
 #include <Eigen/SVD>
-#include <Eigen/Eigenvalues>
-#include <ostream>
-#include <tuple>
-#include <vector>
-#include <stdexcept>
-#include <algorithm>
-#include <string>
 
 // Предварительное объявление класса-шаблона MRRR_SVD
 template<typename _MatrixType>

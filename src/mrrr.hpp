@@ -1,7 +1,9 @@
 #ifndef MRRR_HPP
 #define MRRR_HPP
 
-#include "mrrr.h"  // Если нужны объявления из mrrr.h
+#include "mrrr.h" // necessary for correct display in ide, does not affect the assembly process and can be removed
+#include <cmath>
+#include <lapacke.h>
 
 // Глобальная константа для вычисления √2, объявляем ее как inline для C++17
 inline const double sq = std::sqrt(2);

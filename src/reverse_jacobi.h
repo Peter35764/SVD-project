@@ -1,12 +1,7 @@
 #ifndef REVERSE_JACOBI_H
 #define REVERSE_JACOBI_H
 
-#include <Eigen/Core>
-#include <Eigen/Jacobi>
 #include <Eigen/SVD>
-#include <Eigen/src/Core/util/ForwardDeclarations.h>
-#include <Eigen/src/SVD/SVDBase.h>
-#include <boost/math/tools/minima.hpp>
 
 namespace SVD_Project {
 
