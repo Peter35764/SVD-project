@@ -2,6 +2,12 @@
 
 project(svd VERSION 1.0.0 DESCRIPTION "Implementations of experimental SVD algorithms")
 
+# ========= Генерация конфиг файла =
+set(THREADS_NUM 1 CACHE STRING "количество потоков")
+configure_file(src/config.h.in config.h)
+include_directories(${CMAKE_BINARY_DIR})
+# =================================================
+
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS YES CACHE BOOL "Export all symbols")
 
 # TODO добавить создание папки генерации сборки и папки для бинарников + переписать инструкцию

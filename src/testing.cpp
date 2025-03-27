@@ -1,6 +1,7 @@
 #include "generate_svd.h"
 #include "dqds.h"
 #include "mrrr.hpp"
+#include "config.h"
 
 #include <iostream>
 #include <Eigen/Dense>
@@ -11,6 +12,7 @@
 #include <cassert>
 #include <thread>
 #include <mutex>
+#include <semaphore>
 #include <sstream>
 #include <random>
 #include <string>
@@ -19,7 +21,7 @@
 //Александр Нам, КМБО-04-20
 //Any questions: alexnam16@gmail.com
 
-// Глобальный mutex для синхронизации вывода в консоль
+std::counting_semaphore<THREADS_NUM> thread_semaphore(THREADS_NUM);
 std::mutex cout_mutex;
 
 // Функция возвращает матрицу-таблицу формата:
@@ -245,6 +247,7 @@ int main(){
     //размер выборки для усреднения: 20
 
     //Запускаем параллельное тестирование алгоритмов
+	thread_semaphore.acquire();
     std::thread t1([&](){
 		auto t_start = std::chrono::high_resolution_clock::now();
         svd_test_func<double, SVDGenerator, Eigen::JacobiSVD>(
@@ -258,8 +261,10 @@ int main(){
 			std::lock_guard<std::mutex> lock(test_times_mutex);
 			test_times.emplace_back("JacobiSVD", duration);
 		}
+		thread_semaphore.release();
     });
     
+	thread_semaphore.acquire();
     std::thread t2([&](){
 		auto t_start = std::chrono::high_resolution_clock::now();
         svd_test_func<double, SVDGenerator, DQDS_SVD>(
@@ -273,8 +278,10 @@ int main(){
 			std::lock_guard<std::mutex> lock(test_times_mutex);
 			test_times.emplace_back("DQDS_SVD", duration);
 		}
+		thread_semaphore.release();
     });
     
+	thread_semaphore.acquire();
     std::thread t3([&](){
 		auto t_start = std::chrono::high_resolution_clock::now();
         svd_test_func<double, SVDGenerator, MRRR_SVD>(
@@ -288,15 +295,29 @@ int main(){
 			std::lock_guard<std::mutex> lock(test_times_mutex);
 			test_times.emplace_back("MRRR_SVD", duration);
 		}
+		thread_semaphore.release();
     });
 
     t1.join();
     t2.join();
     t3.join();
 	
-	
+	auto end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> durationGlobal = end - start;
+	{
+		std::lock_guard<std::mutex> lock(cout_mutex);
+		// Перемещаем курсор на первую строку для вывода итогового времени
+		std::cout << "\033[3;0H";
+		std::cout << "\nFull execution time = " << durationGlobal.count() << " seconds.\n";
+	}
+
 	std::ofstream timeFile("individual_test_times.txt");
 	if (timeFile) {
+		timeFile << "Max threads: " << THREADS_NUM << "\n\n";
+
+		timeFile << "Total execution time: " << durationGlobal.count() << " seconds\n\n";
+
+		timeFile << "Individual algorithm execution times:\n";
 		for (const auto& entry : test_times) {
 			timeFile << entry.first << " : " << entry.second << " seconds\n";
 		}
@@ -304,17 +325,8 @@ int main(){
 	} else {
 		std::lock_guard<std::mutex> lock(cout_mutex);
 		std::cerr << "Error while creating/opening individual_test_times.txt!\n";
-	}
+	}	
 
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> durationGlobal = end - start;
-    {
-        std::lock_guard<std::mutex> lock(cout_mutex);
-        // Перемещаем курсор на первую строку для вывода итогового времени
-        std::cout << "\033[3;0H";
-        std::cout << "\nFull execution time = " << durationGlobal.count() << " seconds.\n";
-    }
-
-    char c; std::cin >> c;
-    return 0;
+	char c; std::cin >> c;
+	return 0;
 }
