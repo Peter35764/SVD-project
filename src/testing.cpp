@@ -3,11 +3,9 @@
 #include "mrrr.hpp"
 #include "config.h"
 
-#include <iostream>
 #include <Eigen/Dense>
-#include <vector>
+#include <cassert>
 #include <chrono>
-#include <iomanip>
 #include <fstream>
 #include <cassert>
 #include <thread>
@@ -60,9 +58,10 @@ void svd_test_func(std::string fileName,
     auto printTable = [](std::ostream& out, const std::vector<std::vector<std::string>>& data){
         if (data.empty()) return;
         std::vector<size_t> widths;
-        for (const auto& row : data) {
+        for (const auto &row : data) {
             for (size_t i = 0; i < row.size(); ++i) {
-                if (widths.size() <= i) widths.push_back(0);
+                if (widths.size() <= i)
+                    widths.push_back(0);
                 widths[i] = std::max(widths[i], row[i].size());
             }
         }
@@ -226,7 +225,11 @@ void svd_test_func(std::string fileName,
     }
 };
 
-int main(){
+template<typename _MatrixType>
+using RevJac_DQDS_SVD = SVD_Project::RevJac_SVD<DQDS_SVD<_MatrixType>>;
+
+int main()
+{
     auto start = std::chrono::high_resolution_clock::now();
 
     {

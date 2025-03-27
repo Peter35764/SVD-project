@@ -10,6 +10,7 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS YES CACHE BOOL "Export all symbols")
 
 find_package(Eigen3 REQUIRED)
 find_package(lapacke REQUIRED)
+find_package(Boost REQUIRED)
 
 # При возникновении ошибок сборки на unix-like системах можно попробовать установку через pkg-config:
 
