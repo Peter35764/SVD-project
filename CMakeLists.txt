@@ -1,4 +1,4 @@
-
+cmake_minimum_required(VERSION 3.10)
 
 project(svd VERSION 1.0.0 DESCRIPTION "Implementations of experimental SVD algorithms")
 
@@ -42,8 +42,6 @@ include_directories(${CMAKE_BINARY_DIR})
 # ==========================================
 
 
-
-
 # ======= Файлы фреймворка: ========
 
 SET(HEADER_FILES
@@ -84,7 +82,6 @@ add_executable(svd_test src/testing.cpp)
 target_compile_features(svd_test PRIVATE cxx_std_20)
 target_link_libraries(svd_test PRIVATE svd Eigen3::Eigen lapacke)
 
-
  # Сценарий тестирования, описанный в givens_refinement.cpp
 add_executable(svd_test_mrrr src/mrrr.cpp)
 target_compile_features(svd_test_mrrr PRIVATE cxx_std_20)
@@ -93,10 +90,4 @@ target_link_libraries(svd_test_mrrr PRIVATE svd Eigen3::Eigen lapacke)
 # ==================================
 
 # ========= Цели установки (TODO): ==========
-# добавить поддержку вменяемой очистки того, что устанавливает фреймворк
-
-install(
-  TARGETS svd
-  LIBRARY DESTINATION lib
-)
-install(
+# добавить установку фреймворка как полноценной библиотеки и поддержку вменяемой очистки того, что устанавливает фреймворк
