@@ -15,7 +15,6 @@
 #include "dqds.h"
 #include "generate_svd.h"
 #include "givens_refinement.h"
-#include "jacobi.h"
 #include "mrrr.h"
 #include "reverse_jacobi.h"
 
@@ -236,14 +235,11 @@ int main()
 {
     auto start = std::chrono::high_resolution_clock::now();
 
-    {
-        std::lock_guard<std::mutex> lock(cout_mutex);
-        // Очистка консоли и перемещение курсора в верхний левый угол
-        std::cout << "\033[2J\033[H";
-    }
-	
-	std::vector<std::pair<std::string, double>> test_times;
-	std::mutex test_times_mutex;
+    // Очистка консоли и перемещение курсора в верхний левый угол
+    std::cout << "\033[2J\033[H";
+
+    std::vector<std::pair<std::string, double>> test_times;
+    std::mutex test_times_mutex;
 
     //генерируеся таблица в файле "jacobi_test_table.txt" теста метода Eigen::JacobiSVD
     //с соотношением сингулярных чисел:  1.01, 1.2, 2, 5, 10, 50       ---    6
@@ -258,9 +254,12 @@ int main()
 #define matrix_num_for_sample_averaging 20
 
     int flush_string = 1;
-    //Запускаем параллельное тестирование алгоритмов
-	thread_semaphore.acquire();
 
+    //Запускаем параллельное тестирование алгоритмов
+    {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+    }
+    thread_semaphore.acquire();
     std::thread t1([&]() {
         std::string algo_name = "JacobiSVD";
         std::string file_name = "example_JacobiSVD_table.txt";
@@ -279,7 +278,6 @@ int main()
         }
         thread_semaphore.release();
     });
-    t1.join();
 
     // idea 1
     thread_semaphore.acquire();
@@ -303,9 +301,8 @@ int main()
             std::lock_guard<std::mutex> lock(test_times_mutex);
             test_times.emplace_back(algo_name, duration);
         }
-        thread_semaphore.release();
+        thread_semaphore.release();        
     });
-    t2.join();
 
     // idea 2
     thread_semaphore.acquire();
@@ -327,7 +324,6 @@ int main()
         }
         thread_semaphore.release();
     });
-    t3.join();
 
     // idea 3
     thread_semaphore.acquire();
@@ -349,17 +345,21 @@ int main()
         }
         thread_semaphore.release();
     });
+
+    t1.join();
+    t2.join();
+    t3.join();
     t4.join();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> durationGlobal = end - start;
+
+    // Перемещаем курсор на первую строку для вывода итогового времени
+    std::cout << "\033[3;0H";
+    std::cout << "\nFull execution time = " << durationGlobal.count() << " seconds.\n";
     {
         std::lock_guard<std::mutex> lock(cout_mutex);
-        // Перемещаем курсор на первую строку для вывода итогового времени
-        std::cout << "\033[3;0H";
-        std::cout << "\nFull execution time = " << durationGlobal.count() << " seconds.\n";
     }
-
     std::ofstream timeFile("individual_test_times.txt");
     if (timeFile) {
         timeFile << "Max threads: " << THREADS << "\n\n";
