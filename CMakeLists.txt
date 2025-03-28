@@ -8,7 +8,7 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS YES CACHE BOOL "Export all symbols")
 
 # ========== Конфигурация сборки ===========
 
-set(THREADS 1) # "количество потоков"
+set(THREADS 4) # "количество потоков"
 
 configure_file(src/config.h.in config.h)
 include_directories(${CMAKE_BINARY_DIR})
