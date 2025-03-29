@@ -47,6 +47,10 @@
 // - algorithmName: название алгоритма, используется в выводе прогресса
 // - lineNumber: номер строки в терминале, которую будет обновлять данный алгоритм
 
+#define sigma_ratio {0.1, 0.5, 0.99, 1.01, 1.2, 2, 8, 30}     // SigmaMaxMinRatiosVec
+#define matrix_size {{3, 3}, {5, 5}, {10, 10}, {30, 30}}      // MatSizesVec
+#define matrix_num_for_sample_averaging 20                    // n
+
 std::counting_semaphore<THREADS> thread_semaphore(THREADS);
 std::mutex cout_mutex;
 
@@ -249,27 +253,23 @@ int main()
     //6*2*6 = 72 - всего столько строк будет в таблице
     //размер выборки для усреднения: 20
 
-#define sigma_ratio {1.01, 1.2, 2, 5, 10, 50} // 0.1, 1, 100
-#define matrix_size {{3, 3}, {5, 5}, {10, 10}, {20, 20}, {50, 50}, {100, 100}} // , {500, 500}
-#define matrix_num_for_sample_averaging 20
-
     int flush_string = 1;
 
-    //Запускаем параллельное тестирование алгоритмов
     {
         std::lock_guard<std::mutex> lock(cout_mutex);
     }
+
     thread_semaphore.acquire();
     std::thread t1([&]() {
         std::string algo_name = "JacobiSVD";
-        std::string file_name = "example_JacobiSVD_table.txt";
+        std::string file_name = "reference_JacobiSVD_table.txt";
         auto t_start = std::chrono::high_resolution_clock::now();
         svd_test_func<double, SVDGenerator, Eigen::JacobiSVD>(file_name,
                                                               sigma_ratio,
                                                               matrix_size,
                                                               matrix_num_for_sample_averaging,
                                                               algo_name,
-                                                              1);
+                                                              flush_string++);
         auto t_end = std::chrono::high_resolution_clock::now();
         double duration = std::chrono::duration<double>(t_end - t_start).count();
         {
@@ -287,35 +287,31 @@ int main()
         auto t_start = std::chrono::high_resolution_clock::now();
         svd_test_func<double, SVDGenerator, SVD_Project::GivRef_SVD>(file_name,
                                                                      sigma_ratio,
-                                                                     {{3, 3},
-                                                                      {5, 5},
-                                                                      {10, 10},
-                                                                      {20, 20},
-                                                                      {50, 50}},
+                                                                     matrix_size,
                                                                      matrix_num_for_sample_averaging,
                                                                      algo_name,
-                                                                     2);
+                                                                     flush_string++);
         auto t_end = std::chrono::high_resolution_clock::now();
         double duration = std::chrono::duration<double>(t_end - t_start).count();
         {
             std::lock_guard<std::mutex> lock(test_times_mutex);
             test_times.emplace_back(algo_name, duration);
         }
-        thread_semaphore.release();        
+        thread_semaphore.release();
     });
 
     // idea 2
     thread_semaphore.acquire();
     std::thread t3([&]() {
         std::string algo_name = "RevJac_SVD";
-        std::string file_name = "idea_1_RevJac_table.txt";
+        std::string file_name = "idea_2_RevJac_table.txt";
         auto t_start = std::chrono::high_resolution_clock::now();
         svd_test_func<double, SVDGenerator, RevJac_DQDS_SVD>(file_name,
                                                              sigma_ratio,
-                                                             {{3, 3}, {5, 5}, {10, 10}},
+                                                             matrix_size,
                                                              matrix_num_for_sample_averaging,
                                                              algo_name,
-                                                             3);
+                                                             flush_string++);
         auto t_end = std::chrono::high_resolution_clock::now();
         double duration = std::chrono::duration<double>(t_end - t_start).count();
         {
@@ -329,14 +325,14 @@ int main()
     thread_semaphore.acquire();
     std::thread t4([&]() {
         std::string algo_name = "MRRR";
-        std::string file_name = "idea_1_MRRR_table.txt";
+        std::string file_name = "idea_3_MRRR_table.txt";
         auto t_start = std::chrono::high_resolution_clock::now();
         svd_test_func<double, SVDGenerator, MRRR_SVD>(file_name,
                                                       sigma_ratio,
-                                                      {{3, 3}, {5, 5}, {10, 10}, {20, 20}},
+                                                      matrix_size,
                                                       matrix_num_for_sample_averaging,
                                                       algo_name,
-                                                      4);
+                                                      flush_string++);
         auto t_end = std::chrono::high_resolution_clock::now();
         double duration = std::chrono::duration<double>(t_end - t_start).count();
         {

@@ -5,7 +5,6 @@ project(svd VERSION 1.0.0 DESCRIPTION "Implementations of experimental SVD algor
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS YES CACHE BOOL "Export all symbols")
 
 
-
 # ========== Конфигурация сборки ===========
 
 set(THREADS 4) # "количество потоков"
@@ -16,7 +15,6 @@ include_directories(${CMAKE_BINARY_DIR})
 # TODO добавить создание папки генерации сборки и папки для бинарников + переписать инструкцию
 
 # ==========================================
-
 
 
 # ============== Зависимости: ==============
@@ -48,7 +46,6 @@ find_package(Boost REQUIRED)
 # target_link_libraries(svd ${LAPACKE_LIBRARIES})
 
 # ==========================================
-
 
 
 # =========== Файлы фреймворка: ============
@@ -90,7 +87,6 @@ SET(SOURCE_FILES
 # ==========================================
 
 
-
 # ============= Цели сборки: ===============
 
 # Библиотека
@@ -119,7 +115,6 @@ target_compile_features(svd_test_mrrr PRIVATE cxx_std_20)
 target_link_libraries(svd_test_mrrr PRIVATE svd Eigen3::Eigen lapacke)
 
 # ==========================================
-
 
 
 # ======== Цели установки (TODO): ==========
