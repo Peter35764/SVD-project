@@ -199,8 +199,10 @@ min\| \widehat{B} - B \|
 На каждом шаге результат преобразования сохраняет ортогональность строк и столбцов матрицы, благодаря свойствам ортогональных поворотов. Это гарантирует, что итоговые матрицы \( U \) и \( V \) также будут ортогональными (или унитарными в комплексном случае).
 
 
+
+
 \newpage
-\section{\enquote{Наивный} метод}
+\section{"Наивный" метод}
 
 % https://github.com/Quaret/SVD-project/wiki/%D0%98%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5-MR%5E3-%D0%B4%D0%BB%D1%8F-%D1%80%D0%B5%D1%88%D0%B5%D0%BD%D0%B8%D1%8F-BSVD
 % https://github.com/MathPerv/SVD-project/wiki/%D0%9D%D0%B0%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F-%D0%B8%D1%81%D1%81%D0%BB%D0%B5%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F-SVD#%D0%B8%D0%B4%D0%B5%D1%8F-3-%D0%BD%D0%B0%D0%B8%D0%B2%D0%BD%D1%8B%D0%B9-%D0%BC%D0%B5%D1%82%D0%BE%D0%B4
@@ -252,7 +254,7 @@ M_B = \begin{bmatrix} 0 & B \\ B^T & 0 \end{bmatrix}.
 \end{equation}
 
 \begin{note}
-    под \(diag_{+1}\) понимается нулевая матрица с первой ненулевой \enquote{наддиагональю}.
+    под \(diag_{+1}\) понимается нулевая матрица с первой ненулевой наддиагональю.
 \end{note}
 
 \begin{note}
@@ -392,7 +394,7 @@ T_{GK} (B) = P \begin{bmatrix} 0 & B \\ B^T & 0 \end{bmatrix} P^T .
 \begin{equation}
 T_{GK} = P J\begin{bmatrix} -\Sigma & 0 \\ 0 & \Sigma \end{bmatrix}J^T P^T = (PJ) \begin{bmatrix} -\Sigma & 0 \\ 0 & \Sigma \end{bmatrix} (PJ)^T=Q\Lambda Q^T.
 \end{equation}
-Последнее означает, что \enquote{союз} форм Голуба-Кахана и Джордана-Виландта - это, в сущности, собственное разложение формы Голуба-Кахана.
+Последнее означает, что "союз" форм Голуба-Кахана и Джордана-Виландта - это, в сущности, собственное разложение формы Голуба-Кахана.
 
 \begin{note}
     Пусть дана квадратная матрица \(A=\R{2n}{2n}\). 
