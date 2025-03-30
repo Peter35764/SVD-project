@@ -47,9 +47,9 @@
 // - algorithmName: название алгоритма, используется в выводе прогресса
 // - lineNumber: номер строки в терминале, которую будет обновлять данный алгоритм
 
-#define sigma_ratio {0.1, 0.5, 0.99, 1.01, 1.2, 2, 8, 30}     // SigmaMaxMinRatiosVec
-#define matrix_size {{3, 3}, {5, 5}, {10, 10}, {30, 30}}      // MatSizesVec
-#define matrix_num_for_sample_averaging 20                    // n
+#define sigma_ratio {1.01, 1.2, 2, 8, 30, 100}           // SigmaMaxMinRatiosVec
+#define matrix_size {{3, 3}, {5, 5}, {10, 10}, {30, 30}} // MatSizesVec
+#define matrix_num_for_sample_averaging 20               // n
 
 std::counting_semaphore<THREADS> thread_semaphore(THREADS);
 std::mutex cout_mutex;
