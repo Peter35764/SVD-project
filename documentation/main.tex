@@ -1,0 +1,115 @@
+\documentclass[12pt, a4paper]{report}
+
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{ragged2e}
+\usepackage{xurl}
+
+\usepackage[a4paper, top=2cm, bottom=2cm, left=3cm, right=3cm]{geometry}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{cleveref}
+\usepackage{csquotes}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amsthm}
+
+\usepackage[backend=biber, style=numeric]{biblatex} 
+\addbibresource{references.bib}
+% plain — default.
+% alphabetic — буквенные метки [Gol96].
+% ieee — стиль IEEE (требует пакет biblatex-ieee).
+
+\usepackage[nonumberlist, acronym]{glossaries}
+
+\usepackage{tcolorbox}
+\tcbuselibrary{listings, breakable}
+
+\newtcblisting{mytcblisting}[2][]{%
+  listing only,
+  breakable,
+  colframe=black,
+  colback=white,
+  boxsep=5pt,
+  title={#2},
+  listing options={
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    breakatwhitespace=true,
+    postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
+    columns=fullflexible,
+    keepspaces=true,
+    language=C,
+    numbers=left,
+    numbersep=10pt,
+    stepnumber=1,
+    firstnumber=1,
+    numberstyle=\tiny\color{gray}
+  },
+  #1
+}
+
+\bibliographystyle{plain}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    filecolor=black,
+    urlcolor=black
+}
+
+\newtheoremstyle{note}
+    {3pt}
+    {3pt}
+    {}
+    {1.25cm}
+    {\bfseries}
+    {.}
+    { }
+    {}
+
+% Несколько полезных блоков для выделения важных частей текста. Пример:
+% \begin{theorem}
+%   Если $a$ и $b$ — положительные числа, то $a + b \geq 2\sqrt{ab}$.
+% \end{theorem}
+\theoremstyle{note}
+\newtheorem*{note}{Замечание}
+\newtheorem{theorem}{Теорема}
+\newtheorem{lemma}{Лемма}
+\newtheorem{corollary}{Следствие}
+\newcommand{\R}[2]{\mathbb{R}^{#1 \times #2}}
+\newcommand{\Rn}{\mathbb{R}^n}
+
+\newcommand{\subsubsubsection}[1]{\paragraph{#1}}
+
+\begin{document}
+
+\tableofcontents
+
+% \usepackage{glossaries}
+% \newglossaryentry{svd}{name=SVD, description={Сингулярное разложение матрицы}}
+% \printglossaries
+
+\newpage
+\section{Глоссарий}
+
+\input{glossary}
+
+\newpage
+\chapter{Идеи Парфенова/Дроздова}
+
+\input{ideas}
+
+\newpage
+\chapter{Скрученные преобразования}
+
+\newpage
+\printbibliography
+
+\end{document}
