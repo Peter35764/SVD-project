@@ -1,3 +1,5 @@
+# TODO добавить создание папки генерации сборки и папки для бинарников + переписать инструкцию
+
 cmake_minimum_required(VERSION 3.10)
 
 project(svd VERSION 1.0.0 DESCRIPTION "Implementations of experimental SVD algorithms")
@@ -7,12 +9,13 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS YES CACHE BOOL "Export all symbols")
 
 # ========== Конфигурация сборки ===========
 
-set(THREADS 4) # "количество потоков"
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(THREADS 4) # "количество потоков при запуске тестов (один тест в один поток, сами тесты (пока) не параллельны)
 
 configure_file(src/config.h.in config.h)
 include_directories(${CMAKE_BINARY_DIR})
-
-# TODO добавить создание папки генерации сборки и папки для бинарников + переписать инструкцию
 
 # ==========================================
 
@@ -91,27 +94,22 @@ SET(SOURCE_FILES
 
 # Библиотека
 add_library(svd ${SOURCE_FILES} ${HEADER_FILES})
-target_compile_features(svd PRIVATE cxx_std_20)
 target_link_libraries(svd Eigen3::Eigen lapacke Boost::boost)
 
 # Основные тесты  (testing.cpp)
 add_executable(svd_test src/testing.cpp)
-target_compile_features(svd_test PRIVATE cxx_std_20)
 target_link_libraries(svd_test PRIVATE svd Eigen3::Eigen lapacke)
 
 # Сценарий тестирования, описанный в givens_refinement.cpp  (idea 1)
 add_executable(svd_test_givref src/givens_refinement.cpp)
-target_compile_features(svd_test_givref PRIVATE cxx_std_20)
 target_link_libraries(svd_test_givref PRIVATE svd Eigen3::Eigen lapacke)
 
 # Сценарий тестирования, описанный в reverse_jacobi.cpp  (idea 2)
 add_executable(svd_test_revjac src/reverse_jacobi.cpp)
-target_compile_features(svd_test_revjac PRIVATE cxx_std_20)
 target_link_libraries(svd_test_revjac PRIVATE svd Eigen3::Eigen lapacke)
 
  # Сценарий тестирования, описанный в mrrr.cpp  (idea 3)
 add_executable(svd_test_mrrr src/mrrr.cpp)
-target_compile_features(svd_test_mrrr PRIVATE cxx_std_20)
 target_link_libraries(svd_test_mrrr PRIVATE svd Eigen3::Eigen lapacke)
 
 # ==========================================
