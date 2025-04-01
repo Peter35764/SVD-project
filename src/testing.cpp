@@ -65,28 +65,28 @@ void svd_test_func(std::string fileName,
     auto printTable = [](std::ostream& out, const std::vector<std::vector<std::string>>& data){
         if (data.empty()) return;
         std::vector<size_t> widths;
-        for (const auto &row : data) {
-            for (size_t i = 0; i < row.size(); ++i) {
+        for (size_t r = 0; r < data.size(); ++r) {
+            for (size_t i = 0; i < data[r].size(); ++i) {
                 if (widths.size() <= i)
                     widths.push_back(0);
-                widths[i] = std::max(widths[i], row[i].size());
+                widths[i] = std::max(widths[i], data[r][i].size());
             }
         }
-        for (const auto& row : data) {
-            for (size_t i = 0; i < row.size(); ++i) {
-                out << std::left << std::setw(widths[i] + 3) << row[i];
+        for (size_t r = 0; r < data.size(); ++r) {
+            for (size_t i = 0; i < data[r].size(); ++i) {
+                out << std::left << std::setw(widths[i] + 3) << data[r][i];
             }
             out << "\n";
         }
     };
 
     auto printCSV = [](std::ostream& out, const std::vector<std::vector<std::string>>& data) {
-        for (const auto& row : data) {
+        for (size_t r = 0; r < data.size(); ++r) {
             bool first = true;
-            for (const auto& cell : row) {
+            for (size_t i = 0; i < data[r].size(); ++i) {
                 if (!first)
                     out << ",";
-                std::string cellFormatted = cell;
+                std::string cellFormatted = data[r][i];
                 if (cellFormatted.find(',') != std::string::npos) {
                     cellFormatted = "\"" + cellFormatted + "\"";
                 }
@@ -104,38 +104,52 @@ void svd_test_func(std::string fileName,
     };
 
     T generalSum = 0;
-    for (const auto& MatSize : MatSizesVec){
+    for (const auto& MatSize : MatSizesVec) {
         generalSum += (MatSize.first * MatSize.second);
     } 
-    
+
     using MatrixDynamic = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
     using VectorDynamic = Eigen::Vector<T, Eigen::Dynamic>;
 
-    const std::vector<std::pair<T,T>> Intervals = {{0,1}, {1,100}};
-    
-	std::random_device rd; //случайное число - значение сида
-    std::default_random_engine gen(rd()); //генерация последовательности псевдослучайных цифр 
-    //название столбцов таблицы
-    std::vector<std::vector<std::string>> table = {
-        {"Dimension", "Sigma-max/min-ratio", "SV interval", 
-         "AVG ||I-U_t*U||", "AVG ||I-U*U_t||", "AVG ||I-V_t*V||",
-         "AVG ||I-V*V_t||", "AVG relative err. sigma"}
-    };
+    const std::vector<std::pair<T,T>> Intervals = { {0,1}, {1,100} };
 
-    T ProgressCoeff = n * Intervals.size() * SigmaMaxMinRatiosVec.size() * generalSum / 100.0; //наибольшее значение прогресса
-    T progress = 0; //инициализация аккумулятора прогресса
+    T ProgressCoeff = n * Intervals.size() * SigmaMaxMinRatiosVec.size() * generalSum / 100.0;
+    T progress = 0;
+
+    std::vector<std::vector<std::string>> table;
+    {
+        std::vector<std::string> header;
+        header.push_back("Dimension");
+        header.push_back("Sigma-max/min-ratio");
+        header.push_back("SV interval");
+        header.push_back("AVG ||I-U_t*U||");
+        header.push_back("AVG ||I-U*U_t||");
+        header.push_back("AVG ||I-V_t*V||");
+        header.push_back("AVG ||I-V*V_t||");
+        header.push_back("AVG relative err. sigma");
+        header.push_back("AVG relative recon error");
+        header.push_back("AVG absolute recon error");
+        table.push_back(header);
+    }
 
     MatrixDynamic U_true, S_true, V_true, U_calc, V_calc, V_calc_transpose;
-    VectorDynamic SV_calc; //аналог S_true, но не матрица, а вектор сингулярных значений
+    VectorDynamic SV_calc;
+
+    std::random_device rd; // значение сида
+    std::default_random_engine gen(rd());
 
     for (const auto& MatSize : MatSizesVec) {
         const int N = MatSize.first;
         const int M = MatSize.second;
         int minNM = std::min(N, M);
 
-        U_true.resize(N, N); U_calc.resize(N, N);
-        S_true.resize(N, M); SV_calc.resize(minNM);
-        V_true.resize(M, M); V_calc.resize(M, M); V_calc_transpose.resize(M, M);     
+        U_true.resize(N, N); 
+        U_calc.resize(N, N);
+        S_true.resize(N, M); 
+        SV_calc.resize(minNM);
+        V_true.resize(M, M); 
+        V_calc.resize(M, M); 
+        V_calc_transpose.resize(M, M);     
 
         for (const auto& SigmaMaxMinRatio : SigmaMaxMinRatiosVec) {
             for (const auto& interval : Intervals) {
@@ -151,6 +165,8 @@ void svd_test_func(std::string fileName,
                 assert((minNM >= 2) && "Error: no columns or rows allowed");
 
                 T avg_dev_UUt = 0, avg_dev_UtU = 0, avg_dev_VVt = 0, avg_dev_VtV = 0, avg_relErr_sigma = 0;
+                T avg_recon_error = 0; 
+                T avg_abs_recon_error = 0;
 
                 for (int i = 1; i <= n; ++i) {   
                     gen_cl<T> svd_gen(N, M, gen, distr, true);
@@ -164,6 +180,7 @@ void svd_test_func(std::string fileName,
                     U_calc = svd_func.matrixU();
                     SV_calc = svd_func.singularValues();
                     V_calc = svd_func.matrixV();
+
                     avg_dev_UUt += (MatrixDynamic::Identity(N, N) - U_calc * U_calc.transpose()).squaredNorm() / n;
                     avg_dev_UtU += (MatrixDynamic::Identity(N, N) - U_calc.transpose() * U_calc).squaredNorm() / n;
                     avg_dev_VVt += (MatrixDynamic::Identity(M, M) - V_calc * V_calc.transpose()).squaredNorm() / n;
@@ -171,6 +188,19 @@ void svd_test_func(std::string fileName,
                     avg_relErr_sigma += (S_true.diagonal() - SV_calc)
                                          .cwiseQuotient(S_true.diagonal())
                                          .cwiseAbs().maxCoeff() / n;
+
+                    MatrixDynamic A = U_true * S_true * V_true.transpose();
+                    MatrixDynamic S_calc_diag = MatrixDynamic::Zero(minNM, minNM);
+                    S_calc_diag.diagonal() = SV_calc;
+                    MatrixDynamic A_calc = U_calc * S_calc_diag * V_calc.transpose();
+
+                    // Относительная ошибка 
+                    T recon_error = (A - A_calc).norm() / A.norm();
+                    avg_recon_error += recon_error / n;
+
+                    // Абсолютная ошибка 
+                    T abs_error = (A - A_calc).norm();
+                    avg_abs_recon_error += abs_error / n;
 
                     progress += static_cast<T>(M * N) / ProgressCoeff;
                     double percent = static_cast<double>(progress);
@@ -190,18 +220,23 @@ void svd_test_func(std::string fileName,
 
                     {
                         std::lock_guard<std::mutex> lock(cout_mutex);
-                        std::cout << "\033[" << lineNumber << ";0H" << progressStream.str() << "\033[0K" << std::flush;
+                        std::cout << "\033[" << lineNumber << ";0H" << progressStream.str() 
+                                  << "\033[0K" << std::flush;
                     }
                 }
 
-                table.emplace_back(std::vector<std::string>{
-                    num2str(N) + "x" + num2str(M), 
-                    num2str(SigmaMaxMinRatio), 
-                    "[" + num2str(interval.first) + ", " + num2str(interval.second) + "]",
-                    num2str(avg_dev_UUt), num2str(avg_dev_UtU), 
-                    num2str(avg_dev_VVt), num2str(avg_dev_VtV), 
-                    num2str(avg_relErr_sigma)
-                });
+                std::vector<std::string> row;
+                row.push_back(num2str(N) + "x" + num2str(M));
+                row.push_back(num2str(SigmaMaxMinRatio));
+                row.push_back("[" + num2str(interval.first) + ", " + num2str(interval.second) + "]");
+                row.push_back(num2str(avg_dev_UUt));
+                row.push_back(num2str(avg_dev_UtU));
+                row.push_back(num2str(avg_dev_VVt));
+                row.push_back(num2str(avg_dev_VtV));
+                row.push_back(num2str(avg_relErr_sigma));
+                row.push_back(num2str(avg_recon_error));
+                row.push_back(num2str(avg_abs_recon_error));
+                table.push_back(row);
             }
         }
     }
@@ -278,7 +313,6 @@ int main()
         }
         thread_semaphore.release();
     });
-
     // idea 1
     thread_semaphore.acquire();
     std::thread t2([&]() {
@@ -299,7 +333,7 @@ int main()
         }
         thread_semaphore.release();
     });
-
+	
     // idea 2
     thread_semaphore.acquire();
     std::thread t3([&]() {
