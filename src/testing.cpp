@@ -48,11 +48,21 @@
 // - lineNumber: номер строки в терминале, которую будет обновлять данный алгоритм
 
 #define sigma_ratio {1.01, 1.2, 2, 8, 30, 100}           // SigmaMaxMinRatiosVec
-#define matrix_size {{3, 3}, {5, 5}, {10, 10}, {30, 30}} // MatSizesVec
+#define matrix_size {{5,5}}//{{3, 3}, {5, 5}, {10, 10}, {30, 30}} // MatSizesVec
 #define matrix_num_for_sample_averaging 20               // n
 
 std::counting_semaphore<THREADS> thread_semaphore(THREADS);
 std::mutex cout_mutex;
+
+typedef enum {
+    METRIC_NONE            = 0,
+    METRIC_U_DEVIATION     = 1 << 0, // Вывод AVG ||I-U_t*U|| и AVG ||I-U*U_t||
+    METRIC_V_DEVIATION     = 1 << 1, // Вывод AVG ||I-V_t*V|| и AVG ||I-V*V_t||
+    METRIC_REL_ERROR_SIGMA = 1 << 2, // Вывод AVG relative err. sigma
+    METRIC_RECON_ERROR     = 1 << 3, // Вывод AVG relative recon error
+    METRIC_ABS_RECON_ERROR = 1 << 4, // Вывод AVG absolute recon error
+    METRIC_ALL             = (METRIC_U_DEVIATION | METRIC_V_DEVIATION | METRIC_REL_ERROR_SIGMA | METRIC_RECON_ERROR | METRIC_ABS_RECON_ERROR)
+} Metric;
 
 template<typename T, template <typename> class gen_cl, template <typename> class svd_cl> 
 void svd_test_func(std::string fileName, 
@@ -60,7 +70,8 @@ void svd_test_func(std::string fileName,
                    const std::vector<std::pair<int,int>>& MatSizesVec, 
                    const int n,
                    const std::string& algorithmName,
-                   int lineNumber) {
+                   int lineNumber,
+				   int metricFlags) {
 
     auto printTable = [](std::ostream& out, const std::vector<std::vector<std::string>>& data){
         if (data.empty()) return;
@@ -116,21 +127,28 @@ void svd_test_func(std::string fileName,
     T ProgressCoeff = n * Intervals.size() * SigmaMaxMinRatiosVec.size() * generalSum / 100.0;
     T progress = 0;
 
-    std::vector<std::vector<std::string>> table;
+   std::vector<std::vector<std::string>> table;
     {
         std::vector<std::string> header;
         header.push_back("Dimension");
         header.push_back("Sigma-max/min-ratio");
         header.push_back("SV interval");
-        header.push_back("AVG ||I-U_t*U||");
-        header.push_back("AVG ||I-U*U_t||");
-        header.push_back("AVG ||I-V_t*V||");
-        header.push_back("AVG ||I-V*V_t||");
-        header.push_back("AVG relative err. sigma");
-        header.push_back("AVG relative recon error");
-        header.push_back("AVG absolute recon error");
+        if (metricFlags & METRIC_U_DEVIATION) {
+            header.push_back("AVG ||I-U_t*U||");
+            header.push_back("AVG ||I-U*U_t||");
+        }
+        if (metricFlags & METRIC_V_DEVIATION) {
+            header.push_back("AVG ||I-V_t*V||");
+            header.push_back("AVG ||I-V*V_t||");
+        }
+        if (metricFlags & METRIC_REL_ERROR_SIGMA)
+            header.push_back("AVG relative err. sigma");
+        if (metricFlags & METRIC_RECON_ERROR)
+            header.push_back("AVG relative recon error");
+        if (metricFlags & METRIC_ABS_RECON_ERROR)
+            header.push_back("AVG absolute recon error");
         table.push_back(header);
-    }
+    } 
 
     MatrixDynamic U_true, S_true, V_true, U_calc, V_calc, V_calc_transpose;
     VectorDynamic SV_calc;
@@ -181,26 +199,33 @@ void svd_test_func(std::string fileName,
                     SV_calc = svd_func.singularValues();
                     V_calc = svd_func.matrixV();
 
-                    avg_dev_UUt += (MatrixDynamic::Identity(N, N) - U_calc * U_calc.transpose()).squaredNorm() / n;
-                    avg_dev_UtU += (MatrixDynamic::Identity(N, N) - U_calc.transpose() * U_calc).squaredNorm() / n;
-                    avg_dev_VVt += (MatrixDynamic::Identity(M, M) - V_calc * V_calc.transpose()).squaredNorm() / n;
-                    avg_dev_VtV += (MatrixDynamic::Identity(M, M) - V_calc.transpose() * V_calc).squaredNorm() / n;
-                    avg_relErr_sigma += (S_true.diagonal() - SV_calc)
-                                         .cwiseQuotient(S_true.diagonal())
-                                         .cwiseAbs().maxCoeff() / n;
-
-                    MatrixDynamic A = U_true * S_true * V_true.transpose();
-                    MatrixDynamic S_calc_diag = MatrixDynamic::Zero(minNM, minNM);
-                    S_calc_diag.diagonal() = SV_calc;
-                    MatrixDynamic A_calc = U_calc * S_calc_diag * V_calc.transpose();
-
-                    // Относительная ошибка 
-                    T recon_error = (A - A_calc).norm() / A.norm();
-                    avg_recon_error += recon_error / n;
-
-                    // Абсолютная ошибка 
-                    T abs_error = (A - A_calc).norm();
-                    avg_abs_recon_error += abs_error / n;
+					if (metricFlags & METRIC_U_DEVIATION) {
+						avg_dev_UUt += (MatrixDynamic::Identity(N, N) - U_calc * U_calc.transpose()).squaredNorm() / n;
+						avg_dev_UtU += (MatrixDynamic::Identity(N, N) - U_calc.transpose() * U_calc).squaredNorm() / n;
+					}
+					if (metricFlags & METRIC_V_DEVIATION) {
+						avg_dev_VVt += (MatrixDynamic::Identity(M, M) - V_calc * V_calc.transpose()).squaredNorm() / n;
+						avg_dev_VtV += (MatrixDynamic::Identity(M, M) - V_calc.transpose() * V_calc).squaredNorm() / n;
+					}
+					if (metricFlags & METRIC_REL_ERROR_SIGMA) {
+						avg_relErr_sigma += (S_true.diagonal() - SV_calc)
+							.cwiseQuotient(S_true.diagonal())
+							.cwiseAbs().maxCoeff() / n;
+					}
+					if ((metricFlags & METRIC_RECON_ERROR) || (metricFlags & METRIC_ABS_RECON_ERROR)) {
+						MatrixDynamic A = U_true * S_true * V_true.transpose();
+						MatrixDynamic S_calc_diag = MatrixDynamic::Zero(minNM, minNM);
+						S_calc_diag.diagonal() = SV_calc;
+						MatrixDynamic A_calc = U_calc * S_calc_diag * V_calc.transpose();
+						if (metricFlags & METRIC_RECON_ERROR) {
+							T recon_error = (A - A_calc).norm() / A.norm();
+							avg_recon_error += recon_error / n;
+						}
+						if (metricFlags & METRIC_ABS_RECON_ERROR) {
+							T abs_error = (A - A_calc).norm();
+							avg_abs_recon_error += abs_error / n;
+						}
+					}
 
                     progress += static_cast<T>(M * N) / ProgressCoeff;
                     double percent = static_cast<double>(progress);
@@ -229,15 +254,22 @@ void svd_test_func(std::string fileName,
                 row.push_back(num2str(N) + "x" + num2str(M));
                 row.push_back(num2str(SigmaMaxMinRatio));
                 row.push_back("[" + num2str(interval.first) + ", " + num2str(interval.second) + "]");
-                row.push_back(num2str(avg_dev_UUt));
-                row.push_back(num2str(avg_dev_UtU));
-                row.push_back(num2str(avg_dev_VVt));
-                row.push_back(num2str(avg_dev_VtV));
-                row.push_back(num2str(avg_relErr_sigma));
-                row.push_back(num2str(avg_recon_error));
-                row.push_back(num2str(avg_abs_recon_error));
+                if (metricFlags & METRIC_U_DEVIATION) {
+                    row.push_back(num2str(avg_dev_UUt));
+                    row.push_back(num2str(avg_dev_UtU));
+                }
+                if (metricFlags & METRIC_V_DEVIATION) {
+                    row.push_back(num2str(avg_dev_VVt));
+                    row.push_back(num2str(avg_dev_VtV));
+                }
+                if (metricFlags & METRIC_REL_ERROR_SIGMA)
+                    row.push_back(num2str(avg_relErr_sigma));
+                if (metricFlags & METRIC_RECON_ERROR)
+                    row.push_back(num2str(avg_recon_error));
+                if (metricFlags & METRIC_ABS_RECON_ERROR)
+                    row.push_back(num2str(avg_abs_recon_error));
                 table.push_back(row);
-            }
+			}
         }
     }
 
@@ -294,6 +326,11 @@ int main()
         std::lock_guard<std::mutex> lock(cout_mutex);
     }
 
+	// Здесь задаём какие метрики считать и выводить, выберем все
+	int metricsToShow = METRIC_ALL;
+	// Вывести конкретные метрики можно так. Например, выберем только отклонения для U и относительную ошибку сингулярных чисел:
+	 //int metricsToShow = METRIC_U_DEVIATION | METRIC_REL_ERROR_SIGMA;
+
     thread_semaphore.acquire();
     std::thread t1([&]() {
         std::string algo_name = "JacobiSVD";
@@ -304,7 +341,8 @@ int main()
                                                               matrix_size,
                                                               matrix_num_for_sample_averaging,
                                                               algo_name,
-                                                              flush_string++);
+                                                              flush_string++,
+															  metricsToShow);
         auto t_end = std::chrono::high_resolution_clock::now();
         double duration = std::chrono::duration<double>(t_end - t_start).count();
         {
@@ -324,7 +362,8 @@ int main()
                                                                      matrix_size,
                                                                      matrix_num_for_sample_averaging,
                                                                      algo_name,
-                                                                     flush_string++);
+                                                                     flush_string++,
+																	 metricsToShow);
         auto t_end = std::chrono::high_resolution_clock::now();
         double duration = std::chrono::duration<double>(t_end - t_start).count();
         {
@@ -345,7 +384,8 @@ int main()
                                                              matrix_size,
                                                              matrix_num_for_sample_averaging,
                                                              algo_name,
-                                                             flush_string++);
+                                                             flush_string++,
+															 metricsToShow);
         auto t_end = std::chrono::high_resolution_clock::now();
         double duration = std::chrono::duration<double>(t_end - t_start).count();
         {
@@ -366,7 +406,8 @@ int main()
                                                       matrix_size,
                                                       matrix_num_for_sample_averaging,
                                                       algo_name,
-                                                      flush_string++);
+                                                      flush_string++,
+													  metricsToShow);
         auto t_end = std::chrono::high_resolution_clock::now();
         double duration = std::chrono::duration<double>(t_end - t_start).count();
         {
@@ -384,8 +425,8 @@ int main()
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> durationGlobal = end - start;
 
-    // Перемещаем курсор на первую строку для вывода итогового времени
-    std::cout << "\033[3;0H";
+    // Перемещаем курсор на  для вывода итогового времени
+    std::cout << "\033[5;0H";
     std::cout << "\nFull execution time = " << durationGlobal.count() << " seconds.\n";
     {
         std::lock_guard<std::mutex> lock(cout_mutex);
