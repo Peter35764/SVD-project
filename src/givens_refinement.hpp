@@ -21,6 +21,65 @@ GivRef_SVD<_MatrixType>::compute(const _MatrixType &matrix,
 }
 
 template <typename _MatrixType>
+bool GivRef_SVD<_MatrixType>::isConvergedSafely(
+    typename _MatrixType::Scalar tol, int max_iter) const {
+    if (n < 2)
+        return true; // Trivial for 1×1 matrices
+
+    using Scalar = typename _MatrixType::Scalar;
+
+    // Protection against potentional underflow issues, mentioned in paper
+    const Scalar underflow_threshold = std::numeric_limits<Scalar>::min();
+    tol = std::max(tol, Scalar(max_iter) * underflow_threshold);
+
+    // Compute mu, see (4.3)
+    EVector mu(n);
+    mu(0) = std::abs(sigm_B(0, 0));
+    for (Index j = 0; j < n - 1; j++) {
+        Scalar e_j_sq = sigm_B(j, j + 1) * sigm_B(j, j + 1); // e_j^2
+        Scalar s_jp1 = std::abs(sigm_B(j + 1, j + 1));       // s_j+1 = sjp
+        mu(j + 1) = s_jp1 * (mu(j) / (mu(j) + e_j_sq));
+    }
+
+    // Compute λ_j, see (4.4)
+    EVector lambda(n);
+    lambda(n - 1) = std::abs(sigm_B(n - 1, n - 1));
+    for (Index j = n - 2; j >= 0; j--) {
+        Scalar e_j_sq = sigm_B(j, j + 1) * sigm_B(j, j + 1); // e_j^2
+        Scalar s_j = std::abs(sigm_B(j, j));                 // |s_j|
+        lambda(j) =
+            s_j * (lambda(j + 1) / (lambda(j + 1) + e_j_sq)); // Direct impl
+    }
+
+    // Apply Conv.Crit 1a and 1b
+    bool all_converged = true;
+    for (Index j = 0; j < n - 1; j++) {
+        Scalar e_j = std::abs(sigm_B(j, j + 1));
+        Scalar e_j_sq = e_j * e_j;
+
+        // Without this check could get near-zero div
+        if (e_j <= std::numeric_limits<Scalar>::epsilon() *
+                       std::max(std::abs(sigm_B(j, j)),
+                                std::abs(sigm_B(j + 1, j + 1)))) {
+            continue;
+        }
+
+        // Criterion 1a: If e_j^2/mu_j <= tol we can set e_j to 0
+        bool can_zero_by_1a = (e_j_sq / mu(j) <= tol);
+
+        // Criterion 1b: If |e_j|^2/lambda_j+1 <= tol we can set e_j to 0
+        bool can_zero_by_1b = (e_j_sq / lambda(j + 1) <= tol);
+
+        if (!(can_zero_by_1a || can_zero_by_1b)) { // any criterion suffices ig
+            all_converged = false;
+            break;
+        }
+    }
+
+    return all_converged;
+}
+
+template <typename _MatrixType>
 void GivRef_SVD<_MatrixType>::initialize(const _MatrixType &matrix,
                                          unsigned int computationOptions) {
     int m = matrix.rows();
@@ -41,7 +100,10 @@ void GivRef_SVD<_MatrixType>::initialize(const _MatrixType &matrix,
     true_sigm_B = SquareMatrix::Zero(m, n_cols);
     true_sigm_B.diagonal() = svd.singularValues().head(n);
 
-    int max_iter = 100; // TODO
+    // In the initialize method, replace the for-loop with:
+    Scalar tol = Scalar(1e-10); // tolerance
+    int max_iter = 100;         // Safety limit
+
     int total_rotations = 2 * max_iter * (n - 1);
     Cosines.resize(total_rotations);
     Sines.resize(total_rotations);
@@ -52,6 +114,10 @@ void GivRef_SVD<_MatrixType>::initialize(const _MatrixType &matrix,
     for (int i = 0; i < max_iter; i++) {
         Impl_QR_zero_iter();
         iter_num++;
+
+        if (isConvergedSafely(tol, max_iter)) {
+            break;
+        }
     }
 
     NewCosines = Cosines;

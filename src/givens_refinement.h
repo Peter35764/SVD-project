@@ -52,6 +52,7 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
     void Impl_QR_zero_iter();
     void revert_negative_singular();
     void initialize(const _MatrixType &matrix, unsigned int computationOptions);
+    bool isConvergedSafely(Scalar tol, int max_iter) const;
 };
 
 } // namespace SVD_Project
