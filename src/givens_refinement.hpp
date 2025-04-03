@@ -74,23 +74,15 @@ GivRef_SVD<_MatrixType>::ROT(typename _MatrixType::Scalar f,
         cs = 0;
         sn = 1;
         r = g;
-    } else if (std::abs(f) > std::abs(g)) {
-        Scalar t = g / f;
-        Scalar tt = std::sqrt(1 + t * t);
-        cs = 1 / tt;
-        sn = t * cs;
-        r = f * tt;
-        if (trigonom_i < Tans.size()) {
-            Tans(trigonom_i) = t;
-        }
     } else {
-        Scalar t = f / g;
-        Scalar tt = std::sqrt(1 + t * t);
-        sn = 1 / tt;
-        cs = t * sn;
-        r = g * tt;
+        Eigen::JacobiRotation<Scalar> rot;
+        rot.makeGivens(f, g);
+        cs = rot.c();
+        sn = rot.s();
+        r = cs * f + sn * g; // match orig
         if (trigonom_i < Tans.size()) {
-            Tans(trigonom_i) = t;
+            Tans(trigonom_i) =
+                std::abs(f) > std::abs(g) ? g / f : f / g; // match orig
         }
     }
 
