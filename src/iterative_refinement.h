@@ -1,7 +1,8 @@
+#ifndef ITERATIVE_REFINEMENT_H
+#define ITERATIVE_REFINEMENT_H
+
 #include <iostream>
-#include <iomanip>
 #include <cmath>
-#include <tuple>
 #include <vector>
 
 #if __has_include(<Eigen/LU>)
@@ -204,3 +205,5 @@ public:
     }
 
 };
+
+#endif // ITERATIVE_REFINEMENT_H

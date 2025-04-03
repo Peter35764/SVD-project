@@ -1,9 +1,11 @@
+#ifndef DQDS_H
+#define DQDS_H
+
 // guardspirit@protonmail.com
 // КМБО-03-22
 
-#include <lapacke.h>
-#include <Eigen/Core>
 #include <Eigen/SVD>
+#include <lapacke.h>
 
 // Класс, реализующий DQDS с использованием LAPACKE.
 // (LAPACKE — обёртка над LAPACK)
@@ -89,3 +91,5 @@ struct Eigen::internal::traits<DQDS_SVD<_MatrixType>>
 {
     typedef _MatrixType MatrixType;
 };
+
+#endif // DQDS_H

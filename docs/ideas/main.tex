@@ -19,6 +19,12 @@
 \usepackage{amsfonts}
 \usepackage{amsthm}
 
+\usepackage[backend=biber, style=numeric]{biblatex} 
+\addbibresource{references.bib}
+% plain — default.
+% alphabetic — буквенные метки [Gol96].
+% ieee — стиль IEEE (требует пакет biblatex-ieee).
+
 \usepackage[nonumberlist, acronym]{glossaries}
 
 \usepackage{tcolorbox}
@@ -73,33 +79,38 @@
 %   Если $a$ и $b$ — положительные числа, то $a + b \geq 2\sqrt{ab}$.
 % \end{theorem}
 \theoremstyle{note}
+\newtheorem{example}{Пример}
+\newtheorem{claim}{Утверждение} 
 \newtheorem*{note}{Замечание}
 \newtheorem{theorem}{Теорема}
 \newtheorem{lemma}{Лемма}
 \newtheorem{corollary}{Следствие}
 \newcommand{\R}[2]{\mathbb{R}^{#1 \times #2}}
 \newcommand{\Rn}{\mathbb{R}^n}
+\newcommand{\subsubsubsection}[1]{\paragraph{#1}}
 
 \begin{document}
 
 \tableofcontents
 
-\chapter{Уточнение поворотов Гивенса в implicit zero-shift QR}
+% \usepackage{glossaries}
+% \newglossaryentry{svd}{name=SVD, description={Сингулярное разложение матрицы}}
+% \printglossaries
 
-\section{Схождение алгоритма}
+\newpage
+\section{Глоссарий}
 
-% Способы определения схождения алгоритма на этапе "подкрутки алгоритмов". lawn03, страница 17
+\input{glossary}
 
-\chapter{"обратный" поворот Якоби}
+\newpage
+\chapter{Идеи Парфенова/Дроздова}
 
-\section{Принцип сведения $A$ к \Sigma}
+\input{ideas}
 
-% Описать работу первого шага алгоритма
-% раздел 12 https://pure.manchester.ac.uk/ws/files/82231456/17m1117732.pdf 
-% golub van loan 8.6
-
-\chapter{"Наивный" метод}
-
+\newpage
 \chapter{Скрученные преобразования}
+
+\newpage
+\printbibliography
 
 \end{document}

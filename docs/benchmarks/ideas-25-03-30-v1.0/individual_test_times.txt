@@ -1,0 +1,9 @@
+Max threads: 4
+
+Total execution time: 27307.6 seconds
+
+Individual algorithm execution times:
+MRRR : 2.14045 seconds
+JacobiSVD : 2.91985 seconds
+GivRef_SVD : 296.516 seconds
+RevJac_SVD : 27307.6 seconds

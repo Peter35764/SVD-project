@@ -1,9 +1,7 @@
 #ifndef GIVENS_REFINEMENT_H
 #define GIVENS_REFINEMENT_H
 
-#include <Eigen/Core>
 #include <Eigen/SVD>
-#include <random>
 #include <vector>
 
 namespace SVD_Project {

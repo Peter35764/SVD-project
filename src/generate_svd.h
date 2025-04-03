@@ -1,16 +1,15 @@
+#ifndef GENERATE_SVD_H
+#define GENERATE_SVD_H
 //
 //  SVD
 //
 //  Created by Victoria Koreshkova on 29.03.2024.
 //
-#include <iostream>
 #include <Eigen/Dense>
 #include "ctime"
-#include "tuple"
 #include <random>
 #include <cassert>
 #include <random>
-#include <iterator>
 #include <algorithm>
 
 //rows - число строк
@@ -167,3 +166,5 @@ class SVDGenerator
 
     }
 };
+
+#endif // GENERATE_SVD_H

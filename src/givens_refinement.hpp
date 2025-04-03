@@ -1,10 +1,7 @@
 #ifndef GIVENS_REFINEMENT_HPP
 #define GIVENS_REFINEMENT_HPP
 
-#include <Eigen/Core>
-#include <Eigen/SVD>
-#include <iostream>
-#include <vector>
+#include "givens_refinement.h" // necessary for correct display in ide, does not affect the assembly process and can be removed
 
 namespace SVD_Project {
 
