@@ -104,13 +104,10 @@ void GivRef_SVD<_MatrixType>::Impl_QR_zero_iter() {
         sn = temp1[1];
         r = temp1[2];
 
-        SquareMatrix Temp_J_R =
-            SquareMatrix::Identity(right_J.rows(), right_J.cols());
-        Temp_J_R(i, i) = cs;
-        Temp_J_R(i, i + 1) = -sn;
-        Temp_J_R(i + 1, i) = sn;
-        Temp_J_R(i + 1, i + 1) = cs;
-        right_J = right_J * Temp_J_R;
+        Eigen::JacobiRotation<Scalar> rotRight(
+            cs, -sn); // Needs negative sn to match original, we're trying to
+                      // keep the og impl idea
+        right_J.applyOnTheRight(i, i + 1, rotRight);
 
         Cosines(trigonom_i) = cs;
         Sines(trigonom_i) = sn;
@@ -125,13 +122,10 @@ void GivRef_SVD<_MatrixType>::Impl_QR_zero_iter() {
         oldsn = temp2[1];
         sigm_B(i, i) = temp2[2];
 
-        SquareMatrix Temp_J_L =
-            SquareMatrix::Identity(left_J.rows(), left_J.cols());
-        Temp_J_L(i, i) = oldcs;
-        Temp_J_L(i, i + 1) = oldsn;
-        Temp_J_L(i + 1, i) = -oldsn;
-        Temp_J_L(i + 1, i + 1) = oldcs;
-        left_J = Temp_J_L * left_J;
+        Eigen::JacobiRotation<Scalar> rotLeft(oldcs,
+                                              -oldsn); // See note above
+        rotLeft.transpose();                           // To match og
+        left_J.applyOnTheLeft(i, i + 1, rotLeft);
 
         Cosines(trigonom_i) = oldcs;
         Sines(trigonom_i) = oldsn;
