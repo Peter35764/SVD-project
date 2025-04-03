@@ -56,12 +56,14 @@ std::mutex cout_mutex;
 
 typedef enum {
     METRIC_NONE            = 0,
-    METRIC_U_DEVIATION     = 1 << 0, // Вывод AVG ||I-U_t*U|| и AVG ||I-U*U_t||
-    METRIC_V_DEVIATION     = 1 << 1, // Вывод AVG ||I-V_t*V|| и AVG ||I-V*V_t||
-    METRIC_REL_ERROR_SIGMA = 1 << 2, // Вывод AVG relative err. sigma
-    METRIC_RECON_ERROR     = 1 << 3, // Вывод AVG relative recon error
-    METRIC_ABS_RECON_ERROR = 1 << 4, // Вывод AVG absolute recon error
-    METRIC_ALL             = (METRIC_U_DEVIATION | METRIC_V_DEVIATION | METRIC_REL_ERROR_SIGMA | METRIC_RECON_ERROR | METRIC_ABS_RECON_ERROR)
+    METRIC_U_DEVIATION1    = 1 << 0, // Вывод AVG ||I-U_t*U||
+	METRIC_U_DEVIATION2    = 1 << 1, // Вывод AVG ||I-U*U_t||
+    METRIC_V_DEVIATION1    = 1 << 2, // Вывод AVG ||I-V_t*V||
+	METRIC_V_DEVIATION2    = 1 << 3,  // Вывод AVG ||I-V*V_t||
+    METRIC_REL_ERROR_SIGMA = 1 << 4, // Вывод AVG relative err. sigma
+    METRIC_RECON_ERROR     = 1 << 5, // Вывод AVG relative recon error
+    METRIC_ABS_RECON_ERROR = 1 << 6, // Вывод AVG absolute recon error
+    METRIC_ALL             = (METRIC_U_DEVIATION1 | METRIC_U_DEVIATION2 | METRIC_V_DEVIATION1 | METRIC_V_DEVIATION2 | METRIC_REL_ERROR_SIGMA | METRIC_RECON_ERROR | METRIC_ABS_RECON_ERROR)
 } Metric;
 
 template<typename T, template <typename> class gen_cl, template <typename> class svd_cl> 
@@ -71,7 +73,7 @@ void svd_test_func(std::string fileName,
                    const int n,
                    const std::string& algorithmName,
                    int lineNumber,
-				   int metricFlags) {
+				   uint16_t metricFlags) {
 
     auto printTable = [](std::ostream& out, const std::vector<std::vector<std::string>>& data){
         if (data.empty()) return;
@@ -133,12 +135,16 @@ void svd_test_func(std::string fileName,
         header.push_back("Dimension");
         header.push_back("Sigma-max/min-ratio");
         header.push_back("SV interval");
-        if (metricFlags & METRIC_U_DEVIATION) {
+        if (metricFlags & METRIC_U_DEVIATION1) {
             header.push_back("AVG ||I-U_t*U||");
+		}
+		if (metricFlags & METRIC_U_DEVIATION2){
             header.push_back("AVG ||I-U*U_t||");
         }
-        if (metricFlags & METRIC_V_DEVIATION) {
+        if (metricFlags & METRIC_V_DEVIATION1) {
             header.push_back("AVG ||I-V_t*V||");
+		}
+		if (metricFlags & METRIC_V_DEVIATION2){
             header.push_back("AVG ||I-V*V_t||");
         }
         if (metricFlags & METRIC_REL_ERROR_SIGMA)
@@ -199,12 +205,16 @@ void svd_test_func(std::string fileName,
                     SV_calc = svd_func.singularValues();
                     V_calc = svd_func.matrixV();
 
-					if (metricFlags & METRIC_U_DEVIATION) {
+					if (metricFlags & METRIC_U_DEVIATION1) {
 						avg_dev_UUt += (MatrixDynamic::Identity(N, N) - U_calc * U_calc.transpose()).squaredNorm() / n;
+					}
+					if (metricFlags & METRIC_U_DEVIATION2){
 						avg_dev_UtU += (MatrixDynamic::Identity(N, N) - U_calc.transpose() * U_calc).squaredNorm() / n;
 					}
-					if (metricFlags & METRIC_V_DEVIATION) {
+					if (metricFlags & METRIC_V_DEVIATION1) {
 						avg_dev_VVt += (MatrixDynamic::Identity(M, M) - V_calc * V_calc.transpose()).squaredNorm() / n;
+					}
+					if(metricFlags & METRIC_V_DEVIATION2){
 						avg_dev_VtV += (MatrixDynamic::Identity(M, M) - V_calc.transpose() * V_calc).squaredNorm() / n;
 					}
 					if (metricFlags & METRIC_REL_ERROR_SIGMA) {
@@ -254,12 +264,16 @@ void svd_test_func(std::string fileName,
                 row.push_back(num2str(N) + "x" + num2str(M));
                 row.push_back(num2str(SigmaMaxMinRatio));
                 row.push_back("[" + num2str(interval.first) + ", " + num2str(interval.second) + "]");
-                if (metricFlags & METRIC_U_DEVIATION) {
+                if (metricFlags & METRIC_U_DEVIATION1) {
                     row.push_back(num2str(avg_dev_UUt));
+				}
+				if (metricFlags & METRIC_U_DEVIATION2){
                     row.push_back(num2str(avg_dev_UtU));
                 }
-                if (metricFlags & METRIC_V_DEVIATION) {
+                if (metricFlags & METRIC_V_DEVIATION1) {
                     row.push_back(num2str(avg_dev_VVt));
+				}
+				if (metricFlags & METRIC_V_DEVIATION2){
                     row.push_back(num2str(avg_dev_VtV));
                 }
                 if (metricFlags & METRIC_REL_ERROR_SIGMA)

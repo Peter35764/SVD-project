@@ -12,7 +12,7 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS YES CACHE BOOL "Export all symbols")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(THREADS 4) # "количество потоков при запуске тестов (один тест в один поток, сами тесты (пока) не параллельны)
+set(THREADS 4 CACHE STRING "количество потоков") # "количество потоков при запуске тестов (один тест в один поток, сами тесты (пока) не параллельны)
 
 configure_file(src/config.h.in config.h)
 include_directories(${CMAKE_BINARY_DIR})
