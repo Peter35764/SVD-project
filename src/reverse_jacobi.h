@@ -45,13 +45,20 @@ private:
 
 } // namespace SVD_Project
 
+// template<typename _MatrixType>
+// struct Eigen::internal::traits<SVD_Project::RevJac_SVD<_MatrixType>>
+//     : Eigen::internal::traits<_MatrixType>
+// {
+//     typedef Eigen::internal::traits<_MatrixType>::MatrixType MatrixType;
+//     typedef Eigen::internal::traits<MatrixType>::Scalar Scalar;
+//     typedef Eigen::internal::traits<MatrixType>::Index Index;
+// };
+
 template<typename _MatrixType>
 struct Eigen::internal::traits<SVD_Project::RevJac_SVD<_MatrixType>>
     : Eigen::internal::traits<_MatrixType>
 {
-    typedef Eigen::internal::traits<_MatrixType>::MatrixType MatrixType;
-    typedef Eigen::internal::traits<MatrixType>::Scalar Scalar;
-    typedef Eigen::internal::traits<MatrixType>::Index Index;
+    typedef _MatrixType MatrixType;
 };
 
 #include "reverse_jacobi.hpp"

@@ -409,27 +409,27 @@ int main()
     });
 
     // idea 2
-    thread_semaphore.acquire();
-    std::thread t3([&]() {
-        std::string algo_name = "RevJac_SVD";
-        std::string file_name = "idea_2_RevJac_table.txt";
-        auto t_start = std::chrono::high_resolution_clock::now();
-        svd_test_func<double, SVDGenerator, SVD_Project::GivRef_SVD>(
-            file_name,
-            sigma_ratio,
-            matrix_size,
-            matrix_num_for_sample_averaging,
-            algo_name,
-            flush_string++,
-            metricsToShow);
-        auto t_end = std::chrono::high_resolution_clock::now();
-        double duration = std::chrono::duration<double>(t_end - t_start).count();
-        {
-            std::lock_guard<std::mutex> lock(test_times_mutex);
-            test_times.emplace_back(algo_name, duration);
-        }
-        thread_semaphore.release();
-    });
+    // thread_semaphore.acquire();
+    // std::thread t3([&]() {
+    //     std::string algo_name = "RevJac_SVD";
+    //     std::string file_name = "idea_2_RevJac_table.txt";
+    //     auto t_start = std::chrono::high_resolution_clock::now();
+    //     svd_test_func<double, SVDGenerator, SVD_Project::RevJac_SVD>(
+    //         file_name,
+    //         sigma_ratio,
+    //         matrix_size,
+    //         matrix_num_for_sample_averaging,
+    //         algo_name,
+    //         flush_string++,
+    //         metricsToShow);
+    //     auto t_end = std::chrono::high_resolution_clock::now();
+    //     double duration = std::chrono::duration<double>(t_end - t_start).count();
+    //     {
+    //         std::lock_guard<std::mutex> lock(test_times_mutex);
+    //         test_times.emplace_back(algo_name, duration);
+    //     }
+    //     thread_semaphore.release();
+    // });
 
     // idea 3
     thread_semaphore.acquire();
