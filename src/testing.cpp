@@ -335,9 +335,6 @@ void svd_test_func(
     }
 };
 
-template<typename _MatrixType>
-using RevJac_DQDS_SVD = SVD_Project::RevJac_SVD<DQDS_SVD<_MatrixType>>;
-
 int main()
 {
     auto start = std::chrono::high_resolution_clock::now();
@@ -417,7 +414,7 @@ int main()
         std::string algo_name = "RevJac_SVD";
         std::string file_name = "idea_2_RevJac_table.txt";
         auto t_start = std::chrono::high_resolution_clock::now();
-        svd_test_func<double, SVDGenerator, RevJac_DQDS_SVD>(
+        svd_test_func<double, SVDGenerator, SVD_Project::GivRef_SVD>(
             file_name,
             sigma_ratio,
             matrix_size,
@@ -453,25 +450,6 @@ int main()
         {
             std::lock_guard<std::mutex> lock(test_times_mutex);
             test_times.emplace_back(algo_name, duration);
-        }
-        thread_semaphore.release();
-    });
-
-    thread_semaphore.acquire();
-    std::thread t4([&]() {
-        auto t_start = std::chrono::high_resolution_clock::now();
-        svd_test_func<double, SVDGenerator, RevJac_DQDS_SVD>(
-            "reverse_jacobi_test_table.txt",
-            {1.01, 1.2, 2, 5, 10, 50},
-            {{3, 3}, {5, 5}, {10, 10}},
-            20,
-            "RevJac_SVD",
-            3);
-        auto t_end = std::chrono::high_resolution_clock::now();
-        double duration = std::chrono::duration<double>(t_end - t_start).count();
-        {
-            std::lock_guard<std::mutex> lock(test_times_mutex);
-            test_times.emplace_back("MRRR_SVD", duration);
         }
         thread_semaphore.release();
     });
