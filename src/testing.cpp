@@ -79,6 +79,17 @@ struct MetricSetting {
     bool relative;      // true: относительная ошибка, false: абсолютная
     T p;                // Параметр p для Lp нормы
     bool enabled;       // Флаг, управляющий выводом метрики в таблицу
+	
+	MetricSetting(MetricType t,
+				  const std::string& n,
+				  bool rel,
+				  T p_val,
+				  bool en) : type(t), name(n), relative(rel), p(p_val)
+	{
+		if(!(p_val > T(0))){
+			throw std::invalid_argument("Ошибка: параметр p должен быть больше 0");
+		}
+	}
 };
 
 #define METRIC_SETTINGS_VECTOR std::vector<MetricSetting<double>>{ \
@@ -355,6 +366,10 @@ int main()
     std::vector<std::pair<std::string, double>> test_times;
     std::mutex test_times_mutex;
 
+	std::vector<double> sigmaRatios = sigma_ratio; // macro sigma_ratio: {1.01, 1.2, 2, 8, 30, 100}
+    std::vector<std::pair<int, int>> matrixSizes = matrix_size; // macro matrix_size: {{5, 5}}
+    int sampleCount = matrix_num_for_sample_averaging; // макрос sample count
+    auto metricsSettings = METRIC_SETTINGS_VECTOR;
     //генерируеся таблица в файле "jacobi_test_table.txt" теста метода Eigen::JacobiSVD
     //с соотношением сингулярных чисел:  1.01, 1.2, 2, 5, 10, 50       ---    6
     //причем каждое соотношение относится к двум интервалам сингулярных чисел:
@@ -367,8 +382,6 @@ int main()
     {
         std::lock_guard<std::mutex> lock(cout_mutex);
     }
-
-    auto metricsSettings = METRIC_SETTINGS_VECTOR;
 
 	// idea 1 
     thread_semaphore.acquire();
@@ -472,21 +485,44 @@ int main()
     {
         std::lock_guard<std::mutex> lock(cout_mutex);
     }
-    std::ofstream timeFile("individual_test_times.txt");
-    if (timeFile) {
-        timeFile << "Max threads: " << THREADS << "\n\n";
-        timeFile << "Total execution time: " << durationGlobal.count() << " seconds\n\n";
-        timeFile << "Individual algorithm execution times:\n";
-        for (const auto &entry : test_times) {
-            timeFile << entry.first << " : " << entry.second << " seconds\n";
-        }
-        timeFile.close();
-    } else {
-        std::lock_guard<std::mutex> lock(cout_mutex);
-        std::cerr << "Error while creating/opening individual_test_times.txt!\n";
-    }
-    
-    char c;
-    std::cin >> c;
-    return 0;
+	std::ofstream timeFile("individual_test_times.txt");
+	if (timeFile) {
+		// Вывод настроек теста из локальных переменных
+		timeFile << "=== Test Settings ===\n";
+		timeFile << "Sigma ratios: ";
+		for (const auto& ratio : sigmaRatios) {
+			timeFile << ratio << " ";
+		}
+		timeFile << "\n";
+
+		timeFile << "Matrix sizes: ";
+		for (const auto& size : matrixSizes) {
+			timeFile << size.first << "x" << size.second << " ";
+		}
+		timeFile << "\n";
+
+		timeFile << "Sample count: " << sampleCount << "\n";
+
+		timeFile << "Metrics Settings:\n";
+		for (const auto &ms : metricsSettings) {
+			timeFile << "  " << ms.name << " (" << (ms.relative ? "relative" : "absolute")
+				<< "), p = " << ms.p << "\n";
+		}
+		timeFile << "\n=== Execution Times ===\n";
+
+		timeFile << "Max threads: " << THREADS << "\n\n";
+		timeFile << "Total execution time: " << durationGlobal.count() << " seconds\n\n";
+		timeFile << "Individual algorithm execution times:\n";
+		for (const auto &entry : test_times) {
+			timeFile << entry.first << " : " << entry.second << " seconds\n";
+		}
+		timeFile.close();
+	} else {
+		std::lock_guard<std::mutex> lock(cout_mutex);
+		std::cerr << "Error while creating/opening individual_test_times.txt!\n";
+	}
+
+	char c;
+	std::cin >> c;
+	return 0;
 }
