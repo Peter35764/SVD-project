@@ -18,6 +18,7 @@
 #include "dqds.h"
 #include "generate_svd.h"
 #include "givens_refinement.h"
+#include "legacy/v0_givens_refinement.h"
 #include "mrrr.h"
 #include "reverse_jacobi.h"
 
@@ -91,16 +92,6 @@ struct MetricSetting {
 	}
 };
 
-// Используем явные вызовы конструктора, чтобы гарантированно получить непустой вектор настроек метрик
-#define METRIC_SETTINGS_VECTOR std::vector<MetricSetting<double>>{ \
-    MetricSetting<double>(MetricType::U_DEVIATION1, "AVG ||I-U_t*U||", false, 0.7, true), \
-    MetricSetting<double>(MetricType::U_DEVIATION2, "AVG ||I-U*U_t||", false, 0.7, true), \
-    MetricSetting<double>(MetricType::V_DEVIATION1, "AVG ||I-V_t*V||", false, 0.7, true), \
-    MetricSetting<double>(MetricType::V_DEVIATION2, "AVG ||I-V*V_t||", false, 0.7, true), \
-    MetricSetting<double>(MetricType::ERROR_SIGMA, "AVG err. sigma", false, 0.7, true), \
-    MetricSetting<double>(MetricType::RECON_ERROR, "AVG recon error", false, 0.7, true), \
-    MetricSetting<double>(MetricType::MAX_DEVIATION, "AVG max deviation", false, 0.7, true) \
-}
 std::counting_semaphore<THREADS> thread_semaphore(THREADS);
 std::mutex cout_mutex;
 
@@ -396,19 +387,14 @@ int main()
         std::lock_guard<std::mutex> lock(cout_mutex);
     }
 
-    // idea 1 
     thread_semaphore.acquire();
     std::thread t1([&]() {
         std::string algo_name = "JacobiSVD";
         std::string file_name = "reference_JacobiSVD_table.txt";
         auto t_start = std::chrono::high_resolution_clock::now();
         svd_test_func<double, SVDGenerator, Eigen::JacobiSVD>(
-            file_name,
-            sigma_ratio,
-            matrix_size,
-            matrix_num_for_sample_averaging,
-            algo_name,
-            flush_string++,
+            file_name, sigma_ratio, matrix_size,
+            matrix_num_for_sample_averaging, algo_name, flush_string++,
             metricsSettings);
         auto t_end = std::chrono::high_resolution_clock::now();
         double duration = std::chrono::duration<double>(t_end - t_start).count();
@@ -418,7 +404,8 @@ int main()
         }
         thread_semaphore.release();
     });
-    
+
+    // idea 1
     thread_semaphore.acquire();
     std::thread t2([&]() {
         std::string algo_name = "GivRef_SVD";
@@ -441,7 +428,26 @@ int main()
         thread_semaphore.release();
     });
 
-    // idea 2 
+    // idea 1 (legacy)
+    thread_semaphore.acquire();
+    std::thread t5([&]() {
+      std::string algo_name = "v0_GivRef_SVD";
+      std::string file_name = "v0_idea_1_GivRef_table.txt";
+
+      auto t_start = std::chrono::high_resolution_clock::now();
+      svd_test_func<double, SVDGenerator, SVD_Project::v0_GivRef_SVD>(
+          file_name, sigma_ratio, matrix_size, matrix_num_for_sample_averaging,
+          algo_name, flush_string++, metricsSettings);
+      auto t_end = std::chrono::high_resolution_clock::now();
+      double duration = std::chrono::duration<double>(t_end - t_start).count();
+      {
+        std::lock_guard<std::mutex> lock(test_times_mutex);
+        test_times.emplace_back(algo_name, duration);
+      }
+      thread_semaphore.release();
+    });
+
+    // idea 2
     // thread_semaphore.acquire();
     // std::thread t3([&]() {
     //     std::string algo_name = "RevJac_SVD";
@@ -463,32 +469,36 @@ int main()
     //     }
     //     thread_semaphore.release();
     // });
-    
-    thread_semaphore.acquire();
-    std::thread t4([&]() {
-        std::string algo_name = "MRRR";
-        std::string file_name = "idea_3_MRRR_table.txt";
-        auto t_start = std::chrono::high_resolution_clock::now();
-        svd_test_func<double, SVDGenerator, MRRR_SVD>(
-            file_name,
-            sigma_ratio,
-            matrix_size,
-            matrix_num_for_sample_averaging,
-            algo_name,
-            flush_string++,
-            metricsSettings);
-        auto t_end = std::chrono::high_resolution_clock::now();
-        double duration = std::chrono::duration<double>(t_end - t_start).count();
-        {
-            std::lock_guard<std::mutex> lock(test_times_mutex);
-            test_times.emplace_back(algo_name, duration);
-        }
-        thread_semaphore.release();
-    });
+
+    // idea 3
+    // thread_semaphore.acquire();
+    // std::thread t4([&]() {
+    //     std::string algo_name = "MRRR";
+    //     std::string file_name = "idea_3_MRRR_table.txt";
+    //     auto t_start = std::chrono::high_resolution_clock::now();
+    //     svd_test_func<double, SVDGenerator, MRRR_SVD>(
+    //         file_name,
+    //         sigma_ratio,
+    //         matrix_size,
+    //         matrix_num_for_sample_averaging,
+    //         algo_name,
+    //         flush_string++,
+    //         metricsSettings);
+    //     auto t_end = std::chrono::high_resolution_clock::now();
+    //     double duration = std::chrono::duration<double>(t_end -
+    //     t_start).count();
+    //     {
+    //         std::lock_guard<std::mutex> lock(test_times_mutex);
+    //         test_times.emplace_back(algo_name, duration);
+    //     }
+    //     thread_semaphore.release();
+    // });
 
     t1.join();
     t2.join();
-    t4.join();
+    // t3.join();
+    // t4.join();
+    t5.join();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> durationGlobal = end - start;
