@@ -16,6 +16,11 @@
           llvmPkgs.libllvm
           llvmPkgs.lldb
         ];
+
+        pythonEnv = pkgs.python3.withPackages (ps:
+          with ps; [
+            pyqt6
+          ]);
       in {
         devShells.default = pkgs.mkShell.override {stdenv = llvmPkgs.stdenv;} {
           nativeBuildInputs = [
@@ -33,6 +38,7 @@
               boost
               llvmPkgs.clang-tools
               ninja
+              pythonEnv
             ];
           LD_LIBRARY_PATH = "${llvmPkgs.stdenv.cc.cc.lib.outPath}/lib:${pkgs.lib.makeLibraryPath libraries}";
           CLANGD_FLAGS = "--query-driver=${llvmPkgs.clang}/bin/clang";
