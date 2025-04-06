@@ -101,11 +101,6 @@ struct MetricSetting {
     MetricSetting<double>(MetricType::RECON_ERROR, "AVG recon error", false, 0.7, true), \
     MetricSetting<double>(MetricType::MAX_DEVIATION, "AVG max deviation", false, 0.7, true) \
 }
-
-#define sigma_ratio {1.01, 1.2, 2, 8, 30, 100}
-#define matrix_size {{5, 5}}
-#define matrix_num_for_sample_averaging 20
-
 std::counting_semaphore<THREADS> thread_semaphore(THREADS);
 std::mutex cout_mutex;
 
@@ -353,6 +348,12 @@ void svd_test_func(
     }
 }
 
+#define sigma_ratio \
+  {1.01, 1.2, 1.6, 2.1, 8, 30, 50, 100}  // SigmaMaxMinRatiosVec
+#define matrix_size \
+  {{3, 3}, {5, 5}, {10, 10}, {30, 30}, {70, 70}}  // MatSizesVec
+#define matrix_num_for_sample_averaging 20        // n
+
 int main()
 {
     auto start = std::chrono::high_resolution_clock::now();
@@ -365,7 +366,23 @@ int main()
     std::vector<double> sigmaRatios = sigma_ratio; // macro sigma_ratio: {1.01, 1.2, 2, 8, 30, 100}
     std::vector<std::pair<int, int>> matrixSizes = matrix_size; // macro matrix_size: {{5, 5}}
     int sampleCount = matrix_num_for_sample_averaging; // макрос sample count
-    auto metricsSettings = METRIC_SETTINGS_VECTOR;
+    std::vector<MetricSetting<double>> metricsSettings = {
+        MetricSetting<double>(MetricType::MAX_DEVIATION,
+                              "rel max{avg ortogonal deviation}", true, 0.7,
+                              true),
+        MetricSetting<double>(MetricType::MAX_DEVIATION,
+                              "abs max{avg ortogonal deviation}", false, 0.7,
+                              true),
+        MetricSetting<double>(MetricType::ERROR_SIGMA, "rel avg err sigma",
+                              true, 0.7, true),
+        MetricSetting<double>(MetricType::ERROR_SIGMA, "abs avg err. sigma",
+                              false, 0.7, true),
+        MetricSetting<double>(MetricType::RECON_ERROR, "rel recon error", true,
+                              0.7, true),
+        MetricSetting<double>(
+            MetricType::MAX_DEVIATION, "abs max deviation", false, 0.7,
+            true)};  //     bool relative;      // true: относительная ошибка,
+                     //     false: абсолютная
     //генерируется таблица в файле "jacobi_test_table.txt" теста метода Eigen::JacobiSVD
     //с соотношением сингулярных чисел:  1.01, 1.2, 2, 5, 10, 50       ---    6
     //причем каждое соотношение относится к двум интервалам сингулярных чисел:
