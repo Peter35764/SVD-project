@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <iomanip>  // Для std::setw
 
 #include "config.h"
 #include "dqds.h"
@@ -82,7 +83,7 @@ struct MetricSetting {
 				  const std::string& n,
 				  bool rel,
 				  T p_val,
-				  bool en) : type(t), name(n), relative(rel), p(p_val)
+				  bool en) : type(t), name(n), relative(rel), p(p_val), enabled(en)
 	{
 		if(!(p_val > T(0))){
 			throw std::invalid_argument("Ошибка: параметр p должен быть больше 0");
@@ -90,14 +91,15 @@ struct MetricSetting {
 	}
 };
 
+// Используем явные вызовы конструктора, чтобы гарантированно получить непустой вектор настроек метрик
 #define METRIC_SETTINGS_VECTOR std::vector<MetricSetting<double>>{ \
-    {MetricType::U_DEVIATION1, "AVG ||I-U_t*U||", false, 0.7, true}, \
-    {MetricType::U_DEVIATION2, "AVG ||I-U*U_t||", false, 0.7, true}, \
-    {MetricType::V_DEVIATION1, "AVG ||I-V_t*V||", false, 0.7, true}, \
-    {MetricType::V_DEVIATION2, "AVG ||I-V*V_t||", false, 0.7, true}, \
-    {MetricType::ERROR_SIGMA, "AVG err. sigma", false, 0.7, true}, \
-    {MetricType::RECON_ERROR, "AVG recon error", false, 0.7, true}, \
-    {MetricType::MAX_DEVIATION, "AVG max deviation", false, 0.7, true} \
+    MetricSetting<double>(MetricType::U_DEVIATION1, "AVG ||I-U_t*U||", false, 0.7, true), \
+    MetricSetting<double>(MetricType::U_DEVIATION2, "AVG ||I-U*U_t||", false, 0.7, true), \
+    MetricSetting<double>(MetricType::V_DEVIATION1, "AVG ||I-V_t*V||", false, 0.7, true), \
+    MetricSetting<double>(MetricType::V_DEVIATION2, "AVG ||I-V*V_t||", false, 0.7, true), \
+    MetricSetting<double>(MetricType::ERROR_SIGMA, "AVG err. sigma", false, 0.7, true), \
+    MetricSetting<double>(MetricType::RECON_ERROR, "AVG recon error", false, 0.7, true), \
+    MetricSetting<double>(MetricType::MAX_DEVIATION, "AVG max deviation", false, 0.7, true) \
 }
 
 #define sigma_ratio {1.01, 1.2, 2, 8, 30, 100}
@@ -217,11 +219,9 @@ void svd_test_func(
                 assert((minNM >= 2) && "Error: no columns or rows allowed");
 
                 T avg_dev_UUt = 0, avg_dev_UtU = 0, avg_dev_VVt = 0, avg_dev_VtV = 0;
-                T avg_sigma_error_rel = 0, avg_sigma_error_abs = 0;
-                T avg_rel_recon_error = 0, avg_abs_recon_error = 0;
+                T avg_sigma_error = 0;
+                T avg_recon_error = 0;
                 T avg_max_deviation = 0;
-				T avg_sigma_error = 0;
-				T avg_recon_error = 0;
 
                 for (int i = 1; i <= n; ++i) {
                     gen_cl<T> svd_gen(N, M, gen, distr, true);
@@ -246,25 +246,25 @@ void svd_test_func(
                     avg_dev_VVt += dev_VVt / n;
                     avg_dev_VtV += dev_VtV / n;
 
-					T sigma_err = 0;
-					if(metricsSettings[4].relative)
-						sigma_err = lp_norm((S_true.diagonal() - SV_calc).cwiseQuotient(S_true.diagonal()), metricsSettings[4].p);
-					else
-						sigma_err = lp_norm(S_true.diagonal() - SV_calc, metricsSettings[4].p);
-					avg_sigma_error += sigma_err / n;
+                    T sigma_err = 0;
+                    if(metricsSettings[4].relative)
+                        sigma_err = lp_norm((S_true.diagonal() - SV_calc).cwiseQuotient(S_true.diagonal()), metricsSettings[4].p);
+                    else
+                        sigma_err = lp_norm(S_true.diagonal() - SV_calc, metricsSettings[4].p);
+                    avg_sigma_error += sigma_err / n;
 
                     MatrixDynamic A = U_true * S_true * V_true.transpose();
                     MatrixDynamic S_calc_diag = MatrixDynamic::Zero(minNM, minNM);
                     S_calc_diag.diagonal() = SV_calc;
                     MatrixDynamic A_calc = U_calc * S_calc_diag * V_calc.transpose();
-					T recon_err = 0;
-					if(metricsSettings[5].relative)
-						recon_err = lp_norm(A - A_calc, metricsSettings[5].p) / lp_norm(A, metricsSettings[5].p);
-					else
-						recon_err = lp_norm(A - A_calc, metricsSettings[5].p);
-					avg_recon_error += recon_err / n;
+                    T recon_err = 0;
+                    if(metricsSettings[5].relative)
+                        recon_err = lp_norm(A - A_calc, metricsSettings[5].p) / lp_norm(A, metricsSettings[5].p);
+                    else
+                        recon_err = lp_norm(A - A_calc, metricsSettings[5].p);
+                    avg_recon_error += recon_err / n;
 
-					T max_dev = std::max({dev_UUt, dev_UtU, dev_VVt, dev_VtV});
+                    T max_dev = std::max({dev_UUt, dev_UtU, dev_VVt, dev_VtV});
                     avg_max_deviation += max_dev / n;
 
                     progress += static_cast<T>(M * N) / ProgressCoeff;
@@ -290,7 +290,7 @@ void svd_test_func(
                         std::cout << "\033[" << lineNumber << ";0H" << progressStream.str()
                                   << "\033[0K" << std::flush;
                     }
-                }
+                } // конец итераций
 
                 std::vector<std::string> row;
                 row.push_back(num2str(N) + "x" + num2str(M));
@@ -298,34 +298,34 @@ void svd_test_func(
                 row.push_back("[" + num2str(interval.first) + ", " + num2str(interval.second) + "]");
                 for (const auto &ms : metricsSettings) {
                     if (!ms.enabled) continue;
-				switch(ms.type) {
-					case MetricType::U_DEVIATION1:
-						row.push_back(num2str(avg_dev_UUt));
-						break;
-					case MetricType::U_DEVIATION2:
-						row.push_back(num2str(avg_dev_UtU));
-						break;
-					case MetricType::V_DEVIATION1:
-						row.push_back(num2str(avg_dev_VVt));
-						break;
-					case MetricType::V_DEVIATION2:
-						row.push_back(num2str(avg_dev_VtV));
-						break;
-					case MetricType::ERROR_SIGMA:
-						row.push_back(num2str(avg_sigma_error));
-						break;
-					case MetricType::RECON_ERROR:
-						row.push_back(num2str(avg_recon_error));
-						break;
-					case MetricType::MAX_DEVIATION:
-						row.push_back(num2str(avg_max_deviation));
-						break;
-				}
-				table.push_back(row);
-				}
-			}
-		}
-	}
+                    switch(ms.type) {
+                        case MetricType::U_DEVIATION1:
+                            row.push_back(num2str(avg_dev_UUt));
+                            break;
+                        case MetricType::U_DEVIATION2:
+                            row.push_back(num2str(avg_dev_UtU));
+                            break;
+                        case MetricType::V_DEVIATION1:
+                            row.push_back(num2str(avg_dev_VVt));
+                            break;
+                        case MetricType::V_DEVIATION2:
+                            row.push_back(num2str(avg_dev_VtV));
+                            break;
+                        case MetricType::ERROR_SIGMA:
+                            row.push_back(num2str(avg_sigma_error));
+                            break;
+                        case MetricType::RECON_ERROR:
+                            row.push_back(num2str(avg_recon_error));
+                            break;
+                        case MetricType::MAX_DEVIATION:
+                            row.push_back(num2str(avg_max_deviation));
+                            break;
+                    }
+                }
+                table.push_back(row);
+            }
+        }
+    }
 
     std::ofstream file(fileName);
     if (file) {
@@ -362,11 +362,11 @@ int main()
     std::vector<std::pair<std::string, double>> test_times;
     std::mutex test_times_mutex;
 
-	std::vector<double> sigmaRatios = sigma_ratio; // macro sigma_ratio: {1.01, 1.2, 2, 8, 30, 100}
+    std::vector<double> sigmaRatios = sigma_ratio; // macro sigma_ratio: {1.01, 1.2, 2, 8, 30, 100}
     std::vector<std::pair<int, int>> matrixSizes = matrix_size; // macro matrix_size: {{5, 5}}
     int sampleCount = matrix_num_for_sample_averaging; // макрос sample count
     auto metricsSettings = METRIC_SETTINGS_VECTOR;
-    //генерируеся таблица в файле "jacobi_test_table.txt" теста метода Eigen::JacobiSVD
+    //генерируется таблица в файле "jacobi_test_table.txt" теста метода Eigen::JacobiSVD
     //с соотношением сингулярных чисел:  1.01, 1.2, 2, 5, 10, 50       ---    6
     //причем каждое соотношение относится к двум интервалам сингулярных чисел:
     //                      маленьких {0,1}, больших {1,100} (это не параметризованно)   ---   2
@@ -379,7 +379,7 @@ int main()
         std::lock_guard<std::mutex> lock(cout_mutex);
     }
 
-	// idea 1 
+    // idea 1 
     thread_semaphore.acquire();
     std::thread t1([&]() {
         std::string algo_name = "JacobiSVD";
@@ -424,7 +424,7 @@ int main()
         thread_semaphore.release();
     });
 
-    // idea 2
+    // idea 2 
     // thread_semaphore.acquire();
     // std::thread t3([&]() {
     //     std::string algo_name = "RevJac_SVD";
@@ -437,7 +437,7 @@ int main()
     //         matrix_num_for_sample_averaging,
     //         algo_name,
     //         flush_string++,
-    //         metricsToShow);
+    //         metricsSettings);
     //     auto t_end = std::chrono::high_resolution_clock::now();
     //     double duration = std::chrono::duration<double>(t_end - t_start).count();
     //     {
@@ -481,44 +481,44 @@ int main()
     {
         std::lock_guard<std::mutex> lock(cout_mutex);
     }
-	std::ofstream timeFile("individual_test_times.txt");
-	if (timeFile) {
-		// Вывод настроек теста из локальных переменных
-		timeFile << "=== Test Settings ===\n";
-		timeFile << "Sigma ratios: ";
-		for (const auto& ratio : sigmaRatios) {
-			timeFile << ratio << " ";
-		}
-		timeFile << "\n";
+    std::ofstream timeFile("individual_test_times.txt");
+    if (timeFile) {
+        // Вывод настроек теста из локальных переменных
+        timeFile << "=== Test Settings ===\n";
+        timeFile << "Sigma ratios: ";
+        for (const auto& ratio : sigmaRatios) {
+            timeFile << ratio << " ";
+        }
+        timeFile << "\n";
 
-		timeFile << "Matrix sizes: ";
-		for (const auto& size : matrixSizes) {
-			timeFile << size.first << "x" << size.second << " ";
-		}
-		timeFile << "\n";
+        timeFile << "Matrix sizes: ";
+        for (const auto& size : matrixSizes) {
+            timeFile << size.first << "x" << size.second << " ";
+        }
+        timeFile << "\n";
 
-		timeFile << "Sample count: " << sampleCount << "\n";
+        timeFile << "Sample count: " << sampleCount << "\n";
 
-		timeFile << "Metrics Settings:\n";
-		for (const auto &ms : metricsSettings) {
-			timeFile << "  " << ms.name << " (" << (ms.relative ? "relative" : "absolute")
-				<< "), p = " << ms.p << "\n";
-		}
-		timeFile << "\n=== Execution Times ===\n";
+        timeFile << "Metrics Settings:\n";
+        for (const auto &ms : metricsSettings) {
+            timeFile << "  " << ms.name << " (" << (ms.relative ? "relative" : "absolute")
+                << "), p = " << ms.p << "\n";
+        }
+        timeFile << "\n=== Execution Times ===\n";
 
-		timeFile << "Max threads: " << THREADS << "\n\n";
-		timeFile << "Total execution time: " << durationGlobal.count() << " seconds\n\n";
-		timeFile << "Individual algorithm execution times:\n";
-		for (const auto &entry : test_times) {
-			timeFile << entry.first << " : " << entry.second << " seconds\n";
-		}
-		timeFile.close();
-	} else {
-		std::lock_guard<std::mutex> lock(cout_mutex);
-		std::cerr << "Error while creating/opening individual_test_times.txt!\n";
-	}
+        timeFile << "Max threads: " << THREADS << "\n\n";
+        timeFile << "Total execution time: " << durationGlobal.count() << " seconds\n\n";
+        timeFile << "Individual algorithm execution times:\n";
+        for (const auto &entry : test_times) {
+            timeFile << entry.first << " : " << entry.second << " seconds\n";
+        }
+        timeFile.close();
+    } else {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        std::cerr << "Error while creating/opening individual_test_times.txt!\n";
+    }
 
-	char c;
-	std::cin >> c;
-	return 0;
+    char c;
+    std::cin >> c;
+    return 0;
 }
