@@ -32,8 +32,16 @@ find_package(Boost REQUIRED)
 # pkg_check_modules(EIGEN3 REQUIRED eigen3)
 # pkg_check_modules(LAPACKE REQUIRED lapacke)
 
-# При этом нужно внести изменение в сборку целевых объектов:
+# При этом нужно внести изменение в сборку целевых объектов (строки с подключением библиотек):
 
+# С помощью find-package:
+# add_library(svd ${SOURCE_FILES} ${HEADER_FILES}
+#   src/givens_refinement.h)
+# target_compile_features(svd PRIVATE cxx_std_20)
+# target_link_libraries(svd Eigen3::Eigen)
+# target_link_libraries(svd lapacke)
+
+# С помощью pkg-config:
 # add_library(svd ${SOURCE_FILES} ${HEADER_FILES}
 #   src/givens_refinement.h)
 # target_compile_features(svd PRIVATE cxx_std_20)
@@ -61,10 +69,6 @@ SET(HEADER_FILES
   src/reverse_jacobi.hpp
   src/mrrr.h
   src/mrrr.hpp
-
-  # Legacy
-  src/legacy/v0_givens_refinement.h
-  src/legacy/v0_givens_refinement.hpp
 )
 
 SET(SOURCE_FILES

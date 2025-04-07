@@ -12,81 +12,67 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include <iomanip> 
-#include <filesystem> 
+#include <iomanip>  // Для std::setw
+#include <filesystem> // Для работы с файловой системой (C++17)
 
 #include "config.h"
 #include "dqds.h"
 #include "generate_svd.h"
 #include "givens_refinement.h"
-#include "legacy/v0_givens_refinement.h"
 #include "mrrr.h"
 #include "reverse_jacobi.h"
 
-// Александр Нам, КМБО-04-20
-// Any questions: alexnam16@gmail.com
+//Александр Нам, КМБО-04-20
+//Any questions: alexnam16@gmail.com
 
 // Функция возвращает матрицу-таблицу формата:
 // | размерность | sigma_max/sigma_min | диап. синг. чисел |
 // | sum_n(norm[I - U.transpose*U])/n | sum_n(norm[I - U*U.transpose])/n |
 // | sum_n(norm[I - V.transpose*V])/n | sum_n(norm[I - V*V.transpose])/n |
 // | max(abs((sigma_true_i - sigma_calc_i)/sigma_true_i)) |
-// Размер выборки фиксированного размера матриц определяется задаваемым
-// параметром 'n'.
+// Размер выборки фиксированного размера матриц определяется задаваемым параметром 'n'.
 
 // Функция написана с теми условиями, что:
-//    1. Класс SVD разложения наследуется от класса Eigen::SVDBase, причем
-//    должен существоваться конструктор класса,
-//       который вторым параметром принимает настройку вычислений матриц U и V,
-//       т.е. thin или full.
-//    2. Генерация случайных матриц происходит с помощью SVDGenerator из
-//    generate_svd.h
-//    3. В функцию передаётся std::vector соотношений максимального и
-//    минимального сингулярного числа
-//    4. В функцию передаётся std::vector<std::pair<int,int>> размеров матриц
-//    для исследования
-//    5. В функцию передаётся int n размер выборки фиксированного размера матриц
-//    для подсчёта средних
-//    6. Функция работает достаточно долго, особенно для матриц больших
-//    размеров, поэтому выводится прогресс в процентах
-//    7. Результат исследования не печатается в консоль, а сохраняется в файл,
-//    название выбирается первым параметром
+//    1. Класс SVD разложения наследуется от класса Eigen::SVDBase, причем должен существоваться конструктор класса,
+//       который вторым параметром принимает настройку вычислений матриц U и V, т.е. thin или full.
+//    2. Генерация случайных матриц происходит с помощью SVDGenerator из generate_svd.h
+//    3. В функцию передаётся std::vector соотношений максимального и минимального сингулярного числа
+//    4. В функцию передаётся std::vector<std::pair<int,int>> размеров матриц для исследования
+//    5. В функцию передаётся int n размер выборки фиксированного размера матриц для подсчёта средних
+//    6. Функция работает достаточно долго, особенно для матриц больших размеров, поэтому выводится прогресс в процентах
+//    7. Результат исследования не печатается в консоль, а сохраняется в файл, название выбирается первым параметром
 
 // Функция принимает параметрами:
 // - fileName: имя текстового файла, куда будет сохранен результат, т.е. таблица
-// - SigmaMaxMinRatiosVec: вектор соотношений максимального и минимального
-// сингулярных чисел;
-//                        нужен т.к. ошибка может сильно отличаться у разных
-//                        соотношений сингулярных чисел;
+// - SigmaMaxMinRatiosVec: вектор соотношений максимального и минимального сингулярных чисел;
+//                        нужен т.к. ошибка может сильно отличаться у разных соотношений сингулярных чисел;
 // - MatSizesVec: вектор размеров матриц для теста;
-// - n: количество матриц, которые генерируются с одинаковыми параметрами для
-// усреднения выборки и подсчёта средних
+// - n: количество матриц, которые генерируются с одинаковыми параметрами для усреднения выборки и подсчёта средних
 // - algorithmName: название алгоритма, используется в выводе прогресса
-// - lineNumber: номер строки в терминале, которую будет обновлять данный
-// алгоритм
+// - lineNumber: номер строки в терминале, которую будет обновлять данный алгоритм
 
-template <typename Derived, typename T>
-T lp_norm(const Eigen::MatrixBase<Derived> &M, T p) {
-  T sum = 0;
-  for (int i = 0; i < M.rows(); ++i) {
-    for (int j = 0; j < M.cols(); ++j) {
-      sum += std::pow(std::abs(M(i, j)), p);
+template<typename Derived, typename T>
+T lp_norm(const Eigen::MatrixBase<Derived>& M, T p) {
+    T sum = 0;
+    for (int i = 0; i < M.rows(); ++i) {
+        for (int j = 0; j < M.cols(); ++j) {
+            sum += std::pow(std::abs(M(i, j)), p);
+        }
     }
-  }
-  return std::pow(sum, T(1) / p);
+    return std::pow(sum, T(1) / p);
 }
 
 enum class MetricType {
-  U_DEVIATION1,
-  U_DEVIATION2,
-  V_DEVIATION1,
-  V_DEVIATION2,
-  ERROR_SIGMA,
-  RECON_ERROR,
-  MAX_DEVIATION
+    U_DEVIATION1,
+    U_DEVIATION2,
+    V_DEVIATION1,
+    V_DEVIATION2,
+    ERROR_SIGMA,
+    RECON_ERROR,
+    MAX_DEVIATION
 };
 
-template <typename T>
+template<typename T>
 struct MetricSetting {
     MetricType type;    // Тип метрики
     std::string name;   // Название метрики 
@@ -184,11 +170,26 @@ void svd_test_func(
     for (const auto &MatSize : MatSizesVec) {
         generalSum += (MatSize.first * MatSize.second);
     }
-    for (size_t r = 0; r < data.size(); ++r) {
-      for (size_t i = 0; i < data[r].size(); ++i) {
-        out << std::left << std::setw(widths[i] + 3) << data[r][i];
-      }
-      out << "\n";
+
+    using MatrixDynamic = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+    using VectorDynamic = Eigen::Matrix<T, Eigen::Dynamic, 1>;
+
+    const std::vector<std::pair<T, T>> Intervals = {{0, 1}, {1, 100}};
+
+    T ProgressCoeff = n * Intervals.size() * SigmaMaxMinRatiosVec.size() * generalSum / 100.0;
+    T progress = 0;
+
+    std::vector<std::vector<std::string>> table;
+    {
+        std::vector<std::string> header;
+        header.push_back("Dimension");
+        header.push_back("Sigma-max/min-ratio");
+        header.push_back("SV interval");
+        for (const auto &ms : metricsSettings) {
+            if (ms.enabled)
+                header.push_back(ms.name);
+        }
+        table.push_back(header);
     }
 
     MatrixDynamic U_true, S_true, V_true, U_calc, V_calc;
@@ -349,225 +350,32 @@ void svd_test_func(
                 table.push_back(row);
             }
         }
-        out << cellFormatted;
-        first = false;
-      }
-      out << "\n";
     }
-  };
 
-  auto num2str = [](T value) {
-    std::ostringstream oss;
-    oss << value;
-    return oss.str();
-  };
-
-  T generalSum = 0;
-  for (const auto &MatSize : MatSizesVec) {
-    generalSum += (MatSize.first * MatSize.second);
-  }
-
-  using MatrixDynamic = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
-  using VectorDynamic = Eigen::Matrix<T, Eigen::Dynamic, 1>;
-
-  const std::vector<std::pair<T, T>> Intervals = {{0, 1}, {1, 100}};
-
-  T ProgressCoeff =
-      n * Intervals.size() * SigmaMaxMinRatiosVec.size() * generalSum / 100.0;
-  T progress = 0;
-
-  std::vector<std::vector<std::string>> table;
-  {
-    std::vector<std::string> header;
-    header.push_back("Dimension");
-    header.push_back("Sigma-max/min-ratio");
-    header.push_back("SV interval");
-    for (const auto &ms : metricsSettings) {
-      if (ms.enabled) header.push_back(ms.name);
+    std::ofstream file(fileName);
+    if (file) {
+        printTable(file, table);
+        file.close();
+    } else {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        std::cerr << "Error while creating/opening file!\n";
     }
-    table.push_back(header);
-  }
 
-  MatrixDynamic U_true, S_true, V_true, U_calc, V_calc;
-  VectorDynamic SV_calc;
+    std::string csvFileName = fileName;
+    size_t pos = csvFileName.rfind(".txt");
+    if (pos != std::string::npos)
+        csvFileName.replace(pos, 4, ".csv");
+    else
+        csvFileName += ".csv";
 
-  std::random_device rd;
-  std::default_random_engine gen(rd());
-
-  for (const auto &MatSize : MatSizesVec) {
-    const int N = MatSize.first;
-    const int M = MatSize.second;
-    int minNM = std::min(N, M);
-
-    U_true.resize(N, N);
-    U_calc.resize(N, N);
-    S_true.resize(N, M);
-    SV_calc.resize(minNM);
-    V_true.resize(M, M);
-    V_calc.resize(M, M);
-
-    for (const auto &SigmaMaxMinRatio : SigmaMaxMinRatiosVec) {
-      for (const auto &interval : Intervals) {
-        assert((interval.first < interval.second) &&
-               "Error: left boundary >= right boundary");
-        assert((interval.first * SigmaMaxMinRatio <= interval.second) &&
-               "Error: no sigma values exist with such ratio in such interval");
-
-        std::uniform_real_distribution<T> distrSigmaMin(
-            interval.first, interval.second / SigmaMaxMinRatio);
-        T sigma_min = distrSigmaMin(gen);
-        T sigma_max = SigmaMaxMinRatio * sigma_min;
-
-        std::uniform_real_distribution<T> distr(sigma_min, sigma_max);
-        assert((minNM >= 2) && "Error: no columns or rows allowed");
-
-        T avg_dev_UUt = 0, avg_dev_UtU = 0, avg_dev_VVt = 0, avg_dev_VtV = 0;
-        T avg_sigma_error = 0;
-        T avg_recon_error = 0;
-        T avg_max_deviation = 0;
-
-        for (int i = 1; i <= n; ++i) {
-          gen_cl<T> svd_gen(N, M, gen, distr, true);
-          svd_gen.generate(minNM);
-
-          U_true = svd_gen.MatrixU();
-          S_true = svd_gen.MatrixS();
-          V_true = svd_gen.MatrixV();
-          svd_cl<MatrixDynamic> svd_func(
-              (U_true * S_true * V_true.transpose()).eval(),
-              Eigen::ComputeFullU | Eigen::ComputeFullV);
-          U_calc = svd_func.matrixU();
-          SV_calc = svd_func.singularValues();
-          V_calc = svd_func.matrixV();
-
-          T dev_UUt = lp_norm(
-              MatrixDynamic::Identity(N, N) - U_calc * U_calc.transpose(),
-              metricsSettings[0].p);
-          T dev_UtU = lp_norm(
-              MatrixDynamic::Identity(N, N) - U_calc.transpose() * U_calc,
-              metricsSettings[1].p);
-          T dev_VVt = lp_norm(
-              MatrixDynamic::Identity(M, M) - V_calc * V_calc.transpose(),
-              metricsSettings[2].p);
-          T dev_VtV = lp_norm(
-              MatrixDynamic::Identity(M, M) - V_calc.transpose() * V_calc,
-              metricsSettings[3].p);
-
-          avg_dev_UUt += dev_UUt / n;
-          avg_dev_UtU += dev_UtU / n;
-          avg_dev_VVt += dev_VVt / n;
-          avg_dev_VtV += dev_VtV / n;
-
-          T sigma_err = 0;
-          if (metricsSettings[4].relative)
-            sigma_err = lp_norm(
-                (S_true.diagonal() - SV_calc).cwiseQuotient(S_true.diagonal()),
-                metricsSettings[4].p);
-          else
-            sigma_err =
-                lp_norm(S_true.diagonal() - SV_calc, metricsSettings[4].p);
-          avg_sigma_error += sigma_err / n;
-
-          MatrixDynamic A = U_true * S_true * V_true.transpose();
-          MatrixDynamic S_calc_diag = MatrixDynamic::Zero(minNM, minNM);
-          S_calc_diag.diagonal() = SV_calc;
-          MatrixDynamic A_calc = U_calc * S_calc_diag * V_calc.transpose();
-          T recon_err = 0;
-          if (metricsSettings[5].relative)
-            recon_err = lp_norm(A - A_calc, metricsSettings[5].p) /
-                        lp_norm(A, metricsSettings[5].p);
-          else
-            recon_err = lp_norm(A - A_calc, metricsSettings[5].p);
-          avg_recon_error += recon_err / n;
-
-          T max_dev = std::max({dev_UUt, dev_UtU, dev_VVt, dev_VtV});
-          avg_max_deviation += max_dev / n;
-
-          progress += static_cast<T>(M * N) / ProgressCoeff;
-          double percent = static_cast<double>(progress);
-          int barWidth = 50;
-          int pos = barWidth * static_cast<int>(percent) / 100;
-
-          std::ostringstream progressStream;
-          progressStream << algorithmName << ": " << std::fixed
-                         << std::setprecision(4) << percent << "% [";
-          for (int j = 0; j < barWidth; ++j) {
-            if (j < pos)
-              progressStream << "=";
-            else if (j == pos)
-              progressStream << ">";
-            else
-              progressStream << " ";
-          }
-          progressStream << "]";
-
-          {
-            std::lock_guard<std::mutex> lock(cout_mutex);
-            std::cout << "\033[" << lineNumber << ";0H" << progressStream.str()
-                      << "\033[0K" << std::flush;
-          }
-        }  // конец итераций
-
-        std::vector<std::string> row;
-        row.push_back(num2str(N) + "x" + num2str(M));
-        row.push_back(num2str(SigmaMaxMinRatio));
-        row.push_back("[" + num2str(interval.first) + ", " +
-                      num2str(interval.second) + "]");
-        for (const auto &ms : metricsSettings) {
-          if (!ms.enabled) continue;
-          switch (ms.type) {
-            case MetricType::U_DEVIATION1:
-              row.push_back(num2str(avg_dev_UUt));
-              break;
-            case MetricType::U_DEVIATION2:
-              row.push_back(num2str(avg_dev_UtU));
-              break;
-            case MetricType::V_DEVIATION1:
-              row.push_back(num2str(avg_dev_VVt));
-              break;
-            case MetricType::V_DEVIATION2:
-              row.push_back(num2str(avg_dev_VtV));
-              break;
-            case MetricType::ERROR_SIGMA:
-              row.push_back(num2str(avg_sigma_error));
-              break;
-            case MetricType::RECON_ERROR:
-              row.push_back(num2str(avg_recon_error));
-              break;
-            case MetricType::MAX_DEVIATION:
-              row.push_back(num2str(avg_max_deviation));
-              break;
-          }
-        }
-        table.push_back(row);
-      }
+    std::ofstream csv_file(csvFileName);
+    if (csv_file) {
+        printCSV(csv_file, table);
+        csv_file.close();
+    } else {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        std::cerr << "Error while creating/opening file " << csvFileName << "!\n";
     }
-  }
-
-  std::ofstream file(fileName);
-  if (file) {
-    printTable(file, table);
-    file.close();
-  } else {
-    std::lock_guard<std::mutex> lock(cout_mutex);
-    std::cerr << "Error while creating/opening file!\n";
-  }
-
-  std::string csvFileName = fileName;
-  size_t pos = csvFileName.rfind(".txt");
-  if (pos != std::string::npos)
-    csvFileName.replace(pos, 4, ".csv");
-  else
-    csvFileName += ".csv";
-
-  std::ofstream csv_file(csvFileName);
-  if (csv_file) {
-    printCSV(csv_file, table);
-    csv_file.close();
-  } else {
-    std::lock_guard<std::mutex> lock(cout_mutex);
-    std::cerr << "Error while creating/opening file " << csvFileName << "!\n";
-  }
 }
 
 #define sigma_ratio \
@@ -626,8 +434,7 @@ int main()
 
     int flush_string = 1;
     {
-      std::lock_guard<std::mutex> lock(test_times_mutex);
-      test_times.emplace_back(algo_name, duration);
+        std::lock_guard<std::mutex> lock(cout_mutex);
     }
 
     // idea 1 
@@ -730,8 +537,7 @@ int main()
     std::cout << "\033[5;0H";
     std::cout << "\nFull execution time = " << durationGlobal.count() << " seconds.\n";
     {
-      std::lock_guard<std::mutex> lock(test_times_mutex);
-      test_times.emplace_back(algo_name, duration);
+        std::lock_guard<std::mutex> lock(cout_mutex);
     }
     std::ofstream timeFile(folderName + "/" + "individual_test_times.txt");
     if (timeFile) {
@@ -749,36 +555,28 @@ int main()
         }
         timeFile << "\n";
 
-    timeFile << "Matrix sizes: ";
-    for (const auto &size : matrixSizes) {
-      timeFile << size.first << "x" << size.second << " ";
+        timeFile << "Sample count: " << sampleCount << "\n";
+
+        timeFile << "Metrics Settings:\n";
+        for (const auto &ms : metricsSettings) {
+            timeFile << "  " << ms.name << " (" << (ms.relative ? "relative" : "absolute")
+                << "), p = " << ms.p << "\n";
+        }
+        timeFile << "\n=== Execution Times ===\n";
+
+        timeFile << "Max threads: " << THREADS << "\n\n";
+        timeFile << "Total execution time: " << durationGlobal.count() << " seconds\n\n";
+        timeFile << "Individual algorithm execution times:\n";
+        for (const auto &entry : test_times) {
+            timeFile << entry.first << " : " << entry.second << " seconds\n";
+        }
+        timeFile.close();
+    } else {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        std::cerr << "Error while creating/opening individual_test_times.txt!\n";
     }
-    timeFile << "\n";
 
-    timeFile << "Sample count: " << sampleCount << "\n";
-
-    timeFile << "Metrics Settings:\n";
-    for (const auto &ms : metricsSettings) {
-      timeFile << "  " << ms.name << " ("
-               << (ms.relative ? "relative" : "absolute") << "), p = " << ms.p
-               << "\n";
-    }
-    timeFile << "\n=== Execution Times ===\n";
-
-    timeFile << "Max threads: " << THREADS << "\n\n";
-    timeFile << "Total execution time: " << durationGlobal.count()
-             << " seconds\n\n";
-    timeFile << "Individual algorithm execution times:\n";
-    for (const auto &entry : test_times) {
-      timeFile << entry.first << " : " << entry.second << " seconds\n";
-    }
-    timeFile.close();
-  } else {
-    std::lock_guard<std::mutex> lock(cout_mutex);
-    std::cerr << "Error while creating/opening individual_test_times.txt!\n";
-  }
-
-  char c;
-  std::cin >> c;
-  return 0;
+    char c;
+    std::cin >> c;
+    return 0;
 }
