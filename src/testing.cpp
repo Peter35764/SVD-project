@@ -21,6 +21,7 @@
 #include "givens_refinement.h"
 #include "mrrr.h"
 #include "reverse_jacobi.h"
+#include "legacy/v0_givens_refinement.h"
 
 //Александр Нам, КМБО-04-20
 //Any questions: alexnam16@gmail.com
@@ -381,7 +382,7 @@ void svd_test_func(
 #define sigma_ratio \
   {1.01, 1.2, 1.6, 2.1, 8, 30, 50, 100}  // SigmaMaxMinRatiosVec
 #define matrix_size \
-  {{3, 3}, {5, 5}}// {10, 10}, {30, 30}, {70, 70}}  // MatSizesVec
+  {{3, 3}, {5, 5}, {10, 10}}//, {30, 30}}, {70, 70}}  // MatSizesVec
 #define matrix_num_for_sample_averaging 20        // n
 
 int main()
@@ -415,14 +416,14 @@ int main()
     //размер выборки для усреднения: 20
     // Инициализация настроек метрик
     std::vector<MetricSetting<double>> metricsSettings = {
-        MetricSetting<double>(MetricType::U_DEVIATION1, "AVG ||I-U_t*U||", false, 0.7, true),
-        MetricSetting<double>(MetricType::U_DEVIATION1, "AVG ||I-U_t*U||", true, 0.7, true),
-        MetricSetting<double>(MetricType::U_DEVIATION2, "AVG ||I-U*U_t||", false, 0.7, true),
-        MetricSetting<double>(MetricType::U_DEVIATION2, "AVG ||I-U*U_t||", true, 0.7, true),
-        MetricSetting<double>(MetricType::V_DEVIATION1, "AVG ||I-V_t*V||", false, 0.7, true),
-        MetricSetting<double>(MetricType::V_DEVIATION1, "AVG ||I-V_t*V||", true, 0.7, true),
-        MetricSetting<double>(MetricType::V_DEVIATION2, "AVG ||I-V*V_t||", false, 0.7, true),
-        MetricSetting<double>(MetricType::V_DEVIATION2, "AVG ||I-V*V_t||", true, 0.7, true),
+        //MetricSetting<double>(MetricType::U_DEVIATION1, "AVG ||I-U_t*U||", false, 0.7, true),
+       // MetricSetting<double>(MetricType::U_DEVIATION1, "AVG ||I-U_t*U||", true, 0.7, true),
+       // MetricSetting<double>(MetricType::U_DEVIATION2, "AVG ||I-U*U_t||", false, 0.7, true),
+       // MetricSetting<double>(MetricType::U_DEVIATION2, "AVG ||I-U*U_t||", true, 0.7, true),
+       // MetricSetting<double>(MetricType::V_DEVIATION1, "AVG ||I-V_t*V||", false, 0.7, true),
+       // MetricSetting<double>(MetricType::V_DEVIATION1, "AVG ||I-V_t*V||", true, 0.7, true),
+       // MetricSetting<double>(MetricType::V_DEVIATION2, "AVG ||I-V*V_t||", false, 0.7, true),
+       // MetricSetting<double>(MetricType::V_DEVIATION2, "AVG ||I-V*V_t||", true, 0.7, true),
         MetricSetting<double>(MetricType::ERROR_SIGMA, "AVG err. sigma", true, 0.7, true),
         MetricSetting<double>(MetricType::ERROR_SIGMA, "AVG err. sigma", false, 0.7, true),
         MetricSetting<double>(MetricType::RECON_ERROR, "AVG recon error", false, 0.7, true),
@@ -481,6 +482,27 @@ int main()
         thread_semaphore.release();
     });
 
+    thread_semaphore.acquire();
+    std::thread t3([&]() {
+        std::string algo_name = "v0_GivRef_SVD";
+        std::string file_name = folderName + "/" + "v0_GivRef_table.txt";
+        auto t_start = std::chrono::high_resolution_clock::now();
+        svd_test_func<double, SVDGenerator, SVD_Project::v0_GivRef_SVD>(
+            file_name,
+            sigma_ratio,
+            matrix_size,
+            matrix_num_for_sample_averaging,
+            algo_name,
+            flush_string++,
+            metricsSettings);
+        auto t_end = std::chrono::high_resolution_clock::now();
+        double duration = std::chrono::duration<double>(t_end - t_start).count();
+        {
+            std::lock_guard<std::mutex> lock(test_times_mutex);
+            test_times.emplace_back(algo_name, duration);
+        }
+        thread_semaphore.release();
+    });
     // idea 2 
     // thread_semaphore.acquire();
     // std::thread t3([&]() {
