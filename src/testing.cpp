@@ -12,8 +12,8 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include <iomanip>  // Для std::setw
-#include <filesystem> // Для работы с файловой системой (C++17)
+#include <iomanip>  
+#include <filesystem> 
 
 #include "config.h"
 #include "dqds.h"
@@ -386,11 +386,10 @@ void svd_test_func(
 
 int main()
 {
-    namespace fs = std::filesystem; // для удобства использования
+    namespace fs = std::filesystem; 
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Создание папки для результатов тестов с текущей датой и временем
     auto now = std::chrono::system_clock::now();
     std::time_t now_time = std::chrono::system_clock::to_time_t(now);
     std::tm* ptm = std::localtime(&now_time);
@@ -541,7 +540,6 @@ int main()
     }
     std::ofstream timeFile(folderName + "/" + "individual_test_times.txt");
     if (timeFile) {
-        // Вывод настроек теста из локальных переменных
         timeFile << "=== Test Settings ===\n";
         timeFile << "Sigma ratios: ";
         for (const auto& ratio : sigmaRatios) {
