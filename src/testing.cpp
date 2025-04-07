@@ -74,37 +74,38 @@ enum class MetricType {
 template<typename T>
 struct MetricSetting {
     MetricType type;    // Тип метрики
-    std::string name;   // Название метрики
+    std::string name;   // Название метрики (будет сгенерировано автоматически)
     bool relative;      // true: относительная ошибка, false: абсолютная
     T p;                // Параметр p для Lp нормы
     bool enabled;       // Флаг, управляющий выводом метрики в таблицу
-	
-	MetricSetting(MetricType t,
-				  const std::string& n,
-				  bool rel,
-				  T p_val,
-				  bool en) : type(t), name(n), relative(rel), p(p_val), enabled(en)
-	{
-		if(!(p_val > T(0))){
-			throw std::invalid_argument("Ошибка: параметр p должен быть больше 0");
-		}
-	}
+
+    static std::string generateName(const std::string& baseName, bool relative, MetricType type) {
+        if (type == MetricType::ERROR_SIGMA || type == MetricType::RECON_ERROR ||
+            type == MetricType::U_DEVIATION1 || type == MetricType::U_DEVIATION2 ||
+            type == MetricType::V_DEVIATION1 || type == MetricType::V_DEVIATION2 ||
+            type == MetricType::MAX_DEVIATION)
+        {
+            return baseName + (relative ? " (rel)" : " (abs)");
+        }
+        return baseName;
+    }
+
+    MetricSetting(MetricType t,
+                  const std::string& baseName,
+                  bool rel,
+                  T p_val,
+                  bool en)
+      : type(t),
+        name(generateName(baseName, rel, t)), 
+        relative(rel),
+        p(p_val),
+        enabled(en)
+    {
+        if (!(p_val > T(0))) {
+            throw std::invalid_argument("Ошибка: параметр p должен быть больше 0");
+        }
+    }
 };
-
-// Используем явные вызовы конструктора, чтобы гарантированно получить непустой вектор настроек метрик
-#define METRIC_SETTINGS_VECTOR std::vector<MetricSetting<double>>{ \
-    MetricSetting<double>(MetricType::U_DEVIATION1, "AVG ||I-U_t*U||", false, 0.7, true), \
-    MetricSetting<double>(MetricType::U_DEVIATION2, "AVG ||I-U*U_t||", false, 0.7, true), \
-    MetricSetting<double>(MetricType::V_DEVIATION1, "AVG ||I-V_t*V||", false, 0.7, true), \
-    MetricSetting<double>(MetricType::V_DEVIATION2, "AVG ||I-V*V_t||", false, 0.7, true), \
-    MetricSetting<double>(MetricType::ERROR_SIGMA, "AVG err. sigma", false, 0.7, true), \
-    MetricSetting<double>(MetricType::RECON_ERROR, "AVG recon error", false, 0.7, true), \
-    MetricSetting<double>(MetricType::MAX_DEVIATION, "AVG max deviation", false, 0.7, true) \
-}
-
-#define sigma_ratio {1.01, 1.2, 2, 8, 30, 100}
-#define matrix_size {{5, 5}}
-#define matrix_num_for_sample_averaging 20
 
 std::counting_semaphore<THREADS> thread_semaphore(THREADS);
 std::mutex cout_mutex;
@@ -123,16 +124,19 @@ void svd_test_func(
         if (data.empty())
             return;
         std::vector<size_t> widths;
-        for (size_t r = 0; r < data.size(); ++r) {
-            for (size_t i = 0; i < data[r].size(); ++i) {
-                if (widths.size() <= i)
-                    widths.push_back(0);
-                widths[i] = std::max(widths[i], data[r][i].size());
+        for (const auto &row : data) {
+            for (size_t i = 0; i < row.size(); ++i) {
+                if (i >= widths.size())
+                    widths.push_back(row[i].size());
+                else
+                    widths[i] = std::max(widths[i], row[i].size());
             }
         }
-        for (size_t r = 0; r < data.size(); ++r) {
-            for (size_t i = 0; i < data[r].size(); ++i) {
-                out << std::left << std::setw(widths[i] + 3) << data[r][i];
+        for (const auto &row : data) {
+            for (size_t i = 0; i < row.size(); ++i) {
+                out << std::left << std::setw(widths[i] + 3) << row[i];
+                if (i < row.size() - 1)
+                    out << "\t";
             }
             out << "\n";
         }
@@ -219,9 +223,12 @@ void svd_test_func(
                 assert((minNM >= 2) && "Error: no columns or rows allowed");
 
                 T avg_dev_UUt = 0, avg_dev_UtU = 0, avg_dev_VVt = 0, avg_dev_VtV = 0;
-                T avg_sigma_error = 0;
-                T avg_recon_error = 0;
+                T avg_dev_UUt_rel = 0, avg_dev_UtU_rel = 0, avg_dev_VVt_rel = 0, avg_dev_VtV_rel = 0;
+                
+                T avg_sigma_error_rel = 0, avg_sigma_error_abs = 0;
+                T avg_recon_error_rel = 0, avg_recon_error_abs = 0;
                 T avg_max_deviation = 0;
+                T avg_max_deviation_rel = 0;
 
                 for (int i = 1; i <= n; ++i) {
                     gen_cl<T> svd_gen(N, M, gen, distr, true);
@@ -241,31 +248,42 @@ void svd_test_func(
                     T dev_VVt = lp_norm(MatrixDynamic::Identity(M, M) - V_calc * V_calc.transpose(), metricsSettings[2].p);
                     T dev_VtV = lp_norm(MatrixDynamic::Identity(M, M) - V_calc.transpose() * V_calc, metricsSettings[3].p);
 
-                    avg_dev_UUt += dev_UUt / n;
-                    avg_dev_UtU += dev_UtU / n;
-                    avg_dev_VVt += dev_VVt / n;
-                    avg_dev_VtV += dev_VtV / n;
+                    T id_norm_U = lp_norm(MatrixDynamic::Identity(N, N), metricsSettings[0].p);
+                    T id_norm_V = lp_norm(MatrixDynamic::Identity(M, M), metricsSettings[2].p);
+                    T dev_UUt_rel = dev_UUt / id_norm_U;
+                    T dev_UtU_rel = dev_UtU / id_norm_U;
+                    T dev_VVt_rel = dev_VVt / id_norm_V;
+                    T dev_VtV_rel = dev_VtV / id_norm_V;
 
-                    T sigma_err = 0;
-                    if(metricsSettings[4].relative)
-                        sigma_err = lp_norm((S_true.diagonal() - SV_calc).cwiseQuotient(S_true.diagonal()), metricsSettings[4].p);
-                    else
-                        sigma_err = lp_norm(S_true.diagonal() - SV_calc, metricsSettings[4].p);
-                    avg_sigma_error += sigma_err / n;
+                    avg_dev_UUt += dev_UUt / n;
+                    avg_dev_UUt_rel += dev_UUt_rel / n;
+                    avg_dev_UtU += dev_UtU / n;
+                    avg_dev_UtU_rel += dev_UtU_rel / n;
+                    avg_dev_VVt += dev_VVt / n;
+                    avg_dev_VVt_rel += dev_VVt_rel / n;
+                    avg_dev_VtV += dev_VtV / n;
+                    avg_dev_VtV_rel += dev_VtV_rel / n;
+
+                    T sigma_err_rel = lp_norm((S_true.diagonal() - SV_calc)
+                                              .cwiseQuotient(S_true.diagonal()), metricsSettings[4].p);
+                    T sigma_err_abs = lp_norm(S_true.diagonal() - SV_calc, metricsSettings[5].p);
+                    avg_sigma_error_rel += sigma_err_rel / n;
+                    avg_sigma_error_abs += sigma_err_abs / n;
 
                     MatrixDynamic A = U_true * S_true * V_true.transpose();
                     MatrixDynamic S_calc_diag = MatrixDynamic::Zero(minNM, minNM);
                     S_calc_diag.diagonal() = SV_calc;
                     MatrixDynamic A_calc = U_calc * S_calc_diag * V_calc.transpose();
-                    T recon_err = 0;
-                    if(metricsSettings[5].relative)
-                        recon_err = lp_norm(A - A_calc, metricsSettings[5].p) / lp_norm(A, metricsSettings[5].p);
-                    else
-                        recon_err = lp_norm(A - A_calc, metricsSettings[5].p);
-                    avg_recon_error += recon_err / n;
+                    
+                    T recon_err_abs = lp_norm(A - A_calc, metricsSettings[6].p);
+                    T recon_err_rel = lp_norm(A - A_calc, metricsSettings[7].p) / lp_norm(A, metricsSettings[7].p);
+                    avg_recon_error_abs += recon_err_abs / n;
+                    avg_recon_error_rel += recon_err_rel / n;
 
                     T max_dev = std::max({dev_UUt, dev_UtU, dev_VVt, dev_VtV});
+                    T max_dev_rel = std::max({dev_UUt_rel, dev_UtU_rel, dev_VVt_rel, dev_VtV_rel});
                     avg_max_deviation += max_dev / n;
+                    avg_max_deviation_rel += max_dev_rel / n;
 
                     progress += static_cast<T>(M * N) / ProgressCoeff;
                     double percent = static_cast<double>(progress);
@@ -300,25 +318,31 @@ void svd_test_func(
                     if (!ms.enabled) continue;
                     switch(ms.type) {
                         case MetricType::U_DEVIATION1:
-                            row.push_back(num2str(avg_dev_UUt));
+                            row.push_back(num2str(ms.relative ? avg_dev_UUt_rel : avg_dev_UUt));
                             break;
                         case MetricType::U_DEVIATION2:
-                            row.push_back(num2str(avg_dev_UtU));
+                            row.push_back(num2str(ms.relative ? avg_dev_UtU_rel : avg_dev_UtU));
                             break;
                         case MetricType::V_DEVIATION1:
-                            row.push_back(num2str(avg_dev_VVt));
+                            row.push_back(num2str(ms.relative ? avg_dev_VVt_rel : avg_dev_VVt));
                             break;
                         case MetricType::V_DEVIATION2:
-                            row.push_back(num2str(avg_dev_VtV));
+                            row.push_back(num2str(ms.relative ? avg_dev_VtV_rel : avg_dev_VtV));
                             break;
                         case MetricType::ERROR_SIGMA:
-                            row.push_back(num2str(avg_sigma_error));
+                            if (ms.relative)
+                                row.push_back(num2str(avg_sigma_error_rel));
+                            else
+                                row.push_back(num2str(avg_sigma_error_abs));
                             break;
                         case MetricType::RECON_ERROR:
-                            row.push_back(num2str(avg_recon_error));
+                            if (ms.relative)
+                                row.push_back(num2str(avg_recon_error_rel));
+                            else
+                                row.push_back(num2str(avg_recon_error_abs));
                             break;
                         case MetricType::MAX_DEVIATION:
-                            row.push_back(num2str(avg_max_deviation));
+                            row.push_back(num2str(ms.relative ? avg_max_deviation_rel : avg_max_deviation));
                             break;
                     }
                 }
@@ -353,6 +377,12 @@ void svd_test_func(
     }
 }
 
+#define sigma_ratio \
+  {1.01, 1.2, 1.6, 2.1, 8, 30, 50, 100}  // SigmaMaxMinRatiosVec
+#define matrix_size \
+  {{3, 3}, {5, 5}}// {10, 10}, {30, 30}, {70, 70}}  // MatSizesVec
+#define matrix_num_for_sample_averaging 20        // n
+
 int main()
 {
     auto start = std::chrono::high_resolution_clock::now();
@@ -362,17 +392,33 @@ int main()
     std::vector<std::pair<std::string, double>> test_times;
     std::mutex test_times_mutex;
 
-    std::vector<double> sigmaRatios = sigma_ratio; // macro sigma_ratio: {1.01, 1.2, 2, 8, 30, 100}
-    std::vector<std::pair<int, int>> matrixSizes = matrix_size; // macro matrix_size: {{5, 5}}
+    std::vector<double> sigmaRatios = sigma_ratio; // macro sigma_ratio: {1.01, 1.2, 1.6, 2.1, 8, 30, 50, 100}
+    std::vector<std::pair<int, int>> matrixSizes = matrix_size; // macro matrix_size: {{3, 3}, {5, 5}}
     int sampleCount = matrix_num_for_sample_averaging; // макрос sample count
-    auto metricsSettings = METRIC_SETTINGS_VECTOR;
-    //генерируется таблица в файле "jacobi_test_table.txt" теста метода Eigen::JacobiSVD
+	//генерируется таблица в файле "jacobi_test_table.txt" теста метода Eigen::JacobiSVD
     //с соотношением сингулярных чисел:  1.01, 1.2, 2, 5, 10, 50       ---    6
     //причем каждое соотношение относится к двум интервалам сингулярных чисел:
     //                      маленьких {0,1}, больших {1,100} (это не параметризованно)   ---   2
     //с матрицами размеров: {3,3}, {5,5}, {10,10}, {20,20}, {50,50}, {100,100}   ---   6
     //6*2*6 = 72 - всего столько строк будет в таблице
     //размер выборки для усреднения: 20
+    // Инициализация настроек метрик
+    std::vector<MetricSetting<double>> metricsSettings = {
+        MetricSetting<double>(MetricType::U_DEVIATION1, "AVG ||I-U_t*U||", false, 0.7, true),
+        MetricSetting<double>(MetricType::U_DEVIATION1, "AVG ||I-U_t*U||", true, 0.7, true),
+        MetricSetting<double>(MetricType::U_DEVIATION2, "AVG ||I-U*U_t||", false, 0.7, true),
+        MetricSetting<double>(MetricType::U_DEVIATION2, "AVG ||I-U*U_t||", true, 0.7, true),
+        MetricSetting<double>(MetricType::V_DEVIATION1, "AVG ||I-V_t*V||", false, 0.7, true),
+        MetricSetting<double>(MetricType::V_DEVIATION1, "AVG ||I-V_t*V||", true, 0.7, true),
+        MetricSetting<double>(MetricType::V_DEVIATION2, "AVG ||I-V*V_t||", false, 0.7, true),
+        MetricSetting<double>(MetricType::V_DEVIATION2, "AVG ||I-V*V_t||", true, 0.7, true),
+        MetricSetting<double>(MetricType::ERROR_SIGMA, "AVG err. sigma", true, 0.7, true),
+        MetricSetting<double>(MetricType::ERROR_SIGMA, "AVG err. sigma", false, 0.7, true),
+        MetricSetting<double>(MetricType::RECON_ERROR, "AVG recon error", false, 0.7, true),
+        MetricSetting<double>(MetricType::RECON_ERROR, "AVG recon error", true, 0.7, true),
+        MetricSetting<double>(MetricType::MAX_DEVIATION, "AVG max deviation", false, 0.7, true),
+        MetricSetting<double>(MetricType::MAX_DEVIATION, "AVG max deviation", true, 0.7, true)
+    };
 
     int flush_string = 1;
     {
