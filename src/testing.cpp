@@ -4,7 +4,6 @@
 #include <chrono>
 #include <cmath>
 #include <fstream>
-#include <iomanip>  // Для std::setw
 #include <iostream>
 #include <mutex>
 #include <random>
@@ -13,6 +12,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <iomanip> 
+#include <filesystem> 
 
 #include "config.h"
 #include "dqds.h"
@@ -88,7 +89,7 @@ enum class MetricType {
 template <typename T>
 struct MetricSetting {
     MetricType type;    // Тип метрики
-    std::string name;   // Название метрики (будет сгенерировано автоматически)
+    std::string name;   // Название метрики 
     bool relative;      // true: относительная ошибка, false: абсолютная
     T p;                // Параметр p для Lp нормы
     bool enabled;       // Флаг, управляющий выводом метрики в таблицу
@@ -577,7 +578,18 @@ void svd_test_func(
 
 int main()
 {
+    namespace fs = std::filesystem; // для удобства использования
+
     auto start = std::chrono::high_resolution_clock::now();
+
+    // Создание папки для результатов тестов с текущей датой и временем
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+    std::tm* ptm = std::localtime(&now_time);
+    std::ostringstream oss;
+    oss << "TestingResultsBundle<" << std::put_time(ptm, "%d-%m-%Y-%H%M%S") << ">";
+    std::string folderName = oss.str();
+    fs::create_directory(folderName);
 
     std::cout << "\033[2J\033[H";
 
@@ -617,118 +629,125 @@ int main()
       std::lock_guard<std::mutex> lock(test_times_mutex);
       test_times.emplace_back(algo_name, duration);
     }
-    thread_semaphore.release();
-  });
 
-  // idea 1
-  thread_semaphore.acquire();
-  std::thread t2([&]() {
-    std::string algo_name = "GivRef_SVD";
-    std::string file_name = "idea_1_GivRef_table.txt";
-    auto t_start = std::chrono::high_resolution_clock::now();
-    svd_test_func<double, SVDGenerator, SVD_Project::GivRef_SVD>(
-        file_name, sigma_ratio, matrix_size, matrix_num_for_sample_averaging,
-        algo_name, flush_string++, metricsSettings);
-    auto t_end = std::chrono::high_resolution_clock::now();
-    double duration = std::chrono::duration<double>(t_end - t_start).count();
+    // idea 1 
+    thread_semaphore.acquire();
+    std::thread t1([&]() {
+        std::string algo_name = "JacobiSVD";
+        std::string file_name = folderName + "/" + "reference_JacobiSVD_table.txt";
+        auto t_start = std::chrono::high_resolution_clock::now();
+        svd_test_func<double, SVDGenerator, Eigen::JacobiSVD>(
+            file_name,
+            sigma_ratio,
+            matrix_size,
+            matrix_num_for_sample_averaging,
+            algo_name,
+            flush_string++,
+            metricsSettings);
+        auto t_end = std::chrono::high_resolution_clock::now();
+        double duration = std::chrono::duration<double>(t_end - t_start).count();
+        {
+            std::lock_guard<std::mutex> lock(test_times_mutex);
+            test_times.emplace_back(algo_name, duration);
+        }
+        thread_semaphore.release();
+    });
+    
+    thread_semaphore.acquire();
+    std::thread t2([&]() {
+        std::string algo_name = "GivRef_SVD";
+        std::string file_name = folderName + "/" + "idea_1_GivRef_table.txt";
+        auto t_start = std::chrono::high_resolution_clock::now();
+        svd_test_func<double, SVDGenerator, SVD_Project::GivRef_SVD>(
+            file_name,
+            sigma_ratio,
+            matrix_size,
+            matrix_num_for_sample_averaging,
+            algo_name,
+            flush_string++,
+            metricsSettings);
+        auto t_end = std::chrono::high_resolution_clock::now();
+        double duration = std::chrono::duration<double>(t_end - t_start).count();
+        {
+            std::lock_guard<std::mutex> lock(test_times_mutex);
+            test_times.emplace_back(algo_name, duration);
+        }
+        thread_semaphore.release();
+    });
+
+    // idea 2 
+    // thread_semaphore.acquire();
+    // std::thread t3([&]() {
+    //     std::string algo_name = "RevJac_SVD";
+    //     std::string file_name = folderName + "/" + "idea_2_RevJac_table.txt";
+    //     auto t_start = std::chrono::high_resolution_clock::now();
+    //     svd_test_func<double, SVDGenerator, SVD_Project::RevJac_SVD>(
+    //         file_name,
+    //         sigma_ratio,
+    //         matrix_size,
+    //         matrix_num_for_sample_averaging,
+    //         algo_name,
+    //         flush_string++,
+    //         metricsSettings);
+    //     auto t_end = std::chrono::high_resolution_clock::now();
+    //     double duration = std::chrono::duration<double>(t_end - t_start).count();
+    //     {
+    //         std::lock_guard<std::mutex> lock(test_times_mutex);
+    //         test_times.emplace_back(algo_name, duration);
+    //     }
+    //     thread_semaphore.release();
+    // });
+    
+    thread_semaphore.acquire();
+    std::thread t4([&]() {
+        std::string algo_name = "MRRR";
+        std::string file_name = folderName + "/" + "idea_3_MRRR_table.txt";
+        auto t_start = std::chrono::high_resolution_clock::now();
+        svd_test_func<double, SVDGenerator, MRRR_SVD>(
+            file_name,
+            sigma_ratio,
+            matrix_size,
+            matrix_num_for_sample_averaging,
+            algo_name,
+            flush_string++,
+            metricsSettings);
+        auto t_end = std::chrono::high_resolution_clock::now();
+        double duration = std::chrono::duration<double>(t_end - t_start).count();
+        {
+            std::lock_guard<std::mutex> lock(test_times_mutex);
+            test_times.emplace_back(algo_name, duration);
+        }
+        thread_semaphore.release();
+    });
+
+    t1.join();
+    t2.join();
+    t4.join();
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> durationGlobal = end - start;
+
+    std::cout << "\033[5;0H";
+    std::cout << "\nFull execution time = " << durationGlobal.count() << " seconds.\n";
     {
       std::lock_guard<std::mutex> lock(test_times_mutex);
       test_times.emplace_back(algo_name, duration);
     }
-    thread_semaphore.release();
-  });
+    std::ofstream timeFile(folderName + "/" + "individual_test_times.txt");
+    if (timeFile) {
+        // Вывод настроек теста из локальных переменных
+        timeFile << "=== Test Settings ===\n";
+        timeFile << "Sigma ratios: ";
+        for (const auto& ratio : sigmaRatios) {
+            timeFile << ratio << " ";
+        }
+        timeFile << "\n";
 
-  // idea 1 (legacy)
-  thread_semaphore.acquire();
-  std::thread t5([&]() {
-    std::string algo_name = "v0_GivRef_SVD";
-    std::string file_name = "v0_idea_1_GivRef_table.txt";
-
-    auto t_start = std::chrono::high_resolution_clock::now();
-    svd_test_func<double, SVDGenerator, SVD_Project::v0_GivRef_SVD>(
-        file_name, sigma_ratio, matrix_size, matrix_num_for_sample_averaging,
-        algo_name, flush_string++, metricsSettings);
-    auto t_end = std::chrono::high_resolution_clock::now();
-    double duration = std::chrono::duration<double>(t_end - t_start).count();
-    {
-      std::lock_guard<std::mutex> lock(test_times_mutex);
-      test_times.emplace_back(algo_name, duration);
-    }
-    thread_semaphore.release();
-  });
-
-  // idea 2
-  // thread_semaphore.acquire();
-  // std::thread t3([&]() {
-  //     std::string algo_name = "RevJac_SVD";
-  //     std::string file_name = "idea_2_RevJac_table.txt";
-  //     auto t_start = std::chrono::high_resolution_clock::now();
-  //     svd_test_func<double, SVDGenerator, SVD_Project::RevJac_SVD>(
-  //         file_name,
-  //         sigma_ratio,
-  //         matrix_size,
-  //         matrix_num_for_sample_averaging,
-  //         algo_name,
-  //         flush_string++,
-  //         metricsSettings);
-  //     auto t_end = std::chrono::high_resolution_clock::now();
-  //     double duration = std::chrono::duration<double>(t_end -
-  //     t_start).count();
-  //     {
-  //         std::lock_guard<std::mutex> lock(test_times_mutex);
-  //         test_times.emplace_back(algo_name, duration);
-  //     }
-  //     thread_semaphore.release();
-  // });
-
-  // idea 3
-  // thread_semaphore.acquire();
-  // std::thread t4([&]() {
-  //     std::string algo_name = "MRRR";
-  //     std::string file_name = "idea_3_MRRR_table.txt";
-  //     auto t_start = std::chrono::high_resolution_clock::now();
-  //     svd_test_func<double, SVDGenerator, MRRR_SVD>(
-  //         file_name,
-  //         sigma_ratio,
-  //         matrix_size,
-  //         matrix_num_for_sample_averaging,
-  //         algo_name,
-  //         flush_string++,
-  //         metricsSettings);
-  //     auto t_end = std::chrono::high_resolution_clock::now();
-  //     double duration = std::chrono::duration<double>(t_end -
-  //     t_start).count();
-  //     {
-  //         std::lock_guard<std::mutex> lock(test_times_mutex);
-  //         test_times.emplace_back(algo_name, duration);
-  //     }
-  //     thread_semaphore.release();
-  // });
-
-  t1.join();
-  t2.join();
-  // t3.join();
-  // t4.join();
-  t5.join();
-
-  auto end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> durationGlobal = end - start;
-
-  std::cout << "\033[5;0H";
-  std::cout << "\nFull execution time = " << durationGlobal.count()
-            << " seconds.\n";
-  {
-    std::lock_guard<std::mutex> lock(cout_mutex);
-  }
-  std::ofstream timeFile("individual_test_times.txt");
-  if (timeFile) {
-    // Вывод настроек теста из локальных переменных
-    timeFile << "=== Test Settings ===\n";
-    timeFile << "Sigma ratios: ";
-    for (const auto &ratio : sigmaRatios) {
-      timeFile << ratio << " ";
-    }
-    timeFile << "\n";
+        timeFile << "Matrix sizes: ";
+        for (const auto& size : matrixSizes) {
+            timeFile << size.first << "x" << size.second << " ";
+        }
+        timeFile << "\n";
 
     timeFile << "Matrix sizes: ";
     for (const auto &size : matrixSizes) {
