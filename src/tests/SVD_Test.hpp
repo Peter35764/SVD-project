@@ -1,17 +1,19 @@
 #ifndef SVD_TEST_HPP
 #define SVD_TEST_HPP
 
+namespace SVD_Project {
+
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <map>
 #include <random>
 #include <thread>
+#include <vector>
 
 #include "SVD_Test.h"
 #include "config.h"
-
-namespace SVD_Project {
 
 std::counting_semaphore<THREADS> thread_semaphore(THREADS);
 std::mutex cout_mutex;
@@ -49,6 +51,92 @@ template <typename FloatingPoint, typename MatrixType>
 std::string SVD_Test<FloatingPoint, MatrixType>::MetricSettings::generateName(
     const std::string &baseName, bool relative, MetricType type) {
   return baseName + (relative ? " (rel)" : " (abs)");
+}
+
+template <typename FloatingPoint, typename MatrixType>
+SVD_Test<FloatingPoint, MatrixType>::SVD_Test(
+    std::vector<svd_test_funcSettings> vec_settings) {
+  namespace fs = std::filesystem;
+
+  auto start = std::chrono::high_resolution_clock::now();
+
+  auto now = std::chrono::system_clock::now();
+  std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+  std::tm *ptm = std::localtime(&now_time);
+  std::ostringstream oss;
+  oss << "TestingResultsBundle<" << std::put_time(ptm, "%d-%m-%Y-%H%M%S")
+      << ">";
+  std::string folderName = oss.str();
+  fs::create_directory(folderName);
+
+  std::cout << "\033[2J\033[H";
+
+  std::vector<std::pair<std::string, double>> test_times;
+  std::mutex test_times_mutex;
+
+  for (auto vec : vec_settings) {
+    svd_test_func(vec);
+  }
+
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> durationGlobal = end - start;
+
+  std::cout << "\033[5;0H";
+  std::cout << "\nFull execution time = " << durationGlobal.count()
+            << " seconds.\n";
+  // {
+  //   std::lock_guard<std::mutex> lock(cout_mutex);
+  // }
+  // ...
+
+  /*
+  std::ofstream timeFile(folderName + "/" + "individual_test_times.txt");
+  if (timeFile) {
+    timeFile << "=== Test Settings ===\n";
+    timeFile << "Sigma ratios: ";
+    for (const auto& ratio : sigmaRatios) {
+      timeFile << ratio << " ";
+    }
+    timeFile << "\n";
+
+   timeFile << "Matrix sizes: ";
+   for (const auto& size : matrixSizes) {
+     timeFile << size.first << "x" << size.second << " ";
+   }
+   timeFile << "\n";
+
+   timeFile << "Sample count: " << sampleCount << "\n";
+
+   timeFile << "Metrics Settings:\n";
+   for (const auto& ms : metricsSettings) {
+     timeFile << "  " << ms.name << " ("
+              << (ms.relative ? "relative" : "absolute") << "), p = " << ms.p
+              << "\n";
+   }
+   timeFile << "\n=== Execution Times ===\n";
+
+   timeFile << "Max threads: " << THREADS << "\n\n";
+   timeFile << "Total execution time: " << durationGlobal.count()
+            << " seconds\n\n";
+   timeFile << "Individual algorithm execution times:\n";
+   for (const auto& entry : test_times) {
+     timeFile << entry.first << " : " << entry.second << " seconds\n";
+   }
+   timeFile.close();
+ } else {
+   std::lock_guard<std::mutex> lock(cout_mutex);
+   std::cerr << "Error while creating/opening individual_test_times.txt!\n";
+ }
+   */
+}
+
+template <typename FloatingPoint, typename MatrixType>
+template <template <typename> class gen_cl, template <typename> class svd_cl>
+void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
+    svd_test_funcSettings settings) {
+  svd_test_func(settings.fileName, settings.SigmaMaxMinRatiosVec,
+                settings.MatSizesVec, settings.n, settings.algorithmName,
+                settings.lineNumber, settings.metricsSettings);
 }
 
 template <typename FloatingPoint, typename MatrixType>
