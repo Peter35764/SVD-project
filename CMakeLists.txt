@@ -47,7 +47,9 @@ find_package(Boost REQUIRED)
 
 SET(HEADER_FILES
   # Tests
-  src/generate_svd.h
+  src/tests/generate_svd.h
+  src/tests/SVD_Test.h
+  src/tests/SVD_Test.hpp
 
   # Old algorithms
   src/iterative_refinement.h
@@ -68,8 +70,7 @@ SET(HEADER_FILES
 )
 
 SET(SOURCE_FILES
-  # Tests
-  src/generate_svd.cpp
+  # Tests run
   src/testing.cpp
 
   # Old algorithms
