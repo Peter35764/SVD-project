@@ -1,8 +1,6 @@
 #ifndef SVD_TEST_HPP
 #define SVD_TEST_HPP
 
-namespace SVD_Project {
-
 #include <chrono>
 #include <fstream>
 #include <iomanip>
@@ -10,10 +8,11 @@ namespace SVD_Project {
 #include <map>
 #include <random>
 #include <thread>
-#include <vector>
-
+#include <filesystem>
 #include "SVD_Test.h"
-#include "config.h"
+#include "config.h"  
+
+namespace SVD_Project {
 
 std::counting_semaphore<THREADS> thread_semaphore(THREADS);
 std::mutex cout_mutex;
@@ -22,7 +21,8 @@ template <typename FloatingPoint, typename MatrixType>
 FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lpq_norm(
     const Eigen::MatrixBase<MatrixType> &M, FloatingPoint p, FloatingPoint q) {
   auto abs_p = M.array().abs().pow(p);
-  auto inner_sums = abs_p.rowwise().sum().pow(q / p);
+  auto row_sums = abs_p.rowwise().sum();  
+  auto inner_sums = row_sums.array().pow(q / p);  
   return std::pow(inner_sums.sum(), FloatingPoint(1) / q);
 }
 
@@ -57,7 +57,7 @@ template <typename FloatingPoint, typename MatrixType>
 SVD_Test<FloatingPoint, MatrixType>::SVD_Test(
     std::vector<svd_test_funcSettings> vec_settings) {
   namespace fs = std::filesystem;
-
+  
   auto start = std::chrono::high_resolution_clock::now();
 
   auto now = std::chrono::system_clock::now();
@@ -74,8 +74,8 @@ SVD_Test<FloatingPoint, MatrixType>::SVD_Test(
   std::vector<std::pair<std::string, double>> test_times;
   std::mutex test_times_mutex;
 
-  for (auto vec : vec_settings) {
-    svd_test_func(vec);
+  for (const auto &settings : vec_settings) {
+    svd_test_func(settings);
   }
 
   auto end = std::chrono::high_resolution_clock::now();
@@ -134,7 +134,8 @@ template <typename FloatingPoint, typename MatrixType>
 template <template <typename> class gen_cl, template <typename> class svd_cl>
 void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
     svd_test_funcSettings settings) {
-  svd_test_func(settings.fileName, settings.SigmaMaxMinRatiosVec,
+  svd_test_func<gen_cl, svd_cl>(settings.fileName,
+                settings.SigmaMaxMinRatiosVec,
                 settings.MatSizesVec, settings.n, settings.algorithmName,
                 settings.lineNumber, settings.metricsSettings);
 }
@@ -175,10 +176,9 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
 
   table.push_back(header);
 
-  MatrixDynamic U_true, S_true,
-      V_true;                    // Точное и правильное сингулярное разложение
-  MatrixDynamic U_calc, V_calc;  // Посчитанные сингулярные вектора
-  VectorDynamic S_calc;          // Посчитанные сингулярные значения
+  MatrixDynamic U_true, S_true, V_true;  // Истинное SVD разложение.
+  MatrixDynamic U_calc, V_calc;          // Вычисленные сингулярные векторы.
+  VectorDynamic S_calc;                  // Вычисленные сингулярные значения.
 
   std::random_device rd;
   std::default_random_engine gen(rd());
@@ -187,13 +187,6 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
     const int N = MatSize.first;
     const int M = MatSize.second;
     int minNM = std::min(N, M);
-
-    auto Identity_U_norm = [N = N](FloatingPoint P) {
-      return lp_norm(MatrixDynamic::Identity(N, N), P);
-    };
-    auto Identity_V_norm = [M = M](FloatingPoint P) {
-      return lp_norm(MatrixDynamic::Identity(M, M), P);
-    };
 
     U_true.resize(N, N);
     U_calc.resize(N, N);
@@ -222,9 +215,12 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
 
         // контейнер для хранения метрик
         std::map<MetricSettings, FloatingPoint> results;
+        for (const auto &ms : metricsSettings) {
+          results[ms] = FloatingPoint(0);
+        }
 
         // ============ Подсчет метрик ============
-        for (size_t i = 1; i <= n; ++i) {
+        for (int i = 1; i <= n; ++i) {
           // Генерация разложения
           gen_cl<FloatingPoint> svd_gen(N, M, gen, distr, true);
           svd_gen.generate(minNM);
@@ -244,19 +240,16 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
           S_calc = svd_func.singularValues();
           V_calc = svd_func.matrixV();
 
-          for (MetricSettings metric_settings : metricsSettings) {
-            results[metric_settings] =
-                count_metrics(metric_settings, N, M, U_calc, V_calc, S_calc,
-                              U_true, V_true, S_true);
+          for (const auto &ms : metricsSettings) {
+            results[ms] += count_metrics(ms, N, M, U_calc, V_calc, S_calc, U_true, V_true, S_true);
           }
 
-          // Подсчет прогресса
+          // Обновляем прогресс выполнения.
           progress += static_cast<FloatingPoint>(M * N) / ProgressCoeff;
           double percent = static_cast<double>(progress);
-          int barWidth = 50;  // Ширина прогресс-бара
+          int barWidth = 50;  // Ширина прогресс-бара.
           int pos = barWidth * static_cast<int>(percent) / 100;
 
-          // Печать прогресса
           std::ostringstream progressStream;
           progressStream << algorithmName << ": " << std::fixed
                          << std::setprecision(4) << percent << "% [";
@@ -275,11 +268,11 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
             std::cout << "\033[" << lineNumber << ";0H" << progressStream.str()
                       << "\033[0K" << std::flush;
           }
-        }  // конец итераций
+        }  // Конец итераций 
 
         // average values
-        for (MetricSettings &res : results) {
-          results[res] /= n;
+        for (auto &pair : results) {
+          pair.second /= n;
         }
 
         // Составление txt версии
@@ -297,7 +290,7 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
     }
   }
 
-  // Создание .txt файла
+  // Сохраняем результаты в текстовый файл.
   std::ofstream file(fileName);
   if (file) {
     printTable(file, table);
@@ -307,7 +300,7 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
     std::cerr << "Error while creating/opening file!\n";
   }
 
-  // Составление названия файла .csv
+  // Формируем имя CSV файла.
   std::string csvFileName = fileName;
   size_t pos = csvFileName.rfind(".txt");
   if (pos != std::string::npos)
@@ -315,7 +308,7 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
   else
     csvFileName += ".csv";
 
-  // Создание .csv файла
+  // Сохраняем CSV.
   std::ofstream csv_file(csvFileName);
   if (csv_file) {
     printCSV(csv_file, table);
@@ -371,104 +364,89 @@ std::string SVD_Test<FloatingPoint, MatrixType>::num2str(FloatingPoint value) {
   std::ostringstream oss;
   oss << value;
   return oss.str();
-};
+}
 
 template <typename FloatingPoint, typename MatrixType>
 FloatingPoint SVD_Test<FloatingPoint, MatrixType>::count_metrics(
     MetricSettings metric_settings, size_t Usize, size_t Vsize,
-    MatrixDynamic U_calc, MatrixDynamic V_calc, VectorDynamic S_calc,
-    MatrixDynamic U_true, MatrixDynamic V_true, VectorDynamic S_true) {
+    const MatrixDynamic &U_calc, const MatrixDynamic &V_calc, const VectorDynamic &S_calc,
+    const MatrixDynamic &U_true, const MatrixDynamic &V_true, const MatrixDynamic &S_true) {
   FloatingPoint ans = 0;
-  VectorDynamic abs_err = {};
-  VectorDynamic error = {};
+  VectorDynamic abs_err;
+  VectorDynamic error;
 
   MatrixDynamic A_true = U_true * S_true * V_true.transpose();
-  MatrixDynamic S_calc_diag = MatrixDynamic::Zero(std::min(Usize, Vsize));
+  MatrixDynamic S_calc_diag = MatrixDynamic::Zero(std::min(Usize, Vsize), std::min(Usize, Vsize));
   S_calc_diag.diagonal() = S_calc;
   MatrixDynamic A_calc = U_calc * S_calc_diag * V_calc.transpose();
 
   switch (metric_settings.type) {
-    case MetricType::U_DEVIATION1:
-      ans = Lp_norm(
-          MatrixDynamic::Identity(Usize, Usize) - U_calc * U_calc.transpose(),
-          metric_settings.p);
+    case U_DEVIATION1:
+      ans = Lp_norm(MatrixDynamic::Identity(Usize, Usize) - U_calc * U_calc.transpose(),
+                   metric_settings.p);
       if (metric_settings.is_relative) {
-        ans /= Identity_U_norm(metric_settings.p);
+        ans /= Lp_norm(MatrixDynamic::Identity(Usize, Usize), metric_settings.p);
       }
       break;
 
-    case MetricType::U_DEVIATION2:
-      ans = Lp_norm(
-          MatrixDynamic::Identity(Usize, Usize) - U_calc.transpose() * U_calc,
-          metric_settings.p);
+    case U_DEVIATION2:
+      ans = Lp_norm(MatrixDynamic::Identity(Usize, Usize) - U_calc.transpose() * U_calc,
+                   metric_settings.p);
       if (metric_settings.is_relative) {
-        ans /= Identity_U_norm(metric_settings.p);
+        ans /= Lp_norm(MatrixDynamic::Identity(Usize, Usize), metric_settings.p);
       }
       break;
 
-    case MetricType::V_DEVIATION1:
-      ans = Lp_norm(
-          MatrixDynamic::Identity(Vsize, Vsize) - V_calc * V_calc.transpose(),
-          metric_settings.p);
+    case V_DEVIATION1:
+      ans = Lp_norm(MatrixDynamic::Identity(Vsize, Vsize) - V_calc * V_calc.transpose(),
+                   metric_settings.p);
       if (metric_settings.is_relative) {
-        ans /= Identity_V_norm(metric_settings.p);
+        ans /= Lp_norm(MatrixDynamic::Identity(Vsize, Vsize), metric_settings.p);
       }
       break;
 
-    case MetricType::V_DEVIATION2:
-      ans = Lp_norm(
-          MatrixDynamic::Identity(Vsize, Vsize) - V_calc.transpose() * V_calc,
-          metric_settings.p);
+    case V_DEVIATION2:
+      ans = Lp_norm(MatrixDynamic::Identity(Vsize, Vsize) - V_calc.transpose() * V_calc,
+                   metric_settings.p);
       if (metric_settings.is_relative) {
-        ans /= Identity_V_norm(metric_settings.p);
+        ans /= Lp_norm(MatrixDynamic::Identity(Vsize, Vsize), metric_settings.p);
       }
       break;
 
-    case MetricType::ERROR_SIGMA:
+    case ERROR_SIGMA:
       abs_err = S_true.diagonal() - S_calc;
-      error = metric_settings.is_relative
-                  ? (S_true.diagonal().array() == 0)
-                        .select(0, abs_err.cwiseQuotient(S_true.diagonal()))
+      error = metric_settings.is_relative ?
+                  (S_true.diagonal().array() == 0).select(0, abs_err.cwiseQuotient(S_true.diagonal()))
                   : abs_err;
       ans = Lp_norm(error, metric_settings.p);
       break;
 
-    case MetricType::RECON_ERROR:
+    case RECON_ERROR:
       ans = Lp_norm(A_true - A_calc, metric_settings.p);
       if (metric_settings.is_relative) {
         ans /= Lp_norm(A_true, metric_settings.p);
       }
       break;
 
-    case MetricType::MAX_DEVIATION:
+    case MAX_DEVIATION:
       if (metric_settings.is_relative) {
-        ans = std::max(
-            {count_metrics({U_DEVIATION1, metric_settings.p, true, "", false},
-                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true),
-             count_metrics({U_DEVIATION2, metric_settings.p, true, "", false},
-                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true),
-             count_metrics({V_DEVIATION1, metric_settings.p, true, "", false},
-                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true),
-             count_metrics({V_DEVIATION2, metric_settings.p, true, "", false},
-                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true)});
+        ans = std::max({ count_metrics({U_DEVIATION1, metric_settings.p, true, "", false},
+                                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
+                         count_metrics({U_DEVIATION2, metric_settings.p, true, "", false},
+                                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
+                         count_metrics({V_DEVIATION1, metric_settings.p, true, "", false},
+                                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
+                         count_metrics({V_DEVIATION2, metric_settings.p, true, "", false},
+                                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true) });
       } else {
-        ans = std::max(
-            {count_metrics({U_DEVIATION1, metric_settings.p, false, "", false},
-                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true),
-             count_metrics({U_DEVIATION2, metric_settings.p, false, "", false},
-                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true),
-             count_metrics({V_DEVIATION1, metric_settings.p, false, "", false},
-                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true),
-             count_metrics({V_DEVIATION2, metric_settings.p, false, "", false},
-                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true)});
+        ans = std::max({ count_metrics({U_DEVIATION1, metric_settings.p, false, "", false},
+                                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
+                         count_metrics({U_DEVIATION2, metric_settings.p, false, "", false},
+                                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
+                         count_metrics({V_DEVIATION1, metric_settings.p, false, "", false},
+                                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
+                         count_metrics({V_DEVIATION2, metric_settings.p, false, "", false},
+                                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true) });
       }
       break;
 

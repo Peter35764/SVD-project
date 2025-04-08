@@ -17,7 +17,8 @@
 
 #include "config.h"
 #include "dqds.h"
-#include "generate_svd.h"
+#include "tests/generate_svd.h"
+#include "tests/SVD_Test.hpp"
 #include "givens_refinement.h"
 #include "mrrr.h"
 #include "reverse_jacobi.h"
