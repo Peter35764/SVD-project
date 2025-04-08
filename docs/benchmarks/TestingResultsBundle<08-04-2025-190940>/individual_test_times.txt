@@ -1,0 +1,19 @@
+=== Test Settings ===
+Sigma ratios: 1.01 1.2 1.6 2.1 8 30 50 100 
+Matrix sizes: 3x3 5x5 10x10 30x30 100x100 
+Sample count: 20
+Metrics Settings:
+  AVG err. sigma (rel) (relative), p = 0.7, enabled = true
+  AVG err. sigma (abs) (absolute), p = 0.7, enabled = true
+  AVG recon error (abs) (absolute), p = 0.7, enabled = true
+  AVG recon error (rel) (relative), p = 0.7, enabled = true
+  AVG max deviation (abs) (absolute), p = 0.7, enabled = true
+  AVG max deviation (rel) (relative), p = 0.7, enabled = true
+
+=== Execution Times ===
+Total overall time: 409.021 seconds
+Individual algorithm execution times:
+MRRR : 337.855 seconds
+JacobiSVD : 387.181 seconds
+GivRef_SVD : 408.334 seconds
+v0_GivRef_SVD : 409.021 seconds
