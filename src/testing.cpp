@@ -1,26 +1,25 @@
 // testing.cpp
 
-#include <iostream>
-#include <vector>
-#include <string>
-#include <utility>
-#include <thread>
 #include <chrono>
 #include <ctime>
-#include <sstream>
-#include <iomanip>
 #include <filesystem>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <utility>
+#include <vector>
 
-#include "tests/SVD_Test.hpp"
+#include "givens_refinement.h"
+#include "legacy/v0_givens_refinement.h"
+#include "mrrr.h"
+#include "tests/SVD_Test.h"
+#include "tests/generate_svd.h"
 
-#include "tests/generate_svd.h"            
-#include "givens_refinement.h"            
-#include "legacy/v0_givens_refinement.h"   
-#include "mrrr.h"                           
-
-//Александр Нам, КМБО-04-20
-//Any questions: alexnam16@gmail.com
-//Владислав Букин, КМБО-04-20
+// Александр Нам, КМБО-04-20
+// Any questions: alexnam16@gmail.com
+// Владислав Букин, КМБО-04-20
 
 // Функция возвращает матрицу-таблицу формата:
 // | размерность | sigma_max/sigma_min | диап. синг. чисел |
@@ -48,81 +47,92 @@
 // - algorithmName: название алгоритма, используется в выводе прогресса
 // - lineNumber: номер строки в терминале, которую будет обновлять данный алгоритм
 
-using SVDT = SVD_Project::SVD_Test<double, Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>>;
-
 int main() {
-    namespace fs = std::filesystem;
-    
-    auto now = std::chrono::system_clock::now();
-    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
-    std::tm* ptm = std::localtime(&now_time);
-    std::ostringstream oss;
-    oss << "TestingResultsBundle<" << std::put_time(ptm, "%d-%m-%Y-%H%M%S") << ">";
-    std::string folderName = oss.str();
-    fs::create_directory(folderName);
-    
-    std::cout << "\033[2J\033[H";
-    
-    // Задание параметров тестирования
-    std::vector<double> sigmaRatios = {1.01, 1.2, 1.6, 2.1, 8, 30, 50, 100};
-    std::vector<std::pair<int,int>> matrixSizes = { {3,3}, {5,5}, {10,10} };
-    int sampleCount = 20;
-    
-    // Настройки метрик (порядок: MetricType, p, is_relative, базовое имя, флаг включения)
-    std::vector<SVDT::MetricSettings> metricsSettings = {
-        SVDT::MetricSettings(SVDT::ERROR_SIGMA,   0.7, true,  "AVG err. sigma", true),
-        SVDT::MetricSettings(SVDT::ERROR_SIGMA,   0.7, false, "AVG err. sigma", true),
-        SVDT::MetricSettings(SVDT::RECON_ERROR,   0.7, false, "AVG recon error", true),
-        SVDT::MetricSettings(SVDT::RECON_ERROR,   0.7, true,  "AVG recon error", true),
-        SVDT::MetricSettings(SVDT::MAX_DEVIATION, 0.7, false, "AVG max deviation", true),
-        SVDT::MetricSettings(SVDT::MAX_DEVIATION, 0.7, true,  "AVG max deviation", true)
-    };
-    
-    SVDT::svd_test_funcSettings settingsJacobi {
-        folderName + "/reference_JacobiSVD_table.txt",
-        sigmaRatios,
-        matrixSizes,
-        sampleCount,
-        "JacobiSVD",   // Название алгоритма
-        1,             // Прогресс будет выводиться на строке 1
-        metricsSettings
-    };
-    
-    SVDT::svd_test_funcSettings settingsGivRef {
-        folderName + "/idea_1_GivRef_table.txt",
-        sigmaRatios,
-        matrixSizes,
-        sampleCount,
-        "GivRef_SVD",
-        2,
-        metricsSettings
-    };
-    
-    SVDT::svd_test_funcSettings settingsV0 {
-        folderName + "/v0_GivRef_table.txt",
-        sigmaRatios,
-        matrixSizes,
-        sampleCount,
-        "v0_GivRef_SVD",
-        3,
-        metricsSettings
-    };
-    
-    SVDT::svd_test_funcSettings settingsMRRR {
-        folderName + "/idea_3_MRRR_table.txt",
-        sigmaRatios,
-        matrixSizes,
-        sampleCount,
-        "MRRR",
-        4,
-        metricsSettings
-    };
-    
-    std::vector<SVDT::svd_test_funcSettings> allSettings = { settingsJacobi, settingsGivRef, settingsV0, settingsMRRR };
-    
-    SVDT tester(allSettings);
-    
-    std::cout << "\nResults have been saved in folder: " << folderName << "\n";
-    std::cin.get();
-    return 0;
+  using SVDT = SVD_Project::SVDT;
+  namespace fs = std::filesystem;
+
+  auto now = std::chrono::system_clock::now();
+  std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+  std::tm* ptm = std::localtime(&now_time);
+  std::ostringstream oss;
+  oss << "TestingResultsBundle<" << std::put_time(ptm, "%d-%m-%Y-%H%M%S")
+      << ">";
+  std::string folderName = oss.str();
+  fs::create_directory(folderName);
+
+  std::cout << "\033[2J\033[H";
+
+  // Задание параметров тестирования
+  std::vector<double> sigmaRatios = {1.01, 1.2, 1.6, 2.1, 8, 30, 50, 100};
+  std::vector<std::pair<int, int>> matrixSizes = {{3, 3}, {5, 5}, {10, 10}};
+  int sampleCount = 20;
+
+  // Настройки метрик (порядок: MetricType, p, is_relative, базовое имя, флаг
+  // включения)
+  std::vector<SVDT::MetricSettings> metricsSettings = {
+      SVDT::MetricSettings(SVDT::ERROR_SIGMA, 0.7, true, "AVG err. sigma",
+                           true),
+      SVDT::MetricSettings(SVDT::ERROR_SIGMA, 0.7, false, "AVG err. sigma",
+                           true),
+      SVDT::MetricSettings(SVDT::RECON_ERROR, 0.7, false, "AVG recon error",
+                           true),
+      SVDT::MetricSettings(SVDT::RECON_ERROR, 0.7, true, "AVG recon error",
+                           true),
+      SVDT::MetricSettings(SVDT::MAX_DEVIATION, 0.7, false, "AVG max deviation",
+                           true),
+      SVDT::MetricSettings(SVDT::MAX_DEVIATION, 0.7, true, "AVG max deviation",
+                           true)};
+
+  SVDT::svd_test_funcSettings settingsJacobi{
+      folderName + "/reference_JacobiSVD_table.txt",
+      sigmaRatios,
+      matrixSizes,
+      sampleCount,
+      "JacobiSVD",  // Название алгоритма
+      1,            // Прогресс будет выводиться на строке 1
+      metricsSettings};
+
+  SVDT::svd_test_funcSettings settingsGivRef{
+      folderName + "/idea_1_GivRef_table.txt",
+      sigmaRatios,
+      matrixSizes,
+      sampleCount,
+      "GivRef_SVD",
+      2,
+      metricsSettings};
+
+  SVDT::svd_test_funcSettings settingsV0{folderName + "/v0_GivRef_table.txt",
+                                         sigmaRatios,
+                                         matrixSizes,
+                                         sampleCount,
+                                         "v0_GivRef_SVD",
+                                         3,
+                                         metricsSettings};
+
+  // SVDT::svd_test_funcSettings settingsMRRR {
+  //     folderName + "/idea_3_MRRR_table.txt",
+  //     sigmaRatios,
+  //     matrixSizes,
+  //     sampleCount,
+  //     "MRRR",
+  //     4,
+  //     metricsSettings
+  // };
+
+  SVDT::svd_test_funcSettings settingsRevJac{folderName + "/RevJac_table.txt",
+                                             sigmaRatios,
+                                             matrixSizes,
+                                             sampleCount,
+                                             "RevJac_SVD",
+                                             4,
+                                             metricsSettings};
+
+  std::vector<SVDT::svd_test_funcSettings> allSettings = {
+      settingsJacobi, settingsGivRef, settingsV0, settingsRevJac};
+
+  SVDT tester(allSettings);
+
+  std::cout << "\nResults have been saved in folder: " << folderName << "\n";
+  std::cin.get();
+  return 0;
 }

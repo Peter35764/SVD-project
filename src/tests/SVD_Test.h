@@ -112,7 +112,11 @@ class SVD_Test {
                               const MatrixDynamic &U_true, const MatrixDynamic &V_true,
                               const MatrixDynamic &S_true);
 };
+using SVDT = SVD_Project::SVD_Test<
+    double, Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>>;
 
 }  // namespace SVD_Project
+
+#include "SVD_Test.hpp"
 
 #endif  // SVD_TEST_H

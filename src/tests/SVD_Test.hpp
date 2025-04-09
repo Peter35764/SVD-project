@@ -2,19 +2,21 @@
 #define SVD_TEST_HPP
 
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <map>
 #include <random>
 #include <thread>
-#include <filesystem>
+
+#include "../givens_refinement.h"
+#include "../legacy/v0_givens_refinement.h"
+#include "../mrrr.h"
+#include "../reverse_jacobi.h"
 #include "SVD_Test.h"
+#include "config.h"
 #include "generate_svd.h"
-#include "../mrrr.hpp"
-#include "../givens_refinement.hpp"
-#include "../legacy/v0_givens_refinement.hpp"
-#include "config.h"  
 
 namespace SVD_Project {
 
@@ -85,6 +87,8 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(const std::vector<s
         this->svd_test_func<SVDGenerator, SVD_Project::v0_GivRef_SVD>(s);
       } else if (s.algorithmName == "MRRR") {
         this->svd_test_func<SVDGenerator, MRRR_SVD>(s);
+      } else if (s.algorithmName == "RevJac_SVD") {
+        this->svd_test_func<SVDGenerator, SVD_Project::RevJac_SVD>(s);
       }
       auto t_end = std::chrono::high_resolution_clock::now();
       double duration = std::chrono::duration<double>(t_end - t_start).count();
