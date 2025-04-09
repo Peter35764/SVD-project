@@ -32,16 +32,8 @@ find_package(Boost REQUIRED)
 # pkg_check_modules(EIGEN3 REQUIRED eigen3)
 # pkg_check_modules(LAPACKE REQUIRED lapacke)
 
-# При этом нужно внести изменение в сборку целевых объектов (строки с подключением библиотек):
+# При этом нужно внести изменение в сборку целевых объектов:
 
-# С помощью find-package:
-# add_library(svd ${SOURCE_FILES} ${HEADER_FILES}
-#   src/givens_refinement.h)
-# target_compile_features(svd PRIVATE cxx_std_20)
-# target_link_libraries(svd Eigen3::Eigen)
-# target_link_libraries(svd lapacke)
-
-# С помощью pkg-config:
 # add_library(svd ${SOURCE_FILES} ${HEADER_FILES}
 #   src/givens_refinement.h)
 # target_compile_features(svd PRIVATE cxx_std_20)
@@ -55,7 +47,9 @@ find_package(Boost REQUIRED)
 
 SET(HEADER_FILES
   # Tests
-  src/generate_svd.h
+  src/tests/generate_svd.h
+  src/tests/SVD_Test.h
+  src/tests/SVD_Test.hpp
 
   # Old algorithms
   src/iterative_refinement.h
@@ -69,11 +63,14 @@ SET(HEADER_FILES
   src/reverse_jacobi.hpp
   src/mrrr.h
   src/mrrr.hpp
+
+  # Legacy
+  src/legacy/v0_givens_refinement.h
+  src/legacy/v0_givens_refinement.hpp
 )
 
 SET(SOURCE_FILES
-  # Tests
-  src/generate_svd.cpp
+  # Tests run
   src/testing.cpp
 
   # Old algorithms
