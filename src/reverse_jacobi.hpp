@@ -1,8 +1,11 @@
 #ifndef REVERSE_JACOBI_HPP
 #define REVERSE_JACOBI_HPP
 
-// #include "reverse_jacobi.h" // necessary for correct display in ide, does not affect the assembly process and can be removed
-#include <Eigen/src/Jacobi/Jacobi.h>
+#include <Eigen/Jacobi>
+
+// necessary for correct display in ide (or clangd lsp), does not
+// affect the assembly process and can be removed
+#include "reverse_jacobi.h"
 
 namespace SVD_Project {
 
@@ -17,16 +20,16 @@ RevJac_SVD<_MatrixType, _SingularVectorType>::RevJac_SVD(
   Index rows = initial.rows();
 
   m_matrixU = MatrixDynamic::Identity(rows, rows);
-  m_matrixV = MatrixDynamic::Identity(cols, cols);
+  m_transposedMatrixV = MatrixDynamic::Identity(cols, cols);
   m_lastRotation = Rotation::Left;
   m_currentMatrix =
-      m_matrixU * m_singularValues.asDiagonal() * m_matrixV.transpose();
+      m_matrixU * m_singularValues.asDiagonal() * m_transposedMatrixV;
 }
 
 template <typename _MatrixType, typename _SingularVectorType>
 RevJac_SVD<_MatrixType, _SingularVectorType>&
 RevJac_SVD<_MatrixType, _SingularVectorType>::compute() {
-  for (int i = 0; i < MAX_ITERATIONS; i++) {
+  for (size_t i = 0; i < MAX_ITERATIONS; i++) {
     iterate();
     if (convergenceReached()) {
       break;
@@ -38,16 +41,17 @@ RevJac_SVD<_MatrixType, _SingularVectorType>::compute() {
 template <typename _MatrixType, typename _SingularVectorType>
 void RevJac_SVD<_MatrixType, _SingularVectorType>::iterate() {
   updateDifference();
-  biggestDifference(m_currentI, m_currentJ);
+
+  calculateBiggestDifference();
+
   if (m_lastRotation == Rotation::Left) {
-    // FIXME: This is kind of a warcrime tbh
-    m_matrixV.transposeInPlace();
-    m_matrixV.applyOnTheRight(
+    m_transposedMatrixV.applyOnTheRight(
+        m_currentI, m_currentJ,
         composeRightRotation(m_currentI, m_currentJ).adjoint());
-    m_matrixV.transposeInPlace();
     m_lastRotation = Rotation::Right;
   } else {
     m_matrixU.applyOnTheLeft(
+        m_currentI, m_currentJ,
         composeLeftRotation(m_currentI, m_currentJ).adjoint());
     m_lastRotation = Rotation::Left;
   }
@@ -62,21 +66,23 @@ bool RevJac_SVD<_MatrixType, _SingularVectorType>::convergenceReached() const {
 template <typename _MatrixType, typename _SingularVectorType>
 void RevJac_SVD<_MatrixType, _SingularVectorType>::updateDifference() {
   m_currentMatrix =
-      m_matrixU * m_singularValues.asDiagonal() * m_matrixV.transpose();
+      m_matrixU * m_singularValues.asDiagonal() * m_transposedMatrixV;
   m_differenceMatrix = m_currentMatrix - m_initialMatrix;
 }
 
 template <typename _MatrixType, typename _SingularVectorType>
-void RevJac_SVD<_MatrixType, _SingularVectorType>::biggestDifference(
-    Index& i, Index& j) const {
+void RevJac_SVD<_MatrixType,
+                _SingularVectorType>::calculateBiggestDifference() {
+  Index maxIndex = m_lastRotation == Rotation::Left ? m_transposedMatrixV.cols()
+                                                    : m_matrixU.rows();
   Scalar absBiggestDiff = 0;
-  for (Index k = 0; k < m_initialMatrix.rows(); k++) {
-    for (Index l = 0; k < m_initialMatrix.cols(); l++) {
+  for (Index k = 0; k < maxIndex; k++) {
+    for (Index l = k; l < maxIndex; l++) {
       Scalar currDiff = std::abs(m_differenceMatrix(k, l));
       if (absBiggestDiff < currDiff) {
         absBiggestDiff = currDiff;
-        i = k;
-        j = l;
+        m_currentI = k;
+        m_currentJ = l;
       }
     }
   }
@@ -87,9 +93,9 @@ Eigen::JacobiRotation<
     typename RevJac_SVD<_MatrixType, _SingularVectorType>::Scalar>
 RevJac_SVD<_MatrixType, _SingularVectorType>::composeLeftRotation(
     const Index& i, const Index& j) const {
-  // TODO: Make sure this is correct code
-  return Eigen::JacobiRotation<Scalar>().makeGivens(m_currentMatrix(i, i),
-                                                    m_currentMatrix(i, j));
+  Eigen::JacobiRotation<Scalar> rot;
+  rot.makeGivens(m_differenceMatrix(i, i), m_differenceMatrix(i, j));
+  return rot;
 }
 
 template <typename _MatrixType, typename _SingularVectorType>
@@ -97,9 +103,9 @@ Eigen::JacobiRotation<
     typename RevJac_SVD<_MatrixType, _SingularVectorType>::Scalar>
 RevJac_SVD<_MatrixType, _SingularVectorType>::composeRightRotation(
     const Index& i, const Index& j) const {
-  // TODO: Make sure this is correct code
-  return Eigen::JacobiRotation<Scalar>().makeGivens(m_currentMatrix(j, j),
-                                                    m_currentMatrix(j, i));
+  Eigen::JacobiRotation<Scalar> rot;
+  rot.makeGivens(m_differenceMatrix(i, i), m_differenceMatrix(i, j));
+  return rot;
 }
 
 }  // namespace SVD_Project

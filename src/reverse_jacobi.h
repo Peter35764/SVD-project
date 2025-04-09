@@ -1,9 +1,6 @@
 #ifndef REVERSE_JACOBI_H
 #define REVERSE_JACOBI_H
 
-#include <Eigen/src/Core/Matrix.h>
-#include <Eigen/src/Core/util/Constants.h>
-#include <Eigen/src/Jacobi/Jacobi.h>
 #include <Eigen/SVD>
 
 namespace SVD_Project {
@@ -25,12 +22,14 @@ class RevJac_SVD
   RevJac_SVD& compute();
 
   const MatrixDynamic& matrixU() const { return m_matrixU; }
-  const MatrixDynamic& matrixV() const { return m_matrixV; }
+  const MatrixDynamic& matrixV() const {
+    return m_transposedMatrixV.transpose();
+  }
   const _SingularVectorType& singularValues() const { return m_singularValues; }
 
  private:
   MatrixDynamic m_matrixU;
-  MatrixDynamic m_matrixV;
+  MatrixDynamic m_transposedMatrixV;
   const _SingularVectorType& m_singularValues;
   const _MatrixType& m_initialMatrix;
   MatrixDynamic m_currentMatrix;
@@ -41,7 +40,7 @@ class RevJac_SVD
   void iterate();
   bool convergenceReached() const;
   void updateDifference();
-  void biggestDifference(Index& i, Index& j) const;
+  void calculateBiggestDifference();
   Eigen::JacobiRotation<Scalar> composeLeftRotation(const Index& i,
                                                     const Index& j) const;
   Eigen::JacobiRotation<Scalar> composeRightRotation(const Index& i,
