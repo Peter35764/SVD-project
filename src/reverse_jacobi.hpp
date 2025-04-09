@@ -24,6 +24,8 @@ RevJac_SVD<_MatrixType, _SingularVectorType>::RevJac_SVD(
   m_lastRotation = Rotation::Left;
   m_currentMatrix =
       m_matrixU * m_singularValues.asDiagonal() * m_transposedMatrixV;
+
+  compute();
 }
 
 template <typename _MatrixType, typename _SingularVectorType>
@@ -59,8 +61,8 @@ void RevJac_SVD<_MatrixType, _SingularVectorType>::iterate() {
 
 template <typename _MatrixType, typename _SingularVectorType>
 bool RevJac_SVD<_MatrixType, _SingularVectorType>::convergenceReached() const {
-  // TODO: implement
-  return false;
+  Scalar tolerance = 1e-9;
+  return (m_differenceMatrix.norm() < tolerance);
 }
 
 template <typename _MatrixType, typename _SingularVectorType>
@@ -77,7 +79,8 @@ void RevJac_SVD<_MatrixType,
                                                     : m_matrixU.rows();
   Scalar absBiggestDiff = 0;
   for (Index k = 0; k < maxIndex; k++) {
-    for (Index l = k; l < maxIndex; l++) {
+    for (Index l = 0; l < maxIndex; l++) {
+      if (k == l) continue;  // Пропустить диагональ
       Scalar currDiff = std::abs(m_differenceMatrix(k, l));
       if (absBiggestDiff < currDiff) {
         absBiggestDiff = currDiff;
@@ -94,7 +97,11 @@ Eigen::JacobiRotation<
 RevJac_SVD<_MatrixType, _SingularVectorType>::composeLeftRotation(
     const Index& i, const Index& j) const {
   Eigen::JacobiRotation<Scalar> rot;
-  rot.makeGivens(m_differenceMatrix(i, i), m_differenceMatrix(i, j));
+  if (std::abs(m_currentMatrix(i, j)) < 1e-9) {
+    rot = identityRotation();
+  } else {
+    rot.makeGivens(m_differenceMatrix(i, i), m_differenceMatrix(i, j));
+  }
   return rot;
 }
 
@@ -104,7 +111,21 @@ Eigen::JacobiRotation<
 RevJac_SVD<_MatrixType, _SingularVectorType>::composeRightRotation(
     const Index& i, const Index& j) const {
   Eigen::JacobiRotation<Scalar> rot;
-  rot.makeGivens(m_differenceMatrix(i, i), m_differenceMatrix(i, j));
+  if (std::abs(m_currentMatrix(i, j)) < 1e-9) {
+    rot = identityRotation();
+  } else {
+    rot.makeGivens(m_currentMatrix(i, i), m_currentMatrix(i, j));
+  }
+  return rot;
+}
+
+template <typename _MatrixType, typename _SingularVectorType>
+Eigen::JacobiRotation<
+    typename RevJac_SVD<_MatrixType, _SingularVectorType>::Scalar>
+RevJac_SVD<_MatrixType, _SingularVectorType>::identityRotation() const {
+  Eigen::JacobiRotation<Scalar> rot;
+  rot.c() = Scalar(1);
+  rot.s() = Scalar(0);
   return rot;
 }
 

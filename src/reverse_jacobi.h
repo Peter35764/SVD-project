@@ -45,6 +45,7 @@ class RevJac_SVD
                                                     const Index& j) const;
   Eigen::JacobiRotation<Scalar> composeRightRotation(const Index& i,
                                                      const Index& j) const;
+  Eigen::JacobiRotation<Scalar> identityRotation() const;
 };
 
 }  // namespace SVD_Project

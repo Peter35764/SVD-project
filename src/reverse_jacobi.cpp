@@ -104,7 +104,6 @@ void test_RevJac_SVD() {
 
   SVD_Project::RevJac_SVD<Eigen::MatrixXd, Eigen::VectorXd> algorithm(
       A_well_cond, S);
-  algorithm.compute();
 
   std::cout << U << std::endl << algorithm.matrixU() << std::endl;
   std::cout << std::endl;
