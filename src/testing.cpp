@@ -22,26 +22,39 @@
 // | sum_n(norm[I - U.transpose*U])/n | sum_n(norm[I - U*U.transpose])/n |
 // | sum_n(norm[I - V.transpose*V])/n | sum_n(norm[I - V*V.transpose])/n |
 // | max(abs((sigma_true_i - sigma_calc_i)/sigma_true_i)) |
-// Размер выборки фиксированного размера матриц определяется задаваемым параметром 'n'.
+// Размер выборки фиксированного размера матриц определяется задаваемым
+// параметром 'n'.
 
 // Функция написана с теми условиями, что:
-//    1. Класс SVD разложения наследуется от класса Eigen::SVDBase, причем должен существоваться конструктор класса,
-//       который вторым параметром принимает настройку вычислений матриц U и V, т.е. thin или full.
-//    2. Генерация случайных матриц происходит с помощью SVDGenerator из generate_svd.h
-//    3. В функцию передаётся std::vector соотношений максимального и минимального сингулярного числа
-//    4. В функцию передаётся std::vector<std::pair<int,int>> размеров матриц для исследования
-//    5. В функцию передаётся int n размер выборки фиксированного размера матриц для подсчёта средних
-//    6. Функция работает достаточно долго, особенно для матриц больших размеров, поэтому выводится прогресс в процентах
-//    7. Результат исследования не печатается в консоль, а сохраняется в файл, название выбирается первым параметром
+//    1. Класс SVD разложения наследуется от класса Eigen::SVDBase, причем
+//    должен существоваться конструктор класса,
+//       который вторым параметром принимает настройку вычислений матриц U и V,
+//       т.е. thin или full.
+//    2. Генерация случайных матриц происходит с помощью SVDGenerator из
+//    generate_svd.h
+//    3. В функцию передаётся std::vector соотношений максимального и
+//    минимального сингулярного числа
+//    4. В функцию передаётся std::vector<std::pair<int,int>> размеров матриц
+//    для исследования
+//    5. В функцию передаётся int n размер выборки фиксированного размера матриц
+//    для подсчёта средних
+//    6. Функция работает достаточно долго, особенно для матриц больших
+//    размеров, поэтому выводится прогресс в процентах
+//    7. Результат исследования не печатается в консоль, а сохраняется в файл,
+//    название выбирается первым параметром
 
 // Функция принимает параметрами:
 // - fileName: имя текстового файла, куда будет сохранен результат, т.е. таблица
-// - SigmaMaxMinRatiosVec: вектор соотношений максимального и минимального сингулярных чисел;
-//                        нужен т.к. ошибка может сильно отличаться у разных соотношений сингулярных чисел;
+// - SigmaMaxMinRatiosVec: вектор соотношений максимального и минимального
+// сингулярных чисел;
+//                        нужен т.к. ошибка может сильно отличаться у разных
+//                        соотношений сингулярных чисел;
 // - MatSizesVec: вектор размеров матриц для теста;
-// - n: количество матриц, которые генерируются с одинаковыми параметрами для усреднения выборки и подсчёта средних
+// - n: количество матриц, которые генерируются с одинаковыми параметрами для
+// усреднения выборки и подсчёта средних
 // - algorithmName: название алгоритма, используется в выводе прогресса
-// - lineNumber: номер строки в терминале, которую будет обновлять данный алгоритм
+// - lineNumber: номер строки в терминале, которую будет обновлять данный
+// алгоритм
 
 #define TESTING_BUNDLE_NAME \
   "TestingResultsBundle-" << std::put_time(ptm, "%d-%m-%Y-%H%M%S")
@@ -86,26 +99,26 @@ int main() {
       sigmaRatios,
       matrixSizes,
       sampleCount,
-      "JacobiSVD",  // Название алгоритма
-      1,            // Прогресс будет выводиться на строке 1
+      "Eigen::JacobiSVD",  // Название алгоритма
+      1,                   // Прогресс будет выводиться на строке 1
       metricsSettings};
 
-  SVDT::svd_test_funcSettings settingsGivRef{
-      folderName + "/idea_1_GivRef_table.txt",
-      sigmaRatios,
-      matrixSizes,
-      sampleCount,
-      "GivRef_SVD",
-      2,
-      metricsSettings};
+  // SVDT::svd_test_funcSettings settingsGivRef{
+  //     folderName + "/idea_1_GivRef_table.txt",
+  //     sigmaRatios,
+  //     matrixSizes,
+  //     sampleCount,
+  //     "GivRef_SVD",
+  //     2,
+  //     metricsSettings};
 
-  SVDT::svd_test_funcSettings settingsV0{folderName + "/v0_GivRef_table.txt",
-                                         sigmaRatios,
-                                         matrixSizes,
-                                         sampleCount,
-                                         "v0_GivRef_SVD",
-                                         3,
-                                         metricsSettings};
+  // SVDT::svd_test_funcSettings settingsV0{folderName + "/v0_GivRef_table.txt",
+  //                                        sigmaRatios,
+  //                                        matrixSizes,
+  //                                        sampleCount,
+  //                                        "v0_GivRef_SVD",
+  //                                        3,
+  //                                        metricsSettings};
 
   // SVDT::svd_test_funcSettings settingsMRRR {
   //     folderName + "/idea_3_MRRR_table.txt",
@@ -117,16 +130,17 @@ int main() {
   //     metricsSettings
   // };
 
-  SVDT::svd_test_funcSettings settingsRevJac{folderName + "/RevJac_table.txt",
-                                             sigmaRatios,
-                                             matrixSizes,
-                                             sampleCount,
-                                             "RevJac_SVD",
-                                             4,
-                                             metricsSettings};
+  // SVDT::svd_test_funcSettings settingsRevJac{folderName +
+  // "/RevJac_table.txt",
+  //                                            sigmaRatios,
+  //                                            matrixSizes,
+  //                                            sampleCount,
+  //                                            "RevJac_SVD",
+  //                                            4,
+  //                                            metricsSettings};
 
   std::vector<SVDT::svd_test_funcSettings> allSettings = {
-      settingsJacobi, settingsGivRef, settingsV0, settingsRevJac};
+      settingsJacobi};  //, settingsGivRef, settingsV0, settingsRevJac};
 
   SVDT tester(allSettings);
 

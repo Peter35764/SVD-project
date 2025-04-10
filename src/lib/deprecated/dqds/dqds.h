@@ -5,6 +5,7 @@
 // КМБО-03-22
 
 #include <lapacke.h>
+
 #include <Eigen/SVD>
 
 // Класс, реализующий DQDS с использованием LAPACKE.

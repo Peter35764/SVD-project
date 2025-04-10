@@ -19,9 +19,10 @@ namespace SVD_Project {
 
 //-----------------------------------------------------------------------------
 // Вспомогательная функция‑фабрика для создания объекта SVD-разложения.
-// Для алгоритма RevJac_SVD (определяется через std::is_same_v) вызывается конструктор
-// с тремя аргументами: матрица, спектр и опции; для всех остальных алгоритмов
-// параметр спектра игнорируется и вызывается конструктор с двумя аргументами.
+// Для алгоритма RevJac_SVD (определяется через std::is_same_v) вызывается
+// конструктор с тремя аргументами: матрица, спектр и опции; для всех остальных
+// алгоритмов параметр спектра игнорируется и вызывается конструктор с двумя
+// аргументами.
 //-----------------------------------------------------------------------------
 
 // Перегрузка для RevJac_SVD: используется конструктор с передачей спектра.
@@ -35,10 +36,11 @@ SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options,
 
 // Перегрузка для всех остальных: параметр sigma игнорируется.
 template <typename SVDClass, typename Matrix, typename Vector,
-          typename std::enable_if_t<!std::is_same_v<SVDClass, RevJac_SVD<Matrix>>, int> = 0>
-SVDClass create_svd(const Matrix &A, const Vector &/*sigma*/, unsigned int options, bool /*solve_with_sigmas*/)
-{
-    return SVDClass(A, options);
+          typename std::enable_if_t<
+              !std::is_same_v<SVDClass, RevJac_SVD<Matrix>>, int> = 0>
+SVDClass create_svd(const Matrix &A, const Vector & /*sigma*/,
+                    unsigned int options, bool /*solve_with_sigmas*/) {
+  return SVDClass(A, options);
 }
 
 //-----------------------------------------------------------------------------
@@ -48,7 +50,7 @@ SVDClass create_svd(const Matrix &A, const Vector &/*sigma*/, unsigned int optio
 template <typename FloatingPoint, typename MatrixType>
 template <typename Derived>
 FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lpq_norm(
-    const Eigen::MatrixBase<Derived>& M, FloatingPoint p, FloatingPoint q) {
+    const Eigen::MatrixBase<Derived> &M, FloatingPoint p, FloatingPoint q) {
   auto abs_p = M.array().abs().pow(p);
   auto row_sums = abs_p.rowwise().sum();
   auto inner_sums = row_sums.array().pow(q / p);
@@ -58,7 +60,7 @@ FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lpq_norm(
 template <typename FloatingPoint, typename MatrixType>
 template <typename Derived>
 FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lp_norm(
-    const Eigen::MatrixBase<Derived>& M, FloatingPoint p) {
+    const Eigen::MatrixBase<Derived> &M, FloatingPoint p) {
   return Lpq_norm(M, p, p);
 }
 
@@ -72,7 +74,8 @@ SVD_Test<FloatingPoint, MatrixType>::MetricSettings::MetricSettings(
       name(generateName(name_, is_relative_, type_)),
       enabled(enabled_) {
   if (!(p_ > FloatingPoint(0))) {
-    throw std::invalid_argument("ERROR: metric value must be > 0 (TODO make for 0 and inf)");
+    throw std::invalid_argument(
+        "ERROR: metric value must be > 0 (TODO make for 0 and inf)");
   }
 }
 
@@ -83,11 +86,11 @@ std::string SVD_Test<FloatingPoint, MatrixType>::MetricSettings::generateName(
 }
 
 template <typename FloatingPoint, typename MatrixType>
-SVD_Test<FloatingPoint, MatrixType>::SVD_Test() {
-}
+SVD_Test<FloatingPoint, MatrixType>::SVD_Test() {}
 
 template <typename FloatingPoint, typename MatrixType>
-SVD_Test<FloatingPoint, MatrixType>::SVD_Test(const std::vector<svd_test_funcSettings> &vec_settings) {
+SVD_Test<FloatingPoint, MatrixType>::SVD_Test(
+    const std::vector<svd_test_funcSettings> &vec_settings) {
   run_tests_parallel(vec_settings);
 }
 
@@ -139,63 +142,66 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
   for (auto &t : threads) {
     t.join();
   }
-  
+
   auto overall_end = std::chrono::high_resolution_clock::now();
-  double overall_duration = std::chrono::duration<double>(overall_end - overall_start).count();
+  double overall_duration =
+      std::chrono::duration<double>(overall_end - overall_start).count();
 
   std::cout << "\033[2J\033[H";
   int output_line = static_cast<int>(numAlgos) + 2;
-  std::cout << "\033[" << output_line << ";0H" << "Full execution time = " 
-            << overall_duration << " seconds.\n";
+  std::cout << "\033[" << output_line << ";0H"
+            << "Full execution time = " << overall_duration << " seconds.\n";
 
   std::filesystem::path p(vec_settings.front().fileName);
   std::string folderName = p.parent_path().string();
 
   std::ofstream timeFile(folderName + "/individual_test_times.txt");
   if (timeFile) {
-      timeFile << "=== Test Settings ===\n";
-      
-      timeFile << "Sigma ratios: ";
-      for (const auto& r : vec_settings.front().SigmaMaxMinRatiosVec) {
-          timeFile << r << " ";
-      }
-      timeFile << "\n";
-      
-      timeFile << "Matrix sizes: ";
-      for (const auto& sz : vec_settings.front().MatSizesVec) {
-          timeFile << sz.first << "x" << sz.second << " ";
-      }
-      timeFile << "\n";
-      
-      timeFile << "Sample count: " << vec_settings.front().n << "\n";
-      
-      timeFile << "Metrics Settings:\n";
-      for (const auto &ms : vec_settings.front().metricsSettings) {
-          timeFile << "  " << ms.name << " (" << (ms.is_relative ? "relative" : "absolute")
-                   << "), p = " << ms.p << ", enabled = " << (ms.enabled ? "true" : "false") << "\n";
-      }
-      
-      timeFile << "\n=== Execution Times ===\n";
-      timeFile << "Total overall time: " << overall_duration << " seconds\n";
-      timeFile << "Individual algorithm execution times:\n";
-      for (const auto &entry : test_times) {
-          timeFile << entry.first << " : " << entry.second << " seconds\n";
-      }
-      timeFile.close();
+    timeFile << "=== Test Settings ===\n";
+
+    timeFile << "Sigma ratios: ";
+    for (const auto &r : vec_settings.front().SigmaMaxMinRatiosVec) {
+      timeFile << r << " ";
+    }
+    timeFile << "\n";
+
+    timeFile << "Matrix sizes: ";
+    for (const auto &sz : vec_settings.front().MatSizesVec) {
+      timeFile << sz.first << "x" << sz.second << " ";
+    }
+    timeFile << "\n";
+
+    timeFile << "Sample count: " << vec_settings.front().n << "\n";
+
+    timeFile << "Metrics Settings:\n";
+    for (const auto &ms : vec_settings.front().metricsSettings) {
+      timeFile << "  " << ms.name << " ("
+               << (ms.is_relative ? "relative" : "absolute")
+               << "), p = " << ms.p
+               << ", enabled = " << (ms.enabled ? "true" : "false") << "\n";
+    }
+
+    timeFile << "\n=== Execution Times ===\n";
+    timeFile << "Total overall time: " << overall_duration << " seconds\n";
+    timeFile << "Individual algorithm execution times:\n";
+    for (const auto &entry : test_times) {
+      timeFile << entry.first << " : " << entry.second << " seconds\n";
+    }
+    timeFile.close();
   } else {
-      std::lock_guard<std::mutex> lock(cout_mutex);
-      std::cerr << "Error while creating/opening individual_test_times.txt!\n";
+    std::lock_guard<std::mutex> lock(cout_mutex);
+    std::cerr << "Error while creating/opening individual_test_times.txt!\n";
   }
 }
 
 template <typename FloatingPoint, typename MatrixType>
 template <template <typename> class gen_cl, template <typename> class svd_cl>
-void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(svd_test_funcSettings settings) {
-  svd_test_func<gen_cl, svd_cl>(settings.fileName,
-                                settings.SigmaMaxMinRatiosVec,
-                                settings.MatSizesVec, settings.n,
-                                settings.algorithmName, settings.lineNumber,
-                                settings.metricsSettings);
+void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
+    svd_test_funcSettings settings) {
+  svd_test_func<gen_cl, svd_cl>(
+      settings.fileName, settings.SigmaMaxMinRatiosVec, settings.MatSizesVec,
+      settings.n, settings.algorithmName, settings.lineNumber,
+      settings.metricsSettings);
 }
 
 template <typename FloatingPoint, typename MatrixType>
@@ -228,13 +234,13 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
   header.push_back("Sigma-max/Sigma-min");
   header.push_back("SV interval");
   for (const auto &ms : metricsSettings) {
-    if (ms.enabled)
-      header.push_back(ms.name);
+    if (ms.enabled) header.push_back(ms.name);
   }
   table.push_back(header);
 
   // Определяем типы для динамических матриц и векторов.
-  using MatrixDynamic = Eigen::Matrix<FloatingPoint, Eigen::Dynamic, Eigen::Dynamic>;
+  using MatrixDynamic =
+      Eigen::Matrix<FloatingPoint, Eigen::Dynamic, Eigen::Dynamic>;
   using VectorDynamic = Eigen::Matrix<FloatingPoint, Eigen::Dynamic, 1>;
 
   MatrixDynamic U_true, S_true, V_true;  // Истинное SVD-разложение.
@@ -271,7 +277,8 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
         FloatingPoint sigma_max = SigmaMaxMinRatio * sigma_min;
 
         // Определение допустимого промежутка сингулярных значений
-        std::uniform_real_distribution<FloatingPoint> distr(sigma_min, sigma_max);
+        std::uniform_real_distribution<FloatingPoint> distr(sigma_min,
+                                                            sigma_max);
         assert((minNM >= 2) && "Error: no columns or rows allowed");
 
         // Контейнер для накопления результатов по метрикам.
@@ -294,11 +301,12 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
           // Определяем булев флаг: для SVD_Project::RevJac_SVD нужно передавать
           // спектр.
           bool solve_with_sigmas = (algorithmName == "SVD_Project::RevJac_SVD");
-          VectorDynamic sigma_to_pass = solve_with_sigmas ? S_true.diagonal().eval() : VectorDynamic();
-          auto svd_func = create_svd<svd_cl<MatrixDynamic>>(A, sigma_to_pass,
-                                                              Eigen::ComputeFullU | Eigen::ComputeFullV,
-                                                              solve_with_sigmas);
-          
+          VectorDynamic sigma_to_pass =
+              solve_with_sigmas ? S_true.diagonal().eval() : VectorDynamic();
+          auto svd_func = create_svd<svd_cl<MatrixDynamic>>(
+              A, sigma_to_pass, Eigen::ComputeFullU | Eigen::ComputeFullV,
+              solve_with_sigmas);
+
           U_calc = svd_func.matrixU();
           S_calc = svd_func.singularValues();
           V_calc = svd_func.matrixV();
@@ -343,8 +351,7 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
         row.push_back("[" + num2str(interval.first) + ", " +
                       num2str(interval.second) + "]");
         for (const auto &ms : metricsSettings) {
-          if (!ms.enabled)
-            continue;
+          if (!ms.enabled) continue;
           row.push_back(num2str(results[ms]));
         }
         table.push_back(row);
@@ -381,8 +388,7 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
 template <typename FloatingPoint, typename MatrixType>
 void SVD_Test<FloatingPoint, MatrixType>::printTable(
     std::ostream &out, const std::vector<std::vector<std::string>> &data) {
-  if (data.empty())
-    return;
+  if (data.empty()) return;
   std::vector<size_t> widths;
   for (const auto &row : data) {
     for (size_t i = 0; i < row.size(); ++i) {
@@ -395,8 +401,7 @@ void SVD_Test<FloatingPoint, MatrixType>::printTable(
   for (const auto &row : data) {
     for (size_t i = 0; i < row.size(); ++i) {
       out << std::left << std::setw(widths[i] + 3) << row[i];
-      if (i < row.size() - 1)
-        out << "\t";
+      if (i < row.size() - 1) out << "\t";
     }
     out << "\n";
   }
@@ -408,8 +413,7 @@ void SVD_Test<FloatingPoint, MatrixType>::printCSV(
   for (size_t r = 0; r < data.size(); ++r) {
     bool first = true;
     for (size_t i = 0; i < data[r].size(); ++i) {
-      if (!first)
-        out << ",";
+      if (!first) out << ",";
       std::string cellFormatted = data[r][i];
       if (cellFormatted.find(',') != std::string::npos) {
         cellFormatted = "\"" + cellFormatted + "\"";
@@ -430,48 +434,67 @@ std::string SVD_Test<FloatingPoint, MatrixType>::num2str(FloatingPoint value) {
 
 template <typename FloatingPoint, typename MatrixType>
 FloatingPoint SVD_Test<FloatingPoint, MatrixType>::count_metrics(
-    MetricSettings metric_settings, size_t Usize,
-    size_t Vsize, const MatrixDynamic &U_calc, const MatrixDynamic &V_calc, const VectorDynamic &S_calc,
-    const MatrixDynamic &U_true, const MatrixDynamic &V_true, const MatrixDynamic &S_true) {
+    MetricSettings metric_settings, size_t Usize, size_t Vsize,
+    const MatrixDynamic &U_calc, const MatrixDynamic &V_calc,
+    const VectorDynamic &S_calc, const MatrixDynamic &U_true,
+    const MatrixDynamic &V_true, const MatrixDynamic &S_true) {
   FloatingPoint ans = 0;
   VectorDynamic abs_err;
   VectorDynamic error;
 
   MatrixDynamic A_true = U_true * S_true * V_true.transpose();
-  MatrixDynamic S_calc_diag = MatrixDynamic::Zero(std::min(Usize, Vsize), std::min(Usize, Vsize));
+  MatrixDynamic S_calc_diag =
+      MatrixDynamic::Zero(std::min(Usize, Vsize), std::min(Usize, Vsize));
   S_calc_diag.diagonal() = S_calc;
   MatrixDynamic A_calc = U_calc * S_calc_diag * V_calc.transpose();
 
   switch (metric_settings.type) {
     case U_DEVIATION1:
-      ans = Lp_norm((MatrixDynamic::Identity(Usize, Usize) - U_calc * U_calc.transpose()).eval(), metric_settings.p);
+      ans = Lp_norm(
+          (MatrixDynamic::Identity(Usize, Usize) - U_calc * U_calc.transpose())
+              .eval(),
+          metric_settings.p);
       if (metric_settings.is_relative) {
-        ans /= Lp_norm(MatrixDynamic::Identity(Usize, Usize).eval(), metric_settings.p);
+        ans /= Lp_norm(MatrixDynamic::Identity(Usize, Usize).eval(),
+                       metric_settings.p);
       }
       break;
     case U_DEVIATION2:
-      ans = Lp_norm((MatrixDynamic::Identity(Usize, Usize) - U_calc.transpose() * U_calc).eval(), metric_settings.p);
+      ans = Lp_norm(
+          (MatrixDynamic::Identity(Usize, Usize) - U_calc.transpose() * U_calc)
+              .eval(),
+          metric_settings.p);
       if (metric_settings.is_relative) {
-        ans /= Lp_norm(MatrixDynamic::Identity(Usize, Usize).eval(), metric_settings.p);
+        ans /= Lp_norm(MatrixDynamic::Identity(Usize, Usize).eval(),
+                       metric_settings.p);
       }
       break;
     case V_DEVIATION1:
-      ans = Lp_norm((MatrixDynamic::Identity(Vsize, Vsize) - V_calc * V_calc.transpose()).eval(), metric_settings.p);
+      ans = Lp_norm(
+          (MatrixDynamic::Identity(Vsize, Vsize) - V_calc * V_calc.transpose())
+              .eval(),
+          metric_settings.p);
       if (metric_settings.is_relative) {
-        ans /= Lp_norm(MatrixDynamic::Identity(Vsize, Vsize).eval(), metric_settings.p);
+        ans /= Lp_norm(MatrixDynamic::Identity(Vsize, Vsize).eval(),
+                       metric_settings.p);
       }
       break;
     case V_DEVIATION2:
-      ans = Lp_norm((MatrixDynamic::Identity(Vsize, Vsize) - V_calc.transpose() * V_calc).eval(), metric_settings.p);
+      ans = Lp_norm(
+          (MatrixDynamic::Identity(Vsize, Vsize) - V_calc.transpose() * V_calc)
+              .eval(),
+          metric_settings.p);
       if (metric_settings.is_relative) {
-        ans /= Lp_norm(MatrixDynamic::Identity(Vsize, Vsize).eval(), metric_settings.p);
+        ans /= Lp_norm(MatrixDynamic::Identity(Vsize, Vsize).eval(),
+                       metric_settings.p);
       }
       break;
     case ERROR_SIGMA:
       abs_err = S_true.diagonal() - S_calc;
-      error = metric_settings.is_relative ?
-                (S_true.diagonal().array() == 0).select(0, abs_err.cwiseQuotient(S_true.diagonal()))
-                : abs_err;
+      error = metric_settings.is_relative
+                  ? (S_true.diagonal().array() == 0)
+                        .select(0, abs_err.cwiseQuotient(S_true.diagonal()))
+                  : abs_err;
       ans = Lp_norm(error.eval(), metric_settings.p);
       break;
     case RECON_ERROR:
@@ -482,27 +505,33 @@ FloatingPoint SVD_Test<FloatingPoint, MatrixType>::count_metrics(
       break;
     case MAX_DEVIATION:
       if (metric_settings.is_relative) {
-        ans = std::max({
-          count_metrics({U_DEVIATION1, metric_settings.p, true, "", false},
-                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
-          count_metrics({U_DEVIATION2, metric_settings.p, true, "", false},
-                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
-          count_metrics({V_DEVIATION1, metric_settings.p, true, "", false},
-                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
-          count_metrics({V_DEVIATION2, metric_settings.p, true, "", false},
-                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true)
-        });
+        ans = std::max(
+            {count_metrics({U_DEVIATION1, metric_settings.p, true, "", false},
+                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
+                           S_true),
+             count_metrics({U_DEVIATION2, metric_settings.p, true, "", false},
+                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
+                           S_true),
+             count_metrics({V_DEVIATION1, metric_settings.p, true, "", false},
+                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
+                           S_true),
+             count_metrics({V_DEVIATION2, metric_settings.p, true, "", false},
+                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
+                           S_true)});
       } else {
-        ans = std::max({
-          count_metrics({U_DEVIATION1, metric_settings.p, false, "", false},
-                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
-          count_metrics({U_DEVIATION2, metric_settings.p, false, "", false},
-                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
-          count_metrics({V_DEVIATION1, metric_settings.p, false, "", false},
-                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true),
-          count_metrics({V_DEVIATION2, metric_settings.p, false, "", false},
-                        Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true, S_true)
-        });
+        ans = std::max(
+            {count_metrics({U_DEVIATION1, metric_settings.p, false, "", false},
+                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
+                           S_true),
+             count_metrics({U_DEVIATION2, metric_settings.p, false, "", false},
+                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
+                           S_true),
+             count_metrics({V_DEVIATION1, metric_settings.p, false, "", false},
+                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
+                           S_true),
+             count_metrics({V_DEVIATION2, metric_settings.p, false, "", false},
+                           Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
+                           S_true)});
       }
       break;
     default:

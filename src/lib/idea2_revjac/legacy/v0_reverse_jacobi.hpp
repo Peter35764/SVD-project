@@ -11,9 +11,9 @@
 namespace SVD_Project {
 
 template <typename _MatrixType>
-v0_RevJac_SVD<_MatrixType>::v0_RevJac_SVD(const _MatrixType& initial,
-                                    const _SingularVectorType& singularValues,
-                                    unsigned int computationOptions)
+v0_RevJac_SVD<_MatrixType>::v0_RevJac_SVD(
+    const _MatrixType& initial, const _SingularVectorType& singularValues,
+    unsigned int computationOptions)
     : m_initialMatrix(initial), m_singularValues(singularValues) {
   Index cols = initial.cols();
   Index rows = initial.rows();
@@ -91,7 +91,7 @@ void v0_RevJac_SVD<_MatrixType>::calculateBiggestDifference() {
 template <typename _MatrixType>
 Eigen::JacobiRotation<typename v0_RevJac_SVD<_MatrixType>::Scalar>
 v0_RevJac_SVD<_MatrixType>::composeLeftRotation(const Index& i,
-                                             const Index& j) const {
+                                                const Index& j) const {
   Eigen::JacobiRotation<Scalar> rot;
   rot.makeGivens(m_differenceMatrix(i, i),
                  m_differenceMatrix(i, j));  // TODO check div by 0
@@ -101,7 +101,7 @@ v0_RevJac_SVD<_MatrixType>::composeLeftRotation(const Index& i,
 template <typename _MatrixType>
 Eigen::JacobiRotation<typename v0_RevJac_SVD<_MatrixType>::Scalar>
 v0_RevJac_SVD<_MatrixType>::composeRightRotation(const Index& i,
-                                              const Index& j) const {
+                                                 const Index& j) const {
   Eigen::JacobiRotation<Scalar> rot;
   rot.makeGivens(m_differenceMatrix(i, i),
                  m_differenceMatrix(i, j));  // TODO check div by 0
