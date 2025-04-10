@@ -11,11 +11,7 @@
 #include <utility>
 #include <vector>
 
-#include "givens_refinement.h"
-#include "legacy/v0_givens_refinement.h"
-#include "mrrr.h"
-#include "tests/SVD_Test.h"
-#include "tests/generate_svd.h"
+#include "lib/SVD_project.h"
 
 // Александр Нам, КМБО-04-20
 // Any questions: alexnam16@gmail.com
@@ -47,6 +43,9 @@
 // - algorithmName: название алгоритма, используется в выводе прогресса
 // - lineNumber: номер строки в терминале, которую будет обновлять данный алгоритм
 
+#define TESTING_BUNDLE_NAME \
+  "TestingResultsBundle-" << std::put_time(ptm, "%d-%m-%Y-%H%M%S")
+
 int main() {
   using SVDT = SVD_Project::SVDT;
   namespace fs = std::filesystem;
@@ -55,8 +54,7 @@ int main() {
   std::time_t now_time = std::chrono::system_clock::to_time_t(now);
   std::tm* ptm = std::localtime(&now_time);
   std::ostringstream oss;
-  oss << "TestingResultsBundle<" << std::put_time(ptm, "%d-%m-%Y-%H%M%S")
-      << ">";
+  oss << TESTING_BUNDLE_NAME;
   std::string folderName = oss.str();
   fs::create_directory(folderName);
 
