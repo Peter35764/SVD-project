@@ -5,28 +5,58 @@
 
 namespace SVD_Project {
 
-// Allow only Sub_SVD implementations derived from Eigen::SVDBase
-template<typename Sub_SVD>
-requires std::derived_from<Sub_SVD, Eigen::SVDBase<Sub_SVD>> class RevJac_SVD : public Sub_SVD
-{
-private:
-    typedef Eigen::internal::traits<Sub_SVD>::MatrixType MatrixType;
-    typedef Eigen::internal::traits<MatrixType>::Scalar Scalar;
+template <typename _MatrixType>
+class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
+  typedef Eigen::SVDBase<RevJac_SVD> Base;
+  typedef typename _MatrixType::Scalar Scalar;
+  typedef typename _MatrixType::Index Index;
+  typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatrixDynamic;
+  typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VectorDynamic;
+  enum Rotation { Left, Right };
 
-public:
-    RevJac_SVD(const MatrixType &initial, unsigned int computationOptions);
+  using _SingularVectorType = VectorDynamic;
+
+ public:
+  RevJac_SVD(const _MatrixType& initial,
+             const _SingularVectorType& singularValues,
+             unsigned int computationOptions = 0);
+  RevJac_SVD& compute();
+
+  const MatrixDynamic& matrixU() const { return m_matrixU; }
+  const MatrixDynamic& matrixV() const {
+    return m_transposedMatrixV;  // Crashes if .transpose() used.
+  }
+  const _SingularVectorType& singularValues() const { return m_singularValues; }
+
+ private:
+  MatrixDynamic m_matrixU;
+  MatrixDynamic m_transposedMatrixV;
+  const _SingularVectorType& m_singularValues;
+  const _MatrixType& m_initialMatrix;
+  MatrixDynamic m_currentMatrix;
+  _MatrixType m_differenceMatrix;
+  Rotation m_lastRotation;
+  Index m_currentI, m_currentJ;
+
+  void iterate();
+  bool convergenceReached() const;
+  void updateDifference();
+  void calculateBiggestDifference();
+  Eigen::JacobiRotation<Scalar> composeLeftRotation(const Index& i,
+                                                    const Index& j) const;
+  Eigen::JacobiRotation<Scalar> composeRightRotation(const Index& i,
+                                                     const Index& j) const;
+  // Eigen::JacobiRotation<Scalar> identityRotation() const;
 };
 
-} // namespace SVD_Project
+}  // namespace SVD_Project
 
-template<typename Sub_SVD>
-struct Eigen::internal::traits<SVD_Project::RevJac_SVD<Sub_SVD>>
-    : Eigen::internal::traits<typename Sub_SVD::MatrixType>
-{
-    typedef Eigen::internal::traits<Sub_SVD>::MatrixType MatrixType;
-    typedef Eigen::internal::traits<MatrixType>::Scalar Scalar;
+template <typename _MatrixType>
+struct Eigen::internal::traits<SVD_Project::RevJac_SVD<_MatrixType>>
+    : Eigen::internal::traits<_MatrixType> {
+  typedef _MatrixType MatrixType;
 };
 
 #include "reverse_jacobi.hpp"
 
-#endif // REVERSE_JACOBI_H
+#endif  // REVERSE_JACOBI_H
