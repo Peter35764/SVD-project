@@ -99,8 +99,8 @@ class SVD_Test {
       const std::vector<std::pair<int, int>> &MatSizesVec, int n,
       const std::string &algorithmName, int lineNumber,
       const std::vector<MetricSettings> &metricsSettings);
-
-  void run_tests_parallel(const std::vector<svd_test_funcSettings> &vec_settings);
+  void run_tests_parallel(
+      const std::vector<svd_test_funcSettings> &vec_settings);
 
   void printTable(std::ostream &out, const std::vector<std::vector<std::string>> &data);
   void printCSV(std::ostream &out, const std::vector<std::vector<std::string>> &data);

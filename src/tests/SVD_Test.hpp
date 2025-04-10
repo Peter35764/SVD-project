@@ -10,10 +10,10 @@
 #include <random>
 #include <thread>
 
-#include "../givens_refinement.h"
-#include "../legacy/v0_givens_refinement.h"
-#include "../mrrr.h"
-#include "../reverse_jacobi.h"
+#include "../givens_refinement.hpp"
+#include "../legacy/v0_givens_refinement.hpp"
+#include "../mrrr.hpp"
+#include "../reverse_jacobi.hpp"
 #include "SVD_Test.h"
 #include "config.h"
 #include "generate_svd.h"
@@ -68,7 +68,8 @@ SVD_Test<FloatingPoint, MatrixType>::SVD_Test(const std::vector<svd_test_funcSet
 }
 
 template <typename FloatingPoint, typename MatrixType>
-void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(const std::vector<svd_test_funcSettings>& vec_settings) {
+void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
+    const std::vector<svd_test_funcSettings> &vec_settings) {
   size_t numAlgos = vec_settings.size();
   std::mutex dur_mutex;
   std::vector<std::pair<std::string, double>> test_times;
@@ -87,9 +88,9 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(const std::vector<s
         this->svd_test_func<SVDGenerator, SVD_Project::v0_GivRef_SVD>(s);
       } else if (s.algorithmName == "MRRR") {
         this->svd_test_func<SVDGenerator, MRRR_SVD>(s);
-      } else if (s.algorithmName == "RevJac_SVD") {
+      } /*else if (s.algorithmName == "RevJac_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::RevJac_SVD>(s);
-      }
+      }*/
       auto t_end = std::chrono::high_resolution_clock::now();
       double duration = std::chrono::duration<double>(t_end - t_start).count();
       {

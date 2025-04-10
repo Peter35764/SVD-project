@@ -5,15 +5,16 @@
 
 namespace SVD_Project {
 
-template <typename _MatrixType, typename _SingularVectorType>
-class RevJac_SVD
-    : public Eigen::SVDBase<RevJac_SVD<_MatrixType, _SingularVectorType>> {
+template <typename _MatrixType>
+class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
   typedef Eigen::SVDBase<RevJac_SVD> Base;
   typedef typename _MatrixType::Scalar Scalar;
   typedef typename _MatrixType::Index Index;
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatrixDynamic;
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VectorDynamic;
   enum Rotation { Left, Right };
+
+  using _SingularVectorType = VectorDynamic;
 
  public:
   RevJac_SVD(const _MatrixType& initial,
@@ -23,7 +24,7 @@ class RevJac_SVD
 
   const MatrixDynamic& matrixU() const { return m_matrixU; }
   const MatrixDynamic& matrixV() const {
-    return m_transposedMatrixV.transpose();
+    return m_transposedMatrixV;  // Crashes if .transpose() used.
   }
   const _SingularVectorType& singularValues() const { return m_singularValues; }
 
@@ -45,14 +46,13 @@ class RevJac_SVD
                                                     const Index& j) const;
   Eigen::JacobiRotation<Scalar> composeRightRotation(const Index& i,
                                                      const Index& j) const;
-  Eigen::JacobiRotation<Scalar> identityRotation() const;
+  // Eigen::JacobiRotation<Scalar> identityRotation() const;
 };
 
 }  // namespace SVD_Project
 
-template <typename _MatrixType, typename _SingularVectorType>
-struct Eigen::internal::traits<
-    SVD_Project::RevJac_SVD<_MatrixType, _SingularVectorType>>
+template <typename _MatrixType>
+struct Eigen::internal::traits<SVD_Project::RevJac_SVD<_MatrixType>>
     : Eigen::internal::traits<_MatrixType> {
   typedef _MatrixType MatrixType;
 };

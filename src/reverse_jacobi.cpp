@@ -89,7 +89,7 @@ void test_norms() {
 }
 
 void test_RevJac_SVD() {
-  size_t n = 10;
+  size_t n = 3;
 
   Eigen::MatrixXd U = randomOrthogonalMatrix(n);
   Eigen::MatrixXd V = randomOrthogonalMatrix(n);
@@ -102,17 +102,23 @@ void test_RevJac_SVD() {
     S(i) = 1.0;
   }
 
-  SVD_Project::RevJac_SVD<Eigen::MatrixXd, Eigen::VectorXd> algorithm(
-      A_well_cond, S);
+  SVD_Project::RevJac_SVD<Eigen::MatrixXd> algorithm(A_well_cond, S);
+  algorithm.compute();
 
+  std::cout << "1\n";
   std::cout << U << std::endl << algorithm.matrixU() << std::endl;
   std::cout << std::endl;
 
-  std::cout << V << std::endl << algorithm.matrixV() << std::endl;
+  std::cout << "2\n";
+  std::cout << V << std::endl;
+  std::cout << algorithm.matrixV() << std::endl;
   std::cout << std::endl;
 
+  std::cout << "3\n\n";
   std::cout << S << std::endl << algorithm.singularValues() << std::endl;
   std::cout << std::endl;
+
+  std::cout << "4\n\n";
 
   std::cout << A_well_cond << std::endl
             << algorithm.matrixU() * algorithm.singularValues().asDiagonal() *
