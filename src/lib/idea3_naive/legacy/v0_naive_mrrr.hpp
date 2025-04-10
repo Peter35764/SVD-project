@@ -1,22 +1,23 @@
-#ifndef MRRR_HPP
-#define MRRR_HPP
+#ifndef V0_NAIVE_MRRR_HPP
+#define V0_NAIVE_MRRR_HPP
 
-#include "mrrr.h" // necessary for correct display in ide, does not affect the assembly process and can be removed
-#include <cmath>
 #include <lapacke.h>
 
-// Глобальная константа для вычисления √2, объявляем ее как inline для C++17
-inline const double sq = std::sqrt(2);
+#include <cmath>
+
+#include "v0_naive_mrrr.h"  // necessary for correct display in ide, does not affect the assembly process and can be removed
+
+namespace SVD_Project {
 
 template<typename _MatrixType>
-MRRR_SVD<_MatrixType>::MRRR_SVD(const _MatrixType &matrix, unsigned int computationOptions)
+v0_NaiveMRRR_SVD<_MatrixType>::v0_NaiveMRRR_SVD(const _MatrixType &matrix, unsigned int computationOptions)
 {
     // При создании объекта сразу выполняем вычисление TGK
     compute_tgk(matrix);
 }
 
 template<typename _MatrixType>
-MRRR_SVD<_MatrixType>& MRRR_SVD<_MatrixType>::compute_tgk(const _MatrixType& matrix)
+v0_NaiveMRRR_SVD<_MatrixType>& v0_NaiveMRRR_SVD<_MatrixType>::compute_tgk(const _MatrixType& matrix)
 {
     // Бидиагонализация входной матрицы
     auto bid = Eigen::internal::UpperBidiagonalization(matrix);
@@ -147,4 +148,6 @@ MRRR_SVD<_MatrixType>& MRRR_SVD<_MatrixType>::compute_tgk(const _MatrixType& mat
     return *this;
 }
 
-#endif // MRRR_HPP
+};  // namespace SVD_Project
+
+#endif  // V0_NAIVE_MRRR_HPP

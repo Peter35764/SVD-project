@@ -47,41 +47,38 @@ find_package(Boost REQUIRED)
 
 SET(HEADER_FILES
   # Tests
-  src/tests/generate_svd.h
-  src/tests/SVD_Test.h
-  src/tests/SVD_Test.hpp
-
-  # Old algorithms
-  src/iterative_refinement.h
-  src/jacobi.h
-  src/dqds.h
+  src/lib/tests/generate_svd.h
+  src/lib/tests/SVD_Test.h
+  src/lib/tests/SVD_Test.hpp
 
   # Parf&Drozdov
-  src/givens_refinement.h
-  src/givens_refinement.hpp
-  src/reverse_jacobi.h
-  src/reverse_jacobi.hpp
-  src/mrrr.h
-  src/mrrr.hpp
+  src/lib/idea1_givref/givens_refinement.h
+  src/lib/idea1_givref/givens_refinement.hpp
+  src/lib/idea2_revjac/reverse_jacobi.h
+  src/lib/idea2_revjac/reverse_jacobi.hpp
+  src/lib/idea3_naive/naive_mrrr.h
+  src/lib/idea3_naive/naive_mrrr.hpp
 
   # Legacy
-  src/legacy/v0_givens_refinement.h
-  src/legacy/v0_givens_refinement.hpp
+  src/lib/idea1_givref/legacy/v0_givens_refinement.h
+  src/lib/idea1_givref/legacy/v0_givens_refinement.hpp
+  src/lib/idea2_revjac/legacy/v0_reverse_jacobi.h
+  src/lib/idea2_revjac/legacy/v0_reverse_jacobi.hpp
+  src/lib/idea3_naive/legacy/v0_naive_mrrr.h
+  src/lib/idea3_naive/legacy/v0_naive_mrrr.hpp
+
+  # Umbrella header
+  src/lib/SVD_project.h
 )
 
 SET(SOURCE_FILES
   # Tests run
   src/testing.cpp
 
-  # Old algorithms
-  src/iterative_refinement.cpp
-  src/jacobi.cpp
-  src/GolubKahanSVD.cpp
-
   # Parf&Drozdov
   src/givens_refinement.cpp
   src/reverse_jacobi.cpp
-  src/mrrr.cpp
+  src/naive_mrrr.cpp
 )
 
 # ==========================================
@@ -106,7 +103,7 @@ add_executable(svd_test_revjac src/reverse_jacobi.cpp)
 target_link_libraries(svd_test_revjac PRIVATE svd Eigen3::Eigen lapacke)
 
  # Сценарий тестирования, описанный в mrrr.cpp  (idea 3)
-add_executable(svd_test_mrrr src/mrrr.cpp)
+add_executable(svd_test_mrrr src/naive_mrrr.cpp)
 target_link_libraries(svd_test_mrrr PRIVATE svd Eigen3::Eigen lapacke)
 
 # ==========================================

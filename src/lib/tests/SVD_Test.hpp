@@ -9,15 +9,11 @@
 #include <map>
 #include <random>
 #include <thread>
-#include <type_traits>  
+#include <type_traits>
 
-#include "../givens_refinement.hpp"
-#include "../legacy/v0_givens_refinement.hpp"
-#include "../mrrr.hpp"
-#include "../reverse_jacobi.hpp"
-#include "SVD_Test.h"
-#include "config.h"
-#include "generate_svd.h"
+#include "../SVD_project.h"
+
+// #include "config.h"
 
 namespace SVD_Project {
 
@@ -30,10 +26,11 @@ namespace SVD_Project {
 
 // Перегрузка для RevJac_SVD: используется конструктор с передачей спектра.
 template <typename SVDClass, typename Matrix, typename Vector,
-          typename std::enable_if_t<std::is_same_v<SVDClass, RevJac_SVD<Matrix>>, int> = 0>
-SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options, bool /*solve_with_sigmas*/)
-{
-    return SVDClass(A, sigma, options);
+          typename std::enable_if_t<
+              std::is_same_v<SVDClass, RevJac_SVD<Matrix>>, int> = 0>
+SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options,
+                    bool /*solve_with_sigmas*/) {
+  return SVDClass(A, sigma, options);
 }
 
 // Перегрузка для всех остальных: параметр sigma игнорируется.
@@ -107,18 +104,29 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
   for (const auto &s : vec_settings) {
     threads.emplace_back([this, s, &test_times, &dur_mutex]() {
       auto t_start = std::chrono::high_resolution_clock::now();
-      if (s.algorithmName == "JacobiSVD") {
-        this->svd_test_func<::SVDGenerator, Eigen::JacobiSVD>(s);
-      } else if (s.algorithmName == "GivRef_SVD") {
+
+      // Для RevJac_SVD используется конструктор с передачей спектра
+      if (s.algorithmName == "SVD_Project::GivRef_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::GivRef_SVD>(s);
-      } else if (s.algorithmName == "v0_GivRef_SVD") {
+      } else if (s.algorithmName == "SVD_Project::v0_GivRef_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::v0_GivRef_SVD>(s);
-      } else if (s.algorithmName == "MRRR") {
-        this->svd_test_func<SVDGenerator, MRRR_SVD>(s);
-      } else if (s.algorithmName == "RevJac_SVD") {
-        // Для RevJac_SVD используется конструктор с передачей спектра
+      } else if (s.algorithmName == "SVD_Project::NaiveMRRR_SVD") {
+        this->svd_test_func<SVDGenerator, SVD_Project::NaiveMRRR_SVD>(s);
+      } else if (s.algorithmName == "SVD_Project::v0_NaiveMRRR_SVD") {
+        this->svd_test_func<SVDGenerator, SVD_Project::v0_NaiveMRRR_SVD>(s);
+      } else if (s.algorithmName == "SVD_Project::RevJac_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::RevJac_SVD>(s);
       }
+      /*
+      else if (s.algorithmName == "SVD_Project::v0_RevJac_SVD") {
+        this->svd_test_func<SVDGenerator, SVD_Project::v0_RevJac_SVD>(s);
+      }
+      */
+      // non SVD-Project algorithms
+      else if (s.algorithmName == "Eigen::JacobiSVD") {
+        this->svd_test_func<::SVDGenerator, Eigen::JacobiSVD>(s);
+      }
+
       auto t_end = std::chrono::high_resolution_clock::now();
       double duration = std::chrono::duration<double>(t_end - t_start).count();
       {
@@ -283,8 +291,9 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
 
           MatrixDynamic A = (U_true * S_true * V_true.transpose()).eval();
 
-          // Определяем булев флаг: для RevJac_SVD нужно передавать спектр.
-          bool solve_with_sigmas = (algorithmName == "RevJac_SVD");
+          // Определяем булев флаг: для SVD_Project::RevJac_SVD нужно передавать
+          // спектр.
+          bool solve_with_sigmas = (algorithmName == "SVD_Project::RevJac_SVD");
           VectorDynamic sigma_to_pass = solve_with_sigmas ? S_true.diagonal().eval() : VectorDynamic();
           auto svd_func = create_svd<svd_cl<MatrixDynamic>>(A, sigma_to_pass,
                                                               Eigen::ComputeFullU | Eigen::ComputeFullV,
