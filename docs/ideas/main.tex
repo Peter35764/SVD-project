@@ -28,6 +28,9 @@
 \usepackage[nonumberlist, acronym]{glossaries}
 
 \usepackage{tcolorbox}
+
+\setcounter{tocdepth}{3}
+
 \tcbuselibrary{listings, breakable}
 
 \newtcblisting{mytcblisting}[2][]{%
@@ -87,7 +90,14 @@
 \newtheorem{corollary}{Следствие}
 \newcommand{\R}[2]{\mathbb{R}^{#1 \times #2}}
 \newcommand{\Rn}{\mathbb{R}^n}
-\newcommand{\subsubsubsection}[1]{\paragraph{#1}}
+
+% Дополнительный уровень иерархии. Не попадает в оглавление
+\newcommand{\subsubsubsection}[1]{%
+  \paragraph{\bfseries #1}%  % Жирный заголовок
+  \mbox{}%                   % Пустая строка для переноса
+  \par%                      % Принудительный перенос строки
+  \noindent%                 % Убирает отступ у следующего абзаца
+}
 
 \begin{document}
 
