@@ -143,7 +143,8 @@ int main() {
                                              true};
 
   std::vector<SVDT::svd_test_funcSettings> allSettings = {
-      settingsJacobi};  //, settingsGivRef, settingsV0, settingsRevJac};
+      settingsJacobi,
+      settingsRevJac};  //, settingsGivRef, settingsV0, settingsRevJac};
 
   SVDT tester(allSettings);
 

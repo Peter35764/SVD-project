@@ -29,6 +29,9 @@ struct requires_sigma : std::false_type {};
 template <typename Matrix>
 struct requires_sigma<RevJac_SVD<Matrix>> : std::true_type {};
 
+template <typename Matrix>
+struct requires_sigma<v0_RevJac_SVD<Matrix>> : std::true_type {};
+
 template <typename SVDClass, typename Matrix, typename Vector>
 SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options,
                     bool solve_with_sigmas) {
@@ -120,11 +123,9 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
         this->svd_test_func<SVDGenerator, SVD_Project::v0_NaiveMRRR_SVD>(s);
       } else if (s.algorithmName == "SVD_Project::RevJac_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::RevJac_SVD>(s);
+      } else if (s.algorithmName == "SVD_Project::v0_RevJac_SVD") {
+        this->svd_test_func<SVDGenerator, SVD_Project::v0_RevJac_SVD>(s);
       }
-      // TODO need to be fixed
-      // else if (s.algorithmName == "SVD_Project::v0_RevJac_SVD") {
-      //   this->svd_test_func<SVDGenerator, SVD_Project::v0_RevJac_SVD>(s);
-      // }
       // non SVD-Project algorithms
       else if (s.algorithmName == "Eigen::JacobiSVD") {
         this->svd_test_func<::SVDGenerator, Eigen::JacobiSVD>(s);
