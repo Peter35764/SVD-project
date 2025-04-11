@@ -79,7 +79,7 @@ class SVD_Test {
     std::string fileName;  // Имя файла для вывода результатов.
     std::vector<FloatingPoint>
         SigmaMaxMinRatiosVec;  // Коэффициенты sigma_max/sigma_min. Чем больше,
-                               // тем хуже обусловленность, 1 = все сигмы равны
+                               // тем хуже обусловленность, 1 = все сигмы равны.
     std::vector<std::pair<int, int>>
         MatSizesVec;  // Размеры тестируемых матриц.
     int n;            // Количество итераций (выборка).
@@ -87,6 +87,7 @@ class SVD_Test {
         algorithmName;  // Название алгоритма (для отображения прогресса).
     int lineNumber;     // Номер строки вывода прогресса в консоли.
     std::vector<MetricSettings> metricsSettings;  // Настройки метрик.
+    bool solve_with_sigmas;  // Флаг управления передачей спектра.
   };
 
   SVD_Test();
@@ -102,7 +103,8 @@ class SVD_Test {
                      const std::vector<FloatingPoint> &SigmaMaxMinRatiosVec,
                      const std::vector<std::pair<int, int>> &MatSizesVec, int n,
                      const std::string &algorithmName, int lineNumber,
-                     const std::vector<MetricSettings> &metricsSettings);
+                     const std::vector<MetricSettings> &metricsSettings,
+                     bool solve_with_sigmas); 
   void run_tests_parallel(
       const std::vector<svd_test_funcSettings> &vec_settings);
 

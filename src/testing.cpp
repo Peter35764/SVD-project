@@ -101,24 +101,27 @@ int main() {
       sampleCount,
       "Eigen::JacobiSVD",  // Название алгоритма
       1,                   // Прогресс будет выводиться на строке 1
-      metricsSettings};
+      metricsSettings,
+  	  false};
 
   // SVDT::svd_test_funcSettings settingsGivRef{
   //     folderName + "/idea_1_GivRef_table.txt",
   //     sigmaRatios,
   //     matrixSizes,
   //     sampleCount,
-  //     "GivRef_SVD",
+  //     "SVD_Project::GivRef_SVD",
   //     2,
-  //     metricsSettings};
+  //     metricsSettings,
+  // 	   false};
 
   // SVDT::svd_test_funcSettings settingsV0{folderName + "/v0_GivRef_table.txt",
   //                                        sigmaRatios,
   //                                        matrixSizes,
   //                                        sampleCount,
-  //                                        "v0_GivRef_SVD",
+  //                                        "SVD_Project::v0_GivRef_SVD",
   //                                        3,
-  //                                        metricsSettings};
+  //                                        metricsSettings,
+  // 										  false};
 
   // SVDT::svd_test_funcSettings settingsMRRR {
   //     folderName + "/idea_3_MRRR_table.txt",
@@ -135,12 +138,13 @@ int main() {
   //                                            sigmaRatios,
   //                                            matrixSizes,
   //                                            sampleCount,
-  //                                            "RevJac_SVD",
+  //                                            "SVD_Project::RevJac_SVD",
   //                                            4,
-  //                                            metricsSettings};
+  //                                            metricsSettings,
+  // 											  true};
 
   std::vector<SVDT::svd_test_funcSettings> allSettings = {
-      settingsJacobi};  //, settingsGivRef, settingsV0, settingsRevJac};
+      settingsJacobi}//, settingsGivRef, settingsV0, settingsRevJac};
 
   SVDT tester(allSettings);
 

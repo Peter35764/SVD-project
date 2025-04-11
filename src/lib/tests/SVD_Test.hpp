@@ -10,6 +10,10 @@
 #include <random>
 #include <thread>
 #include <type_traits>
+#include <stdexcept>
+#include <sstream>
+#include <cassert>
+#include <algorithm>
 
 #include "../SVD_project.h"
 
@@ -17,30 +21,25 @@
 
 namespace SVD_Project {
 
-//-----------------------------------------------------------------------------
-// Вспомогательная функция‑фабрика для создания объекта SVD-разложения.
-// Для алгоритма RevJac_SVD (определяется через std::is_same_v) вызывается
-// конструктор с тремя аргументами: матрица, спектр и опции; для всех остальных
-// алгоритмов параметр спектра игнорируется и вызывается конструктор с двумя
-// аргументами.
-//-----------------------------------------------------------------------------
+// Traits для определения, требует ли алгоритм передачи спектра.
+// По умолчанию алгоритм не требует передачи спектра.
+template <typename SVDClass>
+struct requires_sigma : std::false_type {};
 
-// Перегрузка для RevJac_SVD: используется конструктор с передачей спектра.
-template <typename SVDClass, typename Matrix, typename Vector,
-          typename std::enable_if_t<
-              std::is_same_v<SVDClass, RevJac_SVD<Matrix>>, int> = 0>
-SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options,
-                    bool /*solve_with_sigmas*/) {
-  return SVDClass(A, sigma, options);
-}
+template <typename Matrix>
+struct requires_sigma<RevJac_SVD<Matrix>> : std::true_type {};
 
-// Перегрузка для всех остальных: параметр sigma игнорируется.
-template <typename SVDClass, typename Matrix, typename Vector,
-          typename std::enable_if_t<
-              !std::is_same_v<SVDClass, RevJac_SVD<Matrix>>, int> = 0>
-SVDClass create_svd(const Matrix &A, const Vector & /*sigma*/,
-                    unsigned int options, bool /*solve_with_sigmas*/) {
-  return SVDClass(A, options);
+template <typename SVDClass, typename Matrix, typename Vector>
+SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options, bool solve_with_sigmas) {
+    if constexpr (requires_sigma<SVDClass>::value) {
+        if (solve_with_sigmas) {
+            return SVDClass(A, sigma, options);
+        } else {
+            throw std::invalid_argument("Алгоритм требует передачи спектра, но solve_with_sigmas == false");
+        }
+    } else {
+        return SVDClass(A, options);
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -113,7 +112,7 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
         this->svd_test_func<SVDGenerator, SVD_Project::GivRef_SVD>(s);
       } else if (s.algorithmName == "SVD_Project::v0_GivRef_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::v0_GivRef_SVD>(s);
-      } else if (s.algorithmName == "SVD_Project::NaiveMRRR_SVD") {
+      } else if (s.algorithmName == "////SVD_Project::NaiveMRRR_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::NaiveMRRR_SVD>(s);
       } else if (s.algorithmName == "SVD_Project::v0_NaiveMRRR_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::v0_NaiveMRRR_SVD>(s);
@@ -201,7 +200,7 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
   svd_test_func<gen_cl, svd_cl>(
       settings.fileName, settings.SigmaMaxMinRatiosVec, settings.MatSizesVec,
       settings.n, settings.algorithmName, settings.lineNumber,
-      settings.metricsSettings);
+      settings.metricsSettings, settings.solve_with_sigmas);
 }
 
 template <typename FloatingPoint, typename MatrixType>
@@ -211,7 +210,8 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
     const std::vector<FloatingPoint> &SigmaMaxMinRatiosVec,
     const std::vector<std::pair<int, int>> &MatSizesVec, int n,
     const std::string &algorithmName, int lineNumber,
-    const std::vector<MetricSettings> &metricsSettings) {
+    const std::vector<MetricSettings> &metricsSettings,
+    bool solve_with_sigmas) {
   ++flush;
   FloatingPoint generalProgressSum = 0;
   for (const auto &MatSize : MatSizesVec) {
@@ -298,14 +298,11 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
 
           MatrixDynamic A = (U_true * S_true * V_true.transpose()).eval();
 
-          // Определяем булев флаг: для SVD_Project::RevJac_SVD нужно передавать
-          // спектр.
-          bool solve_with_sigmas = (algorithmName == "SVD_Project::RevJac_SVD");
+          bool local_solve_with_sigmas = solve_with_sigmas;
           VectorDynamic sigma_to_pass =
-              solve_with_sigmas ? S_true.diagonal().eval() : VectorDynamic();
+              local_solve_with_sigmas ? S_true.diagonal().eval() : VectorDynamic();
           auto svd_func = create_svd<svd_cl<MatrixDynamic>>(
-              A, sigma_to_pass, Eigen::ComputeFullU | Eigen::ComputeFullV,
-              solve_with_sigmas);
+              A, sigma_to_pass, Eigen::ComputeFullU | Eigen::ComputeFullV, local_solve_with_sigmas);
 
           U_calc = svd_func.matrixU();
           S_calc = svd_func.singularValues();
