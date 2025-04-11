@@ -133,18 +133,17 @@ int main() {
   //     metricsSettings
   // };
 
-  // SVDT::svd_test_funcSettings settingsRevJac{folderName +
-  // "/RevJac_table.txt",
-  //                                            sigmaRatios,
-  //                                            matrixSizes,
-  //                                            sampleCount,
-  //                                            "SVD_Project::RevJac_SVD",
-  //                                            4,
-  //                                            metricsSettings,
-  // 											  true};
+  SVDT::svd_test_funcSettings settingsRevJac{folderName + "/RevJac_table.txt",
+                                             sigmaRatios,
+                                             matrixSizes,
+                                             sampleCount,
+                                             "SVD_Project::v0_RevJac_SVD",
+                                             4,
+                                             metricsSettings,
+                                             true};
 
   std::vector<SVDT::svd_test_funcSettings> allSettings = {
-      settingsJacobi}//, settingsGivRef, settingsV0, settingsRevJac};
+      settingsJacobi};  //, settingsGivRef, settingsV0, settingsRevJac};
 
   SVDT tester(allSettings);
 

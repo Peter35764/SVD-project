@@ -114,18 +114,17 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
         this->svd_test_func<SVDGenerator, SVD_Project::GivRef_SVD>(s);
       } else if (s.algorithmName == "SVD_Project::v0_GivRef_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::v0_GivRef_SVD>(s);
-      } else if (s.algorithmName == "////SVD_Project::NaiveMRRR_SVD") {
+      } else if (s.algorithmName == "SVD_Project::NaiveMRRR_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::NaiveMRRR_SVD>(s);
       } else if (s.algorithmName == "SVD_Project::v0_NaiveMRRR_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::v0_NaiveMRRR_SVD>(s);
       } else if (s.algorithmName == "SVD_Project::RevJac_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::RevJac_SVD>(s);
       }
-      /*
-      else if (s.algorithmName == "SVD_Project::v0_RevJac_SVD") {
-        this->svd_test_func<SVDGenerator, SVD_Project::v0_RevJac_SVD>(s);
-      }
-      */
+      // TODO need to be fixed
+      // else if (s.algorithmName == "SVD_Project::v0_RevJac_SVD") {
+      //   this->svd_test_func<SVDGenerator, SVD_Project::v0_RevJac_SVD>(s);
+      // }
       // non SVD-Project algorithms
       else if (s.algorithmName == "Eigen::JacobiSVD") {
         this->svd_test_func<::SVDGenerator, Eigen::JacobiSVD>(s);
