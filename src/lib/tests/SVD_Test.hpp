@@ -1,6 +1,8 @@
 #ifndef SVD_TEST_HPP
 #define SVD_TEST_HPP
 
+#include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -8,12 +10,10 @@
 #include <iostream>
 #include <map>
 #include <random>
+#include <sstream>
+#include <stdexcept>
 #include <thread>
 #include <type_traits>
-#include <stdexcept>
-#include <sstream>
-#include <cassert>
-#include <algorithm>
 
 #include "../SVD_project.h"
 
@@ -30,16 +30,18 @@ template <typename Matrix>
 struct requires_sigma<RevJac_SVD<Matrix>> : std::true_type {};
 
 template <typename SVDClass, typename Matrix, typename Vector>
-SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options, bool solve_with_sigmas) {
-    if constexpr (requires_sigma<SVDClass>::value) {
-        if (solve_with_sigmas) {
-            return SVDClass(A, sigma, options);
-        } else {
-            throw std::invalid_argument("Алгоритм требует передачи спектра, но solve_with_sigmas == false");
-        }
+SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options,
+                    bool solve_with_sigmas) {
+  if constexpr (requires_sigma<SVDClass>::value) {
+    if (solve_with_sigmas) {
+      return SVDClass(A, sigma, options);
     } else {
-        return SVDClass(A, options);
+      throw std::invalid_argument(
+          "Алгоритм требует передачи спектра, но solve_with_sigmas == false");
     }
+  } else {
+    return SVDClass(A, options);
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -299,10 +301,12 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
           MatrixDynamic A = (U_true * S_true * V_true.transpose()).eval();
 
           bool local_solve_with_sigmas = solve_with_sigmas;
-          VectorDynamic sigma_to_pass =
-              local_solve_with_sigmas ? S_true.diagonal().eval() : VectorDynamic();
+          VectorDynamic sigma_to_pass = local_solve_with_sigmas
+                                            ? S_true.diagonal().eval()
+                                            : VectorDynamic();
           auto svd_func = create_svd<svd_cl<MatrixDynamic>>(
-              A, sigma_to_pass, Eigen::ComputeFullU | Eigen::ComputeFullV, local_solve_with_sigmas);
+              A, sigma_to_pass, Eigen::ComputeFullU | Eigen::ComputeFullV,
+              local_solve_with_sigmas);
 
           U_calc = svd_func.matrixU();
           S_calc = svd_func.singularValues();
