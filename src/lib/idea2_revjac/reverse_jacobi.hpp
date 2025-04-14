@@ -4,12 +4,10 @@
 #include <Eigen/Jacobi>
 #include <cassert>
 #include <cmath>
-#include <iostream>  // TODO delete if unused
+#include <iostream>
 #include <ostream>
 
-// necessary for correct display in ide (or clangd lsp), does not
-// affect the assembly process and can be removed
-#include "reverse_jacobi.h"
+// #include "reverse_jacobi.h"
 
 namespace SVD_Project {
 
@@ -18,7 +16,7 @@ const double TOLERANCE = 1e-10;
 
 template <typename _MatrixType>
 RevJac_SVD<_MatrixType>::RevJac_SVD(const _MatrixType& initial,
-                                    const _SingularVectorType& singularValues,
+                                    const VectorDynamic& singularValues,
                                     unsigned int computationOptions)
     : m_initialMatrix(initial), m_singularValues(singularValues) {
   Index cols = initial.cols();
@@ -35,7 +33,7 @@ RevJac_SVD<_MatrixType>::RevJac_SVD(const _MatrixType& initial,
 
 template <typename _MatrixType>
 RevJac_SVD<_MatrixType>::RevJac_SVD(const _MatrixType& initial,
-                                    const _SingularVectorType& singularValues,
+                                    const VectorDynamic& singularValues,
                                     std::ostream* os,
                                     unsigned int computationOptions)
     : m_initialMatrix(initial), m_singularValues(singularValues) {
@@ -57,7 +55,8 @@ template <typename _MatrixType>
 RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::compute() {
   for (size_t i = 0; i < MAX_ITERATIONS; i++) {
     assert(m_singularValues.rows() ==
-           std::min(m_initialMatrix.rows(), m_initialMatrix.cols()));
+               std::min(m_initialMatrix.rows(), m_initialMatrix.cols()) &&
+           "Singular value vector size and matrix size do not match");
     iterate();
     if (convergenceReached()) {
       break;
