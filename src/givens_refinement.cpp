@@ -1,20 +1,20 @@
+#include "lib/idea1_givref/givens_refinement.h"
+
 #include <Eigen/Jacobi>
 #include <cmath>     // abs, sqrt
 #include <iomanip>   // setprecision
 #include <iostream>  // cout
-// Проверка кода
 
+// Проверка кода
 // ROTResult :: { cs :: Float, sn :: Float, r :: Float }
 struct ROTdeps {
   float cs, sn, r;
 };
-
 // after test should be optimized or replaced with Eigen if it would prove
 // itself sufficient naiveImplementation :: Float -> Float -> ROTdeps, based on
 // lawn03.pdf, JUST for comparison with Eigen's impl
 ROTdeps naiveImplementation(float f, float g) {
   ROTdeps result;
-
   if (f == 0.0f) {
     result.cs = 0.0f;
     result.sn = 1.0f;
@@ -32,29 +32,22 @@ ROTdeps naiveImplementation(float f, float g) {
     result.cs = t * result.sn;
     result.r = g * u;
   }
-
   return result;
 }
-
 // testROTImplementations :: Float -> Float -> Float -> Bool, epsilon to compare
 // floats
 bool testROTImplementations(float f, float g, float epsilon = 1e-6f) {
   using namespace std;
   using namespace Eigen;
-
   ROTdeps paper = naiveImplementation(f, g);
-
   JacobiRotation<float> eigen;
   float r;
   eigen.makeGivens(f, g, &r);
-
   bool cs_match = std::abs(paper.cs - eigen.c()) <= epsilon;
   bool sn_match = std::abs(std::abs(paper.sn) - std::abs(eigen.s())) <= epsilon;
   bool r_match = std::abs(paper.r - r) <= epsilon;
-
   float result1 = eigen.c() * f - eigen.s() * g;
   float result2 = eigen.s() * f + eigen.c() * g;
-
   cout << "Eigen: {cs=" << eigen.c() << ", sn=" << eigen.s() << ", r=" << r
        << "}\n";  // In the end we shall prefer Eigen implementations, so
                   // comparing from it
@@ -63,21 +56,51 @@ bool testROTImplementations(float f, float g, float epsilon = 1e-6f) {
        << "\n";  // comparing up to epsilon beacuse of float
   cout << "Verify ROT: [" << result1 << "; " << result2
        << "] should be [r, ~0]\n";  //  [cs -sn; sn cs][f; g] = [r; 0]
-
   return cs_match && sn_match && r_match;
+}
+
+// Test our GivRef_SVD implementation
+void testGivRefSVD() {
+  using namespace std;
+  using namespace Eigen;
+
+  // Create a test matrix
+  MatrixXf testMatrix(3, 3);
+  testMatrix << 1, 2, 3, 4, 5, 6, 7, 8, 9;
+
+  // Create singular values
+  VectorXf sValues(3);
+  sValues << 10, 5, 1;
+
+  // Test with stream output
+  cout << "\n\nTesting GivRef_SVD with divergence stream:\n";
+  SVD_Project::GivRef_SVD<MatrixXf> svd(testMatrix);
+  svd.setDivergenceOstream(&cout);
+  svd.compute(testMatrix);
+
+  cout << "\nComputed singular values: " << svd.singularValues().transpose()
+       << endl;
+
+  // Test with constructor taking singular values
+  cout << "\nTesting GivRef_SVD with provided singular values:\n";
+  SVD_Project::GivRef_SVD<MatrixXf> svd2(testMatrix, sValues);
+  svd2.setDivergenceOstream(&cout);
+  svd2.compute(testMatrix);
+
+  cout << "\nComputed singular values: " << svd2.singularValues().transpose()
+       << endl;
 }
 
 int main() {
   using namespace std;
   using namespace Eigen;
-  Eigen::Matrix<float, Dynamic, Dynamic> A(10, 9);
+  Matrix<float, Dynamic, Dynamic> A(10, 9);
   A << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
       21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
       39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
       57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 68, 70, 71, 72, 73, 74,
       75, 76, 77, 78, 79, 80, 81, 3, 9, (float)4.98942, (float)0.324235, 443534,
       345, (float)56.543853, (float)450.435234, (float)43.34353221;
-
   cout << A << endl
        << endl
        << endl
@@ -87,15 +110,12 @@ int main() {
        << endl
        << endl
        << endl;
-
   //
   //
   // Testing ROT
   //
   //
-
   cout << fixed << setprecision(10);
-
   cout << "Testcase 1: f = 0\n";
   testROTImplementations(0.0f, 1.0f);
   cout << "\n";
@@ -113,6 +133,8 @@ int main() {
   cout << "\n";
   cout << "Testcase 6: Matrix values\n";
   testROTImplementations(A(0, 0), A(1, 0));
+
+  testGivRefSVD();
 
   return 0;
 }
