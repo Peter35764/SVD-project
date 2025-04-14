@@ -2,7 +2,9 @@
 #define REVERSE_JACOBI_HPP
 
 #include <Eigen/Jacobi>
+#include <cmath>
 #include <iostream>  // TODO delete if unused
+#include <ostream>
 
 // necessary for correct display in ide (or clangd lsp), does not
 // affect the assembly process and can be removed
@@ -27,7 +29,12 @@ RevJac_SVD<_MatrixType>::RevJac_SVD(const _MatrixType& initial,
   m_currentMatrix =
       m_matrixU * m_singularValues.asDiagonal() * m_transposedMatrixV;
 
-  this->compute();
+  // this->compute();
+}
+
+template <typename _MatrixType>
+void RevJac_SVD<_MatrixType>::setDivergenceOstream(std::ostream* os) {
+  m_divOstream = os;
 }
 
 template <typename _MatrixType>
@@ -46,6 +53,12 @@ void RevJac_SVD<_MatrixType>::iterate() {
   updateDifference();
 
   calculateBiggestDifference();
+
+  if (m_divOstream) {
+    *m_divOstream << std::to_string(
+                         std::abs(m_differenceMatrix(m_currentI, m_currentJ)))
+                  << std::endl;
+  }
 
   if (m_lastRotation == Rotation::Left) {
     m_transposedMatrixV.applyOnTheRight(

@@ -103,6 +103,7 @@ void test_RevJac_SVD() {
   }
 
   SVD_Project::RevJac_SVD<Eigen::MatrixXd> algorithm(A_well_cond, S);
+  algorithm.setDivergenceOstream(&std::cout);
   algorithm.compute();
 
   std::cout << "1\n";
