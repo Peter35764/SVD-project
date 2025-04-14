@@ -21,15 +21,17 @@ class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
   RevJac_SVD(const _MatrixType& initial,
              const _SingularVectorType& singularValues,
              unsigned int computationOptions = 0);
+  RevJac_SVD(const _MatrixType& initial,
+             const _SingularVectorType& singularValues, std::ostream* os,
+             unsigned int computationOptions = 0);
   RevJac_SVD& compute();
+  RevJac_SVD& compute(std::ostream* os);
 
   const MatrixDynamic& matrixU() const { return m_matrixU; }
   const MatrixDynamic& matrixV() const {
     return m_transposedMatrixV;  // Crashes if .transpose() used.
   }
   const _SingularVectorType& singularValues() const { return m_singularValues; }
-
-  void setDivergenceOstream(std::ostream* os);
 
  private:
   MatrixDynamic m_matrixU;

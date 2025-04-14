@@ -29,12 +29,27 @@ RevJac_SVD<_MatrixType>::RevJac_SVD(const _MatrixType& initial,
   m_currentMatrix =
       m_matrixU * m_singularValues.asDiagonal() * m_transposedMatrixV;
 
-  // this->compute();
+  this->compute();
 }
 
 template <typename _MatrixType>
-void RevJac_SVD<_MatrixType>::setDivergenceOstream(std::ostream* os) {
+RevJac_SVD<_MatrixType>::RevJac_SVD(const _MatrixType& initial,
+                                    const _SingularVectorType& singularValues,
+                                    std::ostream* os,
+                                    unsigned int computationOptions)
+    : m_initialMatrix(initial), m_singularValues(singularValues) {
+  Index cols = initial.cols();
+  Index rows = initial.rows();
+
+  m_matrixU = MatrixDynamic::Identity(rows, rows);
+  m_transposedMatrixV = MatrixDynamic::Identity(cols, cols);
+  m_lastRotation = Rotation::Left;
+  m_currentMatrix =
+      m_matrixU * m_singularValues.asDiagonal() * m_transposedMatrixV;
+
   m_divOstream = os;
+
+  this->compute();
 }
 
 template <typename _MatrixType>
@@ -46,6 +61,12 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::compute() {
     }
   }
   return *this;
+};
+
+template <typename _MatrixType>
+RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::compute(std::ostream* os) {
+  m_divOstream = os;
+  return this->compute();
 };
 
 template <typename _MatrixType>
