@@ -1,9 +1,9 @@
-#include "reverse_jacobi.h"
-
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <iostream>
 #include <ostream>
+
+#include "lib/SVD_project.h"
 
 Eigen::MatrixXd randomOrthogonalMatrix(size_t n) {
   Eigen::MatrixXd M(n, n);
@@ -102,8 +102,8 @@ void test_RevJac_SVD() {
     S(i) = 1.0;
   }
 
-  SVD_Project::RevJac_SVD<Eigen::MatrixXd> algorithm(A_well_cond, S);
-  algorithm.compute();
+  SVD_Project::RevJac_SVD<Eigen::MatrixXd> algorithm(A_well_cond, S,
+                                                     &std::cout);
 
   std::cout << "1\n";
   std::cout << U << std::endl << algorithm.matrixU() << std::endl;

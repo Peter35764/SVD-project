@@ -2,7 +2,10 @@
 #define REVERSE_JACOBI_HPP
 
 #include <Eigen/Jacobi>
+#include <cassert>
+#include <cmath>
 #include <iostream>  // TODO delete if unused
+#include <ostream>
 
 // necessary for correct display in ide (or clangd lsp), does not
 // affect the assembly process and can be removed
@@ -31,8 +34,30 @@ RevJac_SVD<_MatrixType>::RevJac_SVD(const _MatrixType& initial,
 }
 
 template <typename _MatrixType>
+RevJac_SVD<_MatrixType>::RevJac_SVD(const _MatrixType& initial,
+                                    const _SingularVectorType& singularValues,
+                                    std::ostream* os,
+                                    unsigned int computationOptions)
+    : m_initialMatrix(initial), m_singularValues(singularValues) {
+  Index cols = initial.cols();
+  Index rows = initial.rows();
+
+  m_matrixU = MatrixDynamic::Identity(rows, rows);
+  m_transposedMatrixV = MatrixDynamic::Identity(cols, cols);
+  m_lastRotation = Rotation::Left;
+  m_currentMatrix =
+      m_matrixU * m_singularValues.asDiagonal() * m_transposedMatrixV;
+
+  m_divOstream = os;
+
+  this->compute();
+}
+
+template <typename _MatrixType>
 RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::compute() {
   for (size_t i = 0; i < MAX_ITERATIONS; i++) {
+    assert(m_singularValues.rows() ==
+           std::min(m_initialMatrix.rows(), m_initialMatrix.cols()));
     iterate();
     if (convergenceReached()) {
       break;
@@ -42,10 +67,22 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::compute() {
 };
 
 template <typename _MatrixType>
+RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::compute(std::ostream* os) {
+  m_divOstream = os;
+  return this->compute();
+};
+
+template <typename _MatrixType>
 void RevJac_SVD<_MatrixType>::iterate() {
   updateDifference();
 
   calculateBiggestDifference();
+
+  if (m_divOstream) {
+    *m_divOstream << std::to_string(
+                         std::abs(m_differenceMatrix(m_currentI, m_currentJ)))
+                  << std::endl;
+  }
 
   if (m_lastRotation == Rotation::Left) {
     m_transposedMatrixV.applyOnTheRight(

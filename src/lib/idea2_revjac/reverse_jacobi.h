@@ -2,6 +2,7 @@
 #define REVERSE_JACOBI_H
 
 #include <Eigen/SVD>
+#include <ostream>
 
 namespace SVD_Project {
 
@@ -20,7 +21,11 @@ class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
   RevJac_SVD(const _MatrixType& initial,
              const _SingularVectorType& singularValues,
              unsigned int computationOptions = 0);
+  RevJac_SVD(const _MatrixType& initial,
+             const _SingularVectorType& singularValues, std::ostream* os,
+             unsigned int computationOptions = 0);
   RevJac_SVD& compute();
+  RevJac_SVD& compute(std::ostream* os);
 
   const MatrixDynamic& matrixU() const { return m_matrixU; }
   const MatrixDynamic& matrixV() const {
@@ -37,6 +42,8 @@ class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
   _MatrixType m_differenceMatrix;
   Rotation m_lastRotation;
   Index m_currentI, m_currentJ;
+
+  std::ostream* m_divOstream;
 
   void iterate();
   bool convergenceReached() const;
