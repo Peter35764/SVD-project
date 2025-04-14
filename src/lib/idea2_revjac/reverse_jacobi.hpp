@@ -2,6 +2,7 @@
 #define REVERSE_JACOBI_HPP
 
 #include <Eigen/Jacobi>
+#include <cassert>
 #include <cmath>
 #include <iostream>  // TODO delete if unused
 #include <ostream>
@@ -55,6 +56,10 @@ RevJac_SVD<_MatrixType>::RevJac_SVD(const _MatrixType& initial,
 template <typename _MatrixType>
 RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::compute() {
   for (size_t i = 0; i < MAX_ITERATIONS; i++) {
+    static_assert(
+        m_singularValues.rows() ==
+            std::min(m_initialMatrix.rows(), m_initialMatrix.cols()),
+        "Singular value vector size and initial matrix size do not match");
     iterate();
     if (convergenceReached()) {
       break;
