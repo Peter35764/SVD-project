@@ -14,7 +14,9 @@
 #include <stdexcept>
 #include <thread>
 #include <type_traits>
+#include <semaphore>
 
+#include "config.h"
 #include "../SVD_project.h"
 
 // #include "config.h"
@@ -106,13 +108,15 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
   std::vector<std::pair<std::string, double>> test_times;
   std::vector<std::thread> threads;
 
+  std::counting_semaphore<THREADS> sem(THREADS);
+
   auto overall_start = std::chrono::high_resolution_clock::now();
 
   for (const auto &s : vec_settings) {
-    threads.emplace_back([this, s, &test_times, &dur_mutex]() {
+    sem.acquire();
+    threads.emplace_back([this, s, &test_times, &dur_mutex, &sem]() {
       auto t_start = std::chrono::high_resolution_clock::now();
 
-      // Для RevJac_SVD используется конструктор с передачей спектра
       if (s.algorithmName == "SVD_Project::GivRef_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::GivRef_SVD>(s);
       } else if (s.algorithmName == "SVD_Project::v0_GivRef_SVD") {
@@ -126,7 +130,6 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
       } else if (s.algorithmName == "SVD_Project::v0_RevJac_SVD") {
         this->svd_test_func<SVDGenerator, SVD_Project::v0_RevJac_SVD>(s);
       }
-      // non SVD-Project algorithms
       else if (s.algorithmName == "Eigen::JacobiSVD") {
         this->svd_test_func<::SVDGenerator, Eigen::JacobiSVD>(s);
       }
@@ -137,6 +140,7 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
         std::lock_guard<std::mutex> lock(dur_mutex);
         test_times.emplace_back(s.algorithmName, duration);
       }
+      sem.release();
     });
   }
 
@@ -223,7 +227,6 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
   // Диапазоны для генерации сингулярных значений.
   const std::vector<std::pair<FloatingPoint, FloatingPoint>> Intervals = {
       {0, 1}, {1, 100}};
-
   FloatingPoint ProgressCoeff = n * Intervals.size() *
                                 SigmaMaxMinRatiosVec.size() *
                                 generalProgressSum / 100.0;
@@ -274,10 +277,8 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
 
         std::uniform_real_distribution<FloatingPoint> distrSigmaMin(
             interval.first, interval.second / SigmaMaxMinRatio);
-
         FloatingPoint sigma_min = distrSigmaMin(gen);
         FloatingPoint sigma_max = SigmaMaxMinRatio * sigma_min;
-
         // Определение допустимого промежутка сингулярных значений
         std::uniform_real_distribution<FloatingPoint> distr(sigma_min,
                                                             sigma_max);
@@ -340,8 +341,7 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
             std::cout << "\033[" << lineNumber << ";0H" << progressStream.str()
                       << "\033[0K" << std::flush;
           }
-        }  // Конец итераций для данного набора параметров.
-
+        } // Конец итераций для данного набора параметров
         for (auto &pair : results) {
           pair.second /= n;
         }
