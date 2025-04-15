@@ -97,6 +97,8 @@ class SVD_Test {
   template <template <typename> class gen_cl, template <typename> class svd_cl>
   void svd_test_func(svd_test_funcSettings settings);
 
+  static void compareMatrices(const std::string &algoName, int rows, int cols, std::ostream &out);
+
  protected:
   template <template <typename> class gen_cl, template <typename> class svd_cl>
   void svd_test_func(std::string fileName,

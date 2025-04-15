@@ -223,7 +223,6 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
   for (const auto &MatSize : MatSizesVec) {
     generalProgressSum += (MatSize.first * MatSize.second);
   }
-
   // Диапазоны для генерации сингулярных значений.
   const std::vector<std::pair<FloatingPoint, FloatingPoint>> Intervals = {
       {0, 1}, {1, 100}};
@@ -387,46 +386,6 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
 }
 
 template <typename FloatingPoint, typename MatrixType>
-void SVD_Test<FloatingPoint, MatrixType>::printTable(
-    std::ostream &out, const std::vector<std::vector<std::string>> &data) {
-  if (data.empty()) return;
-  std::vector<size_t> widths;
-  for (const auto &row : data) {
-    for (size_t i = 0; i < row.size(); ++i) {
-      if (i >= widths.size())
-        widths.push_back(row[i].size());
-      else
-        widths[i] = std::max(widths[i], row[i].size());
-    }
-  }
-  for (const auto &row : data) {
-    for (size_t i = 0; i < row.size(); ++i) {
-      out << std::left << std::setw(widths[i] + 3) << row[i];
-      if (i < row.size() - 1) out << "\t";
-    }
-    out << "\n";
-  }
-}
-
-template <typename FloatingPoint, typename MatrixType>
-void SVD_Test<FloatingPoint, MatrixType>::printCSV(
-    std::ostream &out, const std::vector<std::vector<std::string>> &data) {
-  for (size_t r = 0; r < data.size(); ++r) {
-    bool first = true;
-    for (size_t i = 0; i < data[r].size(); ++i) {
-      if (!first) out << ",";
-      std::string cellFormatted = data[r][i];
-      if (cellFormatted.find(',') != std::string::npos) {
-        cellFormatted = "\"" + cellFormatted + "\"";
-      }
-      out << cellFormatted;
-      first = false;
-    }
-    out << "\n";
-  }
-}
-
-template <typename FloatingPoint, typename MatrixType>
 std::string SVD_Test<FloatingPoint, MatrixType>::num2str(FloatingPoint value) {
   std::ostringstream oss;
   oss << value;
@@ -540,6 +499,138 @@ FloatingPoint SVD_Test<FloatingPoint, MatrixType>::count_metrics(
       break;
   }
   return ans;
+}
+
+// Реализация статического метода compareMatrices.
+// compareMatrices должна принимать название алгоритма, размеры матрицы
+// и поток. Она выводит изначальную матрицу, собранную матрицу и процент совпавших знаков.
+template <typename FloatingPoint, typename MatrixType>
+void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(const std::string &algoName, int rows, int cols, std::ostream &out) {
+  std::random_device rd;
+  std::default_random_engine gen(rd());
+  std::uniform_real_distribution<FloatingPoint> distr(-100, 100);
+  MatrixDynamic A(rows, cols);
+  for (int i = 0; i < rows; ++i)
+    for (int j = 0; j < cols; ++j)
+      A(i, j) = distr(gen);
+
+  MatrixDynamic U_calc, V_calc;
+  VectorDynamic S_calc;
+
+  // Для алгоритмов.
+  if (algoName == "Eigen::JacobiSVD") {
+    Eigen::JacobiSVD<MatrixDynamic> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    U_calc = svd.matrixU();
+    S_calc = svd.singularValues();
+    V_calc = svd.matrixV();
+  } else if (algoName == "SVD_Project::GivRef_SVD") {
+    SVD_Project::GivRef_SVD<MatrixDynamic> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    U_calc = svd.matrixU();
+    S_calc = svd.singularValues();
+    V_calc = svd.matrixV();
+  } else if (algoName == "SVD_Project::v0_GivRef_SVD") {
+    SVD_Project::v0_GivRef_SVD<MatrixDynamic> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    U_calc = svd.matrixU();
+    S_calc = svd.singularValues();
+    V_calc = svd.matrixV();
+  } else if (algoName == "SVD_Project::NaiveMRRR_SVD") {
+    SVD_Project::NaiveMRRR_SVD<MatrixDynamic> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    U_calc = svd.matrixU();
+    S_calc = svd.singularValues();
+    V_calc = svd.matrixV();
+  } else if (algoName == "SVD_Project::v0_NaiveMRRR_SVD") {
+    SVD_Project::v0_NaiveMRRR_SVD<MatrixDynamic> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    U_calc = svd.matrixU();
+    S_calc = svd.singularValues();
+    V_calc = svd.matrixV();
+  }
+  // Для RevJac-алгоритмов требуется передать сингулярный вектор, который вычисляется с помощью JacobiSVD.
+  else if (algoName == "SVD_Project::RevJac_SVD") {
+    {
+      Eigen::JacobiSVD<MatrixDynamic> svd_ref(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      VectorDynamic sigma_to_pass = svd_ref.singularValues();
+      SVD_Project::RevJac_SVD<MatrixDynamic> svd(A, sigma_to_pass, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      U_calc = svd.matrixU();
+      S_calc = svd.singularValues();
+      V_calc = svd.matrixV();
+    }
+  } else if (algoName == "SVD_Project::v0_RevJac_SVD") {
+    {
+      Eigen::JacobiSVD<MatrixDynamic> svd_ref(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      VectorDynamic sigma_to_pass = svd_ref.singularValues();
+      SVD_Project::v0_RevJac_SVD<MatrixDynamic> svd(A, sigma_to_pass, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      U_calc = svd.matrixU();
+      S_calc = svd.singularValues();
+      V_calc = svd.matrixV();
+    }
+  } else {
+    throw std::invalid_argument("Unknown algorithm name: " + algoName);
+  }
+
+  MatrixDynamic S = MatrixDynamic::Zero(rows, cols);
+  int min_dim = std::min(rows, cols);
+  for (int i = 0; i < min_dim; ++i)
+    S(i, i) = S_calc(i);
+
+  MatrixDynamic A_rec = U_calc * S * V_calc.transpose();
+
+  auto sign = [](FloatingPoint val) -> int {
+    return (val > 0) - (val < 0);
+  };
+
+  int count = 0;
+  int total = rows * cols;
+  for (int i = 0; i < rows; ++i)
+    for (int j = 0; j < cols; ++j)
+      if (sign(A(i, j)) == sign(A_rec(i, j))) ++count;
+
+  FloatingPoint percent = 100.0 * count / total;
+  out << "Algorithm: " << algoName << "\n";
+  out << "Original Matrix:\n" << A << "\n";
+  out << "Reconstructed Matrix:\n" << A_rec << "\n";
+  out << "Percentage of matching signs: " << percent << "%\n";
+}
+
+// Реализация метода printTable.
+template <typename FloatingPoint, typename MatrixType>
+void SVD_Test<FloatingPoint, MatrixType>::printTable(
+    std::ostream &out, const std::vector<std::vector<std::string>> &data) {
+  if (data.empty()) return;
+  std::vector<size_t> widths;
+  for (const auto &row : data) {
+    for (size_t i = 0; i < row.size(); ++i) {
+      if (i >= widths.size())
+        widths.push_back(row[i].size());
+      else
+        widths[i] = std::max(widths[i], row[i].size());
+    }
+  }
+  for (const auto &row : data) {
+    for (size_t i = 0; i < row.size(); ++i) {
+      out << std::left << std::setw(widths[i] + 3) << row[i];
+      if (i < row.size() - 1) out << "\t";
+    }
+    out << "\n";
+  }
+}
+
+// Реализация метода printCSV.
+template <typename FloatingPoint, typename MatrixType>
+void SVD_Test<FloatingPoint, MatrixType>::printCSV(
+    std::ostream &out, const std::vector<std::vector<std::string>> &data) {
+  for (size_t r = 0; r < data.size(); ++r) {
+    bool first = true;
+    for (size_t i = 0; i < data[r].size(); ++i) {
+      if (!first) out << ",";
+      std::string cellFormatted = data[r][i];
+      if (cellFormatted.find(',') != std::string::npos) {
+        cellFormatted = "\"" + cellFormatted + "\"";
+      }
+      out << cellFormatted;
+      first = false;
+    }
+    out << "\n";
+  }
 }
 
 };  // namespace SVD_Project
