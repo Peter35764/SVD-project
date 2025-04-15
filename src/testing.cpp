@@ -148,6 +148,10 @@ int main() {
 
   SVDT tester(allSettings);
 
+  // Пример использования статического метода compareMatrices с выбранным алгоритмом.
+  SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5, std::cout);
+  SVDT::compareMatrices("SVD_Project::v0_RevJac_SVD", 5, 5, std::cout);
+
   std::cout << "\nResults have been saved in folder: " << folderName << "\n";
   std::cin.get();
 	// idea 4: интеграция нового алгоритма - NaiveBidiagSVD
