@@ -150,5 +150,34 @@ int main() {
 
   std::cout << "\nResults have been saved in folder: " << folderName << "\n";
   std::cin.get();
+	// idea 4: интеграция нового алгоритма - NaiveBidiagSVD
+	//thread_semaphore.acquire();
+	//std::thread t5([&]() {
+	//    std::string algo_name = "NaiveBidiagSVD";
+	//   std::string file_name = "naive_bidiag_table.txt";
+	 //   auto t_start = std::chrono::high_resolution_clock::now();
+	 //   svd_test_func<double, SVDGenerator, SVD_Project::NaiveBidiagSVD>(
+	 //       file_name,
+	  //      sigma_ratio,
+	  //      matrix_size,
+	 //       matrix_num_for_sample_averaging,
+	 //       algo_name,
+	 //       flush_string++,
+	 //       metricsToShow);
+	 //   auto t_end = std::chrono::high_resolution_clock::now();
+	//    double duration = std::chrono::duration<double>(t_end - t_start).count();
+	//    {
+	 //       std::lock_guard<std::mutex> lock(test_times_mutex);
+	 //       test_times.emplace_back(algo_name, duration);
+	 //   }
+	 //   thread_semaphore.release();
+	//});
+
+
+	//t1.join();
+	//t2.join();
+	//t3.join();
+	//t4.join();
+	//t5.join();
   return 0;
 }
