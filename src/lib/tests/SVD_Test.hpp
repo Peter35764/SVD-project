@@ -131,7 +131,7 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
         this->svd_test_func<SVDGenerator, SVD_Project::v0_RevJac_SVD>(s);
       }
       else if (s.algorithmName == "Eigen::JacobiSVD") {
-        this->svd_test_func<::SVDGenerator, Eigen::JacobiSVD>(s);
+        this->svd_test_func<SVDGenerator, Eigen::JacobiSVD>(s);
       }
 
       auto t_end = std::chrono::high_resolution_clock::now();
