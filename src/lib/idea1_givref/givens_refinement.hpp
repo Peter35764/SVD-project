@@ -10,8 +10,8 @@ namespace SVD_Project {
 template <typename _MatrixType>
 GivRef_SVD<_MatrixType>::GivRef_SVD(const _MatrixType &matrix,
                                     unsigned int computationOptions)
-    : m_divOstream(nullptr) {
-  initialize(matrix, computationOptions);
+    : m_divOstream(nullptr), has_true_sigm(false) {
+  compute(matrix, computationOptions);
 }
 
 template <typename _MatrixType>
@@ -19,11 +19,14 @@ GivRef_SVD<_MatrixType>::GivRef_SVD(
     const _MatrixType &matrix,
     const typename Base::SingularValuesType &singularValues,
     unsigned int computationOptions)
-    : m_singularValues(singularValues), m_divOstream(nullptr) {
+    : m_singularValues(singularValues),
+      m_divOstream(nullptr),
+      has_true_sigm(
+          true) {  // we DO need to diff constructors, even if its dirty
   // Runtime assertion
   assert(singularValues.rows() == std::min(matrix.rows(), matrix.cols()) &&
          "Singular value vector size and matrix size do not match");
-  initialize(matrix, computationOptions);
+  compute(matrix, computationOptions);
 }
 
 template <typename _MatrixType>
@@ -31,22 +34,36 @@ GivRef_SVD<_MatrixType>::GivRef_SVD(
     const _MatrixType &matrix,
     const typename Base::SingularValuesType &singularValues, std::ostream *os,
     unsigned int computationOptions)
-    : m_singularValues(singularValues), m_divOstream(os) {
-  // Runtime assertion
+    : m_singularValues(singularValues),
+      m_divOstream(os),
+      has_true_sigm(true) {  // see note above
   assert(singularValues.rows() == std::min(matrix.rows(), matrix.cols()) &&
          "Singular value vector size and matrix size do not match");
-  initialize(matrix, computationOptions);
+  compute(matrix, computationOptions);
 }
 
+// Actual compute
 template <typename _MatrixType>
 GivRef_SVD<_MatrixType> &GivRef_SVD<_MatrixType>::compute(
     const _MatrixType &matrix, unsigned int computationOptions) {
-  // Runtime assertion
-  if (m_singularValues.size() > 0) {
+  if (has_true_sigm && m_singularValues.size() > 0) {
     assert(m_singularValues.rows() == std::min(matrix.rows(), matrix.cols()) &&
            "Singular value vector size and matrix size do not match");
   }
-  initialize(matrix, computationOptions);
+
+  setupMatrices(matrix);  // Setup and init
+
+  // QR iters and old tol
+  using Scalar = typename _MatrixType::Scalar;
+  Scalar eps = std::numeric_limits<Scalar>::epsilon();
+  Scalar tol = eps * std::pow(Scalar(10), Scalar(0.125));  // As per paper
+  int max_iter = 100;
+
+  iterQRtillConv(tol, max_iter);
+
+  // Finalize the decomposition
+  fixFormatResults();
+
   return *this;
 }
 
@@ -63,9 +80,97 @@ void GivRef_SVD<_MatrixType>::setDivergenceOstream(std::ostream *os) {
   m_divOstream = os;
 }
 
+// Setup and init
+template <typename _MatrixType>
+void GivRef_SVD<_MatrixType>::setupMatrices(const _MatrixType &matrix) {
+  m = matrix.rows();
+  n_cols = matrix.cols();
+  n = std::min(m, n_cols);
+  trigonom_i = 0;
+  iter_num = 0;
+
+  // Init rot mats
+  left_J = MatrixDynamic::Zero(m, m);
+  right_J = MatrixDynamic::Zero(n_cols, n_cols);
+  // Then set them as identity matrices
+  left_J.setIdentity();
+  right_J.setIdentity();
+
+  // Bidiagonalize the input matrix
+  auto bid = Eigen::internal::UpperBidiagonalization<_MatrixType>(matrix);
+  B = bid.bidiagonal();
+  sigm_B = B;
+
+  if (has_true_sigm) {  // thats why we diff them
+    // but we DO eat provided singular values if available
+    true_sigm_B = MatrixDynamic::Zero(m, n_cols);
+    true_sigm_B.diagonal() = m_singularValues;
+  } else {
+    // If we somehow fuck up - we rollback for jacobi svd, implying that we
+    // DO NOT want to use it mainly. Again, NOT for direct use, main method is
+    // providing sing values
+    Eigen::JacobiSVD<_MatrixType> svd(
+        matrix, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    true_sigm_B = MatrixDynamic::Zero(m, n_cols);
+    true_sigm_B.diagonal() = svd.singularValues().head(n);
+  }
+
+  // Alloc for rotations
+  int max_iter = 100;
+  int total_rotations = 2 * max_iter * (n - 1);
+  Cosines.resize(total_rotations);
+  Sines.resize(total_rotations);
+  Tans.resize(total_rotations);
+  NewCosines.resize(total_rotations);
+  NewSines.resize(total_rotations);
+}
+
+// Main steps QR till conv/stop criterion
+template <typename _MatrixType>
+void GivRef_SVD<_MatrixType>::iterQRtillConv(
+    typename _MatrixType::Scalar tol, int max_iter) {
+  using Scalar = typename _MatrixType::Scalar;
+
+  Scalar divergence = (sigm_B - true_sigm_B).norm();  // init div
+
+  if (m_divOstream) {  // output if we do have stream
+    *m_divOstream << divergence << std::endl;
+  }
+
+  for (int i = 0; i < max_iter; i++) {  // until conv or max_iter
+    Impl_QR_zero_iter();
+    iter_num++;
+
+    divergence = (sigm_B - true_sigm_B).norm();  // update div
+    if (m_divOstream) {
+      *m_divOstream << divergence << std::endl;
+    }
+
+    // Convergence and zeroing if appl
+    if (isConvergedSafely(tol, max_iter)) {
+      break;  // has converged
+    }
+  }
+
+  // Store the rotation parameters
+  NewCosines = Cosines;
+  NewSines = Sines;
+}
+
+// Format/fix the SVD results according to impl nuances
+template <typename _MatrixType>
+void GivRef_SVD<_MatrixType>::fixFormatResults() {
+  revert_negative_singular();  // ensure positivity
+
+  // Set the final decomposition matrices
+  m_matrixU = left_J.transpose();
+  m_matrixV = right_J;
+  m_singularValues = sigm_B.diagonal().head(n);
+}
+
 template <typename _MatrixType>
 bool GivRef_SVD<_MatrixType>::isConvergedSafely(
-    typename _MatrixType::Scalar tol, int max_iter) const {
+    typename _MatrixType::Scalar tol, int max_iter) {
   if (n < 2) return true;  // Trivial for 1×1 matrices
   using Scalar = typename _MatrixType::Scalar;
   const Scalar eps = std::numeric_limits<Scalar>::epsilon();
@@ -131,65 +236,6 @@ bool GivRef_SVD<_MatrixType>::isConvergedSafely(
     }
   }
   return all_converged;
-}
-
-template <typename _MatrixType>
-void GivRef_SVD<_MatrixType>::initialize(const _MatrixType &matrix,
-                                         unsigned int computationOptions) {
-  int m = matrix.rows();
-  int n_cols = matrix.cols();
-  n = std::min(m, n_cols);
-  trigonom_i = 0;
-  iter_num = 0;
-  left_J = MatrixDynamic::Identity(m, m);
-  right_J = MatrixDynamic::Identity(n_cols, n_cols);
-  auto bid = Eigen::internal::UpperBidiagonalization<_MatrixType>(matrix);
-  B = bid.bidiagonal();
-  sigm_B = B;
-  Eigen::JacobiSVD<_MatrixType> svd(matrix,
-                                    Eigen::ComputeFullU | Eigen::ComputeFullV);
-  true_sigm_B = MatrixDynamic::Zero(m, n_cols);
-  true_sigm_B.diagonal() = svd.singularValues().head(n);
-  using Scalar = typename _MatrixType::Scalar;
-  Scalar eps = std::numeric_limits<Scalar>::epsilon();
-  Scalar tol =
-      eps * std::pow(Scalar(10),
-                     Scalar(0.125));  // A positive value following paper update
-  int max_iter = 100;
-  int total_rotations = 2 * max_iter * (n - 1);
-  Cosines.resize(total_rotations);
-  Sines.resize(total_rotations);
-  Tans.resize(total_rotations);
-  NewCosines.resize(total_rotations);
-  NewSines.resize(total_rotations);
-
-  // Calculate init. divergence (Frobenius norm)
-  Scalar divergence = (sigm_B - true_sigm_B).norm();
-
-  // Output divergence if stream is set
-  if (m_divOstream) {
-    *m_divOstream << divergence << std::endl;
-  }
-
-  for (int i = 0; i < max_iter; i++) {
-    Impl_QR_zero_iter();
-    iter_num++;
-
-    divergence = (sigm_B - true_sigm_B).norm();  // after each iter
-    if (m_divOstream) {
-      *m_divOstream << divergence << std::endl;
-    }
-
-    if (isConvergedSafely(tol, max_iter)) {
-      break;
-    }
-  }
-  NewCosines = Cosines;
-  NewSines = Sines;
-  revert_negative_singular();
-  m_matrixU = left_J.transpose();
-  m_matrixV = right_J;
-  m_singularValues = sigm_B.diagonal().head(n);
 }
 
 template <typename _MatrixType>
