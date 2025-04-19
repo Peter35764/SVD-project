@@ -13,38 +13,6 @@ Eigen::MatrixXd randomOrthogonalMatrix(size_t n) {
       .householderQ();  // Returns Q, an orthogonal matrix in QR decomposition
 }
 
-/* Test of all matrix norms presented in Eigen worth looking into:
- *
- * - norm() - for vectors, the l2 norm of *this, and for matrices the Frobenius
- *   norm. In both cases, it consists in the square root of the sum of the
- *   square of all the matrix entries. For vectors, this is also equals to the
- *   square root of the dot product of *this with itself.
- *
- * - operatorNorm() - Computes the l2 operator norm.
- *
- * - squaredNorm() - for vectors, the squared l2 norm of *this, and for matrices
- *   the squared Frobenius norm. In both cases, it consists in the sum of the
- *   square of all the matrix entries. For vectors, this is also equals to the
- *   dot product of *this with itself.
- *
- * - lpNorm() - the coefficient-wise l^p norm of *this, that is, returns the
- *   p-th root of the sum of the p-th powers of the absolute values of the
- *   coefficients of *this. If p is the special value Eigen::Infinity, this
- *   function returns the l^infty norm, that is the maximum of the absolute
- * values of the coefficients of *this.
- *
- * - stableNorm() - the l2 norm of *this avoiding underflow and overflow.
- *   This version use a blockwise two passes algorithm: 1 - find the absolute
- *   largest coefficient s 2 - compute s*abs(*this/s) in a standard way
- *
- * - blueNorm() - the l2 norm of *this using the Blue's algorithm.
- *   A Portable Fortran Program to Find the Euclidean Norm of a Vector,
- *   ACM TOMS, Vol 4, Issue 1, 1978.
- *
- * - hypotNorm() - the l2 norm of *this avoiding undeflow and overflow.
- *   This version use a concatenation of hypot() calls, and it is very slow.
- */
-
 void test_norms() {
   size_t n = 10;
   double small_singular_value = 1e-5;
@@ -130,3 +98,35 @@ int main() {
   test_RevJac_SVD();
   return 0;
 }
+
+/*! Test of all matrix norms presented in Eigen worth looking into:
+ *
+ * - norm() - for vectors, the l2 norm of *this, and for matrices the Frobenius
+ *   norm. In both cases, it consists in the square root of the sum of the
+ *   square of all the matrix entries. For vectors, this is also equals to the
+ *   square root of the dot product of *this with itself.
+ *
+ * - operatorNorm() - Computes the l2 operator norm.
+ *
+ * - squaredNorm() - for vectors, the squared l2 norm of *this, and for matrices
+ *   the squared Frobenius norm. In both cases, it consists in the sum of the
+ *   square of all the matrix entries. For vectors, this is also equals to the
+ *   dot product of *this with itself.
+ *
+ * - lpNorm() - the coefficient-wise l^p norm of *this, that is, returns the
+ *   p-th root of the sum of the p-th powers of the absolute values of the
+ *   coefficients of *this. If p is the special value Eigen::Infinity, this
+ *   function returns the l^infty norm, that is the maximum of the absolute
+ * values of the coefficients of *this.
+ *
+ * - stableNorm() - the l2 norm of *this avoiding underflow and overflow.
+ *   This version use a blockwise two passes algorithm: 1 - find the absolute
+ *   largest coefficient s 2 - compute s*abs(*this/s) in a standard way
+ *
+ * - blueNorm() - the l2 norm of *this using the Blue's algorithm.
+ *   A Portable Fortran Program to Find the Euclidean Norm of a Vector,
+ *   ACM TOMS, Vol 4, Issue 1, 1978.
+ *
+ * - hypotNorm() - the l2 norm of *this avoiding undeflow and overflow.
+ *   This version use a concatenation of hypot() calls, and it is very slow.
+ */

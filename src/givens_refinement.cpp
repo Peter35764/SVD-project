@@ -92,47 +92,47 @@ void testGivRefSVD() {
 }
 
 int main() {
-  using namespace std;
-  using namespace Eigen;
-  Matrix<float, Dynamic, Dynamic> A(10, 9);
-  A << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-      21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-      39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
-      57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 68, 70, 71, 72, 73, 74,
-      75, 76, 77, 78, 79, 80, 81, 3, 9, (float)4.98942, (float)0.324235, 443534,
-      345, (float)56.543853, (float)450.435234, (float)43.34353221;
-  cout << A << endl
-       << endl
-       << endl
-       << endl
-       << endl
-       << endl
-       << endl
-       << endl
-       << endl;
-  //
-  //
-  // Testing ROT
-  //
-  //
-  cout << fixed << setprecision(10);
-  cout << "Testcase 1: f = 0\n";
-  testROTImplementations(0.0f, 1.0f);
-  cout << "\n";
-  cout << "Testcase 2: |f| > |g|\n";
-  testROTImplementations(2.0f, 1.0f);
-  cout << "\n";
-  cout << "Testcase 3: |f| < |g|\n";
-  testROTImplementations(1.0f, 2.0f);
-  cout << "\n";
-  cout << "Testcase 4: Large numbers\n";
-  testROTImplementations(1e5f, 2e5f);
-  cout << "\n";
-  cout << "Testcase 5: Small numbers\n";
-  testROTImplementations(1e-5f, 2e-5f);
-  cout << "\n";
-  cout << "Testcase 6: Matrix values\n";
-  testROTImplementations(A(0, 0), A(1, 0));
+  // using namespace std;
+  // using namespace Eigen;
+  // Matrix<float, Dynamic, Dynamic> A(10, 9);
+  // A << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+  //     21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+  //     39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+  //     57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 68, 70, 71, 72, 73, 74,
+  //     75, 76, 77, 78, 79, 80, 81, 3, 9, (float)4.98942, (float)0.324235,
+  //     443534, 345, (float)56.543853, (float)450.435234, (float)43.34353221;
+  // cout << A << endl
+  //      << endl
+  //      << endl
+  //      << endl
+  //      << endl
+  //      << endl
+  //      << endl
+  //      << endl
+  //      << endl;
+  // //
+  // //
+  // // Testing ROT
+  // //
+  // //
+  // cout << fixed << setprecision(10);
+  // cout << "Testcase 1: f = 0\n";
+  // testROTImplementations(0.0f, 1.0f);
+  // cout << "\n";
+  // cout << "Testcase 2: |f| > |g|\n";
+  // testROTImplementations(2.0f, 1.0f);
+  // cout << "\n";
+  // cout << "Testcase 3: |f| < |g|\n";
+  // testROTImplementations(1.0f, 2.0f);
+  // cout << "\n";
+  // cout << "Testcase 4: Large numbers\n";
+  // testROTImplementations(1e5f, 2e5f);
+  // cout << "\n";
+  // cout << "Testcase 5: Small numbers\n";
+  // testROTImplementations(1e-5f, 2e-5f);
+  // cout << "\n";
+  // cout << "Testcase 6: Matrix values\n";
+  // testROTImplementations(A(0, 0), A(1, 0));
 
   testGivRefSVD();
 

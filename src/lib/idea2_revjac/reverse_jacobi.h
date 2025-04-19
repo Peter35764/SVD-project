@@ -9,42 +9,33 @@ namespace SVD_Project {
 template <typename _MatrixType>
 class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
   typedef Eigen::SVDBase<RevJac_SVD> Base;
+
   typedef typename _MatrixType::Scalar Scalar;
   typedef typename _MatrixType::Index Index;
+
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatrixDynamic;
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VectorDynamic;
+
   enum Rotation { Left, Right };
 
-  using _SingularVectorType = VectorDynamic;
-
  public:
-  RevJac_SVD(const _MatrixType& initial,
-             const _SingularVectorType& singularValues,
+  RevJac_SVD() = default;
+
+  RevJac_SVD(const _MatrixType& initial, const VectorDynamic& singularValues,
              unsigned int computationOptions = 0);
-  RevJac_SVD(const _MatrixType& initial,
-             const _SingularVectorType& singularValues, std::ostream* os,
-             unsigned int computationOptions = 0);
+  RevJac_SVD(const _MatrixType& initial, const VectorDynamic& singularValues,
+             std::ostream* os, unsigned int computationOptions = 0);
+
   RevJac_SVD& compute();
   RevJac_SVD& compute(std::ostream* os);
 
   const MatrixDynamic& matrixU() const { return m_matrixU; }
   const MatrixDynamic& matrixV() const {
-    return m_transposedMatrixV;  // Crashes if .transpose() used.
+    return m_transposedMatrixV.transpose();
   }
-  const _SingularVectorType& singularValues() const { return m_singularValues; }
+  const VectorDynamic& singularValues() const { return m_singularValues; }
 
  private:
-  MatrixDynamic m_matrixU;
-  MatrixDynamic m_transposedMatrixV;
-  const _SingularVectorType& m_singularValues;
-  const _MatrixType& m_initialMatrix;
-  MatrixDynamic m_currentMatrix;
-  _MatrixType m_differenceMatrix;
-  Rotation m_lastRotation;
-  Index m_currentI, m_currentJ;
-
-  std::ostream* m_divOstream;
-
   void iterate();
   bool convergenceReached() const;
   void updateDifference();
@@ -54,6 +45,17 @@ class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
   Eigen::JacobiRotation<Scalar> composeRightRotation(const Index& i,
                                                      const Index& j) const;
   // Eigen::JacobiRotation<Scalar> identityRotation() const;
+
+  MatrixDynamic m_matrixU;
+  MatrixDynamic m_transposedMatrixV;
+  const VectorDynamic& m_singularValues;
+  const _MatrixType& m_initialMatrix;
+  MatrixDynamic m_currentMatrix;
+  _MatrixType m_differenceMatrix;
+  Rotation m_lastRotation;
+  Index m_currentI, m_currentJ;
+
+  std::ostream* m_divOstream;
 };
 
 }  // namespace SVD_Project

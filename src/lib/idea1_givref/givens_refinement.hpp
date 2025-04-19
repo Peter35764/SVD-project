@@ -1,6 +1,9 @@
 #ifndef GIVENS_REFINEMENT_HPP
 #define GIVENS_REFINEMENT_HPP
-#include "givens_refinement.h"  // necessary for correct display in ide, does not affect the assembly process and can be removed
+
+#include <cassert>
+
+// #include "givens_refinement.h"
 
 namespace SVD_Project {
 // Interface of tests forces this structure
@@ -95,7 +98,7 @@ bool GivRef_SVD<_MatrixType>::isConvergedSafely(
   }
   // Lawn stuff
   // Compute mu, see (4.3) from the paper
-  EVector mu(n);
+  VectorDynamic mu(n);
   mu(0) = std::abs(sigm_B(0, 0));
   for (Index j = 0; j < n - 1; j++) {
     Scalar e_j_sq = sigm_B(j, j + 1) * sigm_B(j, j + 1);  // e_j^2
@@ -103,7 +106,7 @@ bool GivRef_SVD<_MatrixType>::isConvergedSafely(
     mu(j + 1) = s_jp1 * (mu(j) / (mu(j) + e_j_sq));
   }
   // Compute λ_j, see (4.4) from the paper
-  EVector lambda(n);
+  VectorDynamic lambda(n);
   lambda(n - 1) = std::abs(sigm_B(n - 1, n - 1));
   for (Index j = n - 2; j >= 0; j--) {
     Scalar e_j_sq = sigm_B(j, j + 1) * sigm_B(j, j + 1);  // e_j^2
@@ -138,14 +141,14 @@ void GivRef_SVD<_MatrixType>::initialize(const _MatrixType &matrix,
   n = std::min(m, n_cols);
   trigonom_i = 0;
   iter_num = 0;
-  left_J = SquareMatrix::Identity(m, m);
-  right_J = SquareMatrix::Identity(n_cols, n_cols);
+  left_J = MatrixDynamic::Identity(m, m);
+  right_J = MatrixDynamic::Identity(n_cols, n_cols);
   auto bid = Eigen::internal::UpperBidiagonalization<_MatrixType>(matrix);
   B = bid.bidiagonal();
   sigm_B = B;
   Eigen::JacobiSVD<_MatrixType> svd(matrix,
                                     Eigen::ComputeFullU | Eigen::ComputeFullV);
-  true_sigm_B = SquareMatrix::Zero(m, n_cols);
+  true_sigm_B = MatrixDynamic::Zero(m, n_cols);
   true_sigm_B.diagonal() = svd.singularValues().head(n);
   using Scalar = typename _MatrixType::Scalar;
   Scalar eps = std::numeric_limits<Scalar>::epsilon();
