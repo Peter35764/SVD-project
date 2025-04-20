@@ -42,11 +42,17 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
   }
 
  private:
+  // Introducing helpers for compute decomposition
+  void setupMatrices(const _MatrixType &matrix);
+  void iterQRtillConv(Scalar tol, int max_iter);
+  void fixFormatResults();
+
   std::vector<Scalar> ROT(Scalar f, Scalar g);
   void Impl_QR_zero_iter();
   void revert_negative_singular();
-  void initialize(const _MatrixType &matrix, unsigned int computationOptions);
-  bool isConvergedSafely(Scalar tol, int max_iter) const;
+  bool isConvergedSafely(Scalar tol,
+                         int max_iter);  // cant be const since we want to
+                                         // actually null the elements on check
 
   MatrixDynamic m_matrixU, m_matrixV;
   VectorDynamic m_singularValues;
@@ -61,8 +67,11 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
   VectorDynamic NewCosines;
   VectorDynamic NewSines;
   Index n;
+  Index m;       // rows
+  Index n_cols;  // init cols
   Index trigonom_i;
   Index iter_num;
+  bool has_true_sigm;  // to diff constructors, whether true_sigm_B is available
 
   std::ostream *m_divOstream;
 };
