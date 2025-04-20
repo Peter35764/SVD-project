@@ -19,6 +19,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <functional> 
 
 namespace SVD_Project {
 inline std::mutex cout_mutex;
@@ -75,6 +76,13 @@ class SVD_Test {
       Eigen::Matrix<FloatingPoint, Eigen::Dynamic, Eigen::Dynamic>;
   using VectorDynamic = Eigen::Matrix<FloatingPoint, Eigen::Dynamic, 1>;
 
+  struct SVDResult {
+      MatrixDynamic U;
+      VectorDynamic S;
+      MatrixDynamic V;
+  };
+
+
   struct svd_test_funcSettings {
     std::string fileName;  // Имя файла для вывода результатов.
     std::vector<FloatingPoint>
@@ -106,9 +114,12 @@ class SVD_Test {
                      const std::vector<std::pair<int, int>> &MatSizesVec, int n,
                      const std::string &algorithmName, int lineNumber,
                      const std::vector<MetricSettings> &metricsSettings,
-                     bool solve_with_sigmas); 
+                     bool solve_with_sigmas);
   void run_tests_parallel(
       const std::vector<svd_test_funcSettings> &vec_settings);
+
+  static SVDResult execute_svd_algorithm(const std::string& algoName, const MatrixDynamic& A, unsigned int options);
+
 
   void printTable(std::ostream &out,
                   const std::vector<std::vector<std::string>> &data);
@@ -122,13 +133,24 @@ class SVD_Test {
                               const VectorDynamic &S_calc,
                               const MatrixDynamic &U_true,
                               const MatrixDynamic &V_true,
-                              const MatrixDynamic &S_true);
+                              const MatrixDynamic &S_true); 
+
+  using SvdRunnerFunc = std::function<void(SVD_Test*, const svd_test_funcSettings&)>;
+  static std::map<std::string, SvdRunnerFunc> svd_test_runners;
+  static std::map<std::string, SvdRunnerFunc> initialize_svd_runners();
+
+
+  using SvdExecutorFunc = std::function<SVDResult(const MatrixDynamic&, unsigned int)>;
+  static std::map<std::string, SvdExecutorFunc> svd_executors;
+  static std::map<std::string, SvdExecutorFunc> initialize_svd_executors();
+
+
 };
 using SVDT = SVD_Project::SVD_Test<
     double, Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>>;
 
 }  // namespace SVD_Project
 
-#include "SVD_Test.hpp"
+#include "SVD_Test.hpp" 
 
 #endif  // SVD_TEST_H
