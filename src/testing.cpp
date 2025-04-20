@@ -56,22 +56,13 @@
 // - lineNumber: номер строки в терминале, которую будет обновлять данный
 // алгоритм
 
-#define TESTING_BUNDLE_NAME \
-  "TestingResultsBundle-" << std::put_time(ptm, "%d-%m-%Y-%H%M%S")
-
 int main() {
   using SVDT = SVD_Project::SVDT;
   namespace fs = std::filesystem;
 
-  auto now = std::chrono::system_clock::now();
-  std::time_t now_time = std::chrono::system_clock::to_time_t(now);
-  std::tm* ptm = std::localtime(&now_time);
-  std::ostringstream oss;
-  oss << TESTING_BUNDLE_NAME;
-  std::string folderName = oss.str();
-  fs::create_directory(folderName);
-
   std::cout << "\033[2J\033[H";
+
+  std::string folderName = SVD_Project::createTestingBundleFolder();
 
   // Задание параметров тестирования
   std::vector<double> sigmaRatios = {1.01, 1.2, 1.6, 2.1, 8, 30, 50, 100};
@@ -102,7 +93,7 @@ int main() {
       "Eigen::JacobiSVD",  // Название алгоритма
       1,                   // Прогресс будет выводиться на строке 1
       metricsSettings,
-  	  false};
+      false};
 
   // SVDT::svd_test_funcSettings settingsGivRef{
   //     folderName + "/idea_1_GivRef_table.txt",
@@ -144,7 +135,7 @@ int main() {
 
   std::vector<SVDT::svd_test_funcSettings> allSettings = {
       settingsJacobi,
-      settingsRevJac};  //, settingsGivRef, settingsV0, settingsRevJac};
+      settingsRevJac}; //, settingsGivRef, settingsV0, settingsRevJac};
 
   SVDT tester(allSettings);
 
