@@ -31,13 +31,10 @@ namespace SVD_Project {
 template <typename FloatingPoint, typename MatrixType>
 class SVD_Test {
  public:
-  template <typename Derived>
-  static FloatingPoint Lpq_norm(const Eigen::MatrixBase<Derived> &M,
-                                FloatingPoint p, FloatingPoint q);
+  static FloatingPoint Lpq_norm(const MatrixType &M, FloatingPoint p,
+                                FloatingPoint q);
 
-  template <typename Derived>
-  static FloatingPoint Lp_norm(const Eigen::MatrixBase<Derived> &M,
-                               FloatingPoint p);
+  static FloatingPoint Lp_norm(const MatrixType &M, FloatingPoint p);
 
   enum MetricType {
     U_DEVIATION1,
