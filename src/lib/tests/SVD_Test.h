@@ -145,6 +145,11 @@ class SVD_Test {
       std::function<SVDResult(const MatrixDynamic &, unsigned int)>;
   static std::map<std::string, SvdExecutorFunc> svd_executors;
   static std::map<std::string, SvdExecutorFunc> initialize_svd_executors();
+
+  static MatrixDynamic convertVectorToDiagonalMatrix(
+      const VectorDynamic &s_calc);
+  static VectorDynamic convertSquareMatrixDiagonalToVector(
+      const MatrixDynamic &diagonalMatrix);
 };
 using SVDT = SVD_Project::SVD_Test<
     double, Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>>;
