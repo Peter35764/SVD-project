@@ -81,9 +81,9 @@ SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options,
 //-----------------------------------------------------------------------------
 
 template <typename FloatingPoint, typename MatrixType>
-template <typename Derived>
-FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lpq_norm(
-    const Eigen::MatrixBase<Derived> &M, FloatingPoint p, FloatingPoint q) {
+FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lpq_norm(const MatrixType &M,
+                                                            FloatingPoint p,
+                                                            FloatingPoint q) {
   auto abs_p = M.array().abs().pow(p);
   auto row_sums = abs_p.rowwise().sum();
   auto inner_sums = row_sums.array().pow(q / p);
@@ -91,9 +91,8 @@ FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lpq_norm(
 }
 
 template <typename FloatingPoint, typename MatrixType>
-template <typename Derived>
-FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lp_norm(
-    const Eigen::MatrixBase<Derived> &M, FloatingPoint p) {
+FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lp_norm(const MatrixType &M,
+                                                           FloatingPoint p) {
   return Lpq_norm(M, p, p);
 }
 
@@ -772,101 +771,70 @@ FloatingPoint SVD_Test<FloatingPoint, MatrixType>::count_metrics(
     MetricSettings metric_settings, size_t Usize, size_t Vsize,
     const MatrixDynamic &U_calc, const MatrixDynamic &V_calc,
     const VectorDynamic &S_calc, const MatrixDynamic &U_true,
-    const MatrixDynamic &V_true, const MatrixDynamic &S_true_mat) {
-  FloatingPoint ans = FloatingPoint(0);
-  VectorDynamic S_true_vec;
+    const MatrixDynamic &V_true, const MatrixDynamic &S_true) {
+  FloatingPoint ans = 0;
+  VectorDynamic abs_err;
+  VectorDynamic error;
 
-  int minNM = std::min(Usize, Vsize);
-  if (S_true_mat.rows() >= minNM && S_true_mat.cols() >= minNM) {
-    S_true_vec = S_true_mat.diagonal().head(minNM).eval();
-  } else {
-    S_true_vec.resize(minNM);
-    S_true_vec.setZero();
-  }
-
-  MatrixDynamic A_true = U_true * S_true_mat * V_true.transpose();
-
-  MatrixDynamic S_calc_diag = MatrixDynamic::Zero(Usize, Vsize);
-  int num_singular_values = S_calc.size();
-  for (int i = 0; i < std::min(minNM, num_singular_values); ++i) {
-    S_calc_diag(i, i) = S_calc(i);
-  }
-
+  MatrixDynamic A_true = U_true * S_true * V_true.transpose();
+  MatrixDynamic S_calc_diag =
+      MatrixDynamic::Zero(std::min(Usize, Vsize), std::min(Usize, Vsize));
+  S_calc_diag.diagonal() = S_calc;
   MatrixDynamic A_calc = U_calc * S_calc_diag * V_calc.transpose();
-
-  MatrixDynamic IdU = MatrixDynamic::Identity(Usize, Usize);
-  MatrixDynamic IdV = MatrixDynamic::Identity(Vsize, Vsize);
-  FloatingPoint norm_IdU = Lp_norm(IdU, metric_settings.p);
-  FloatingPoint norm_IdV = Lp_norm(IdV, metric_settings.p);
-  FloatingPoint norm_A_true = Lp_norm(A_true, metric_settings.p);
 
   switch (metric_settings.type) {
     case U_DEVIATION1:
-      ans = Lp_norm((IdU - U_calc * U_calc.transpose()).eval(),
-                    metric_settings.p);
-      if (metric_settings.is_relative && norm_IdU != 0) {
-        ans /= norm_IdU;
+      ans = Lp_norm(
+          (MatrixDynamic::Identity(Usize, Usize) - U_calc * U_calc.transpose())
+              .eval(),
+          metric_settings.p);
+      if (metric_settings.is_relative) {
+        ans /= Lp_norm(MatrixDynamic::Identity(Usize, Usize).eval(),
+                       metric_settings.p);
       }
       break;
     case U_DEVIATION2:
-      ans = Lp_norm((IdU - U_calc.transpose() * U_calc).eval(),
-                    metric_settings.p);
-      if (metric_settings.is_relative && norm_IdU != 0) {
-        ans /= norm_IdU;
+      ans = Lp_norm(
+          (MatrixDynamic::Identity(Usize, Usize) - U_calc.transpose() * U_calc)
+              .eval(),
+          metric_settings.p);
+      if (metric_settings.is_relative) {
+        ans /= Lp_norm(MatrixDynamic::Identity(Usize, Usize).eval(),
+                       metric_settings.p);
       }
       break;
     case V_DEVIATION1:
-      ans = Lp_norm((IdV - V_calc * V_calc.transpose()).eval(),
-                    metric_settings.p);
-      if (metric_settings.is_relative && norm_IdV != 0) {
-        ans /= norm_IdV;
+      ans = Lp_norm(
+          (MatrixDynamic::Identity(Vsize, Vsize) - V_calc * V_calc.transpose())
+              .eval(),
+          metric_settings.p);
+      if (metric_settings.is_relative) {
+        ans /= Lp_norm(MatrixDynamic::Identity(Vsize, Vsize).eval(),
+                       metric_settings.p);
       }
       break;
     case V_DEVIATION2:
-      ans = Lp_norm((IdV - V_calc.transpose() * V_calc).eval(),
-                    metric_settings.p);
-      if (metric_settings.is_relative && norm_IdV != 0) {
-        ans /= norm_IdV;
+      ans = Lp_norm(
+          (MatrixDynamic::Identity(Vsize, Vsize) - V_calc.transpose() * V_calc)
+              .eval(),
+          metric_settings.p);
+      if (metric_settings.is_relative) {
+        ans /= Lp_norm(MatrixDynamic::Identity(Vsize, Vsize).eval(),
+                       metric_settings.p);
       }
       break;
-    case ERROR_SIGMA: {
-      int size_to_compare = std::min(S_true_vec.size(), S_calc.size());
-      if (size_to_compare > 0) {
-        VectorDynamic abs_err =
-            (S_true_vec.head(size_to_compare) - S_calc.head(size_to_compare))
-                .cwiseAbs();
-        if (metric_settings.is_relative) {
-          VectorDynamic rel_err = VectorDynamic::Zero(size_to_compare);
-          for (int k = 0; k < size_to_compare; ++k) {
-            // Проверяем знаменатель на 0 перед делением
-            if (std::abs(S_true_vec(k)) >
-                std::numeric_limits<FloatingPoint>::
-                    epsilon()) {  // Используем эпсилон для сравнения с 0
-              rel_err(k) = abs_err(k) / std::abs(S_true_vec(k));
-            } else if (std::abs(abs_err(k)) >
-                       std::numeric_limits<FloatingPoint>::epsilon()) {
-              // Если истинное значение 0, а ошибка не 0, относительная ошибка
-              // бесконечна или велика
-              rel_err(k) = std::numeric_limits<
-                  FloatingPoint>::infinity();  // Или большое число
-            } else {
-              // Если и истинное значение, и ошибка близки к 0, относительная
-              // ошибка 0
-              rel_err(k) = 0.0;
-            }
-          }
-          ans = Lp_norm(rel_err, metric_settings.p);
-        } else {
-          ans = Lp_norm(abs_err, metric_settings.p);
-        }
-      } else {
-        ans = 0;
-      }
-    } break;
+    case ERROR_SIGMA:
+      abs_err = S_true.diagonal() - S_calc;
+      error = metric_settings.is_relative
+                  ? (S_true.diagonal().array() == 0)
+                        .select(0, abs_err.cwiseQuotient(S_true.diagonal()))
+                  : abs_err;
+      ans = Lp_norm(error.eval(), metric_settings.p);
+      break;
     case RECON_ERROR:
       ans = Lp_norm((A_true - A_calc).eval(), metric_settings.p);
-      if (metric_settings.is_relative && norm_A_true != 0) {
-        ans /= norm_A_true;
+      if (metric_settings.is_relative) {
+        ans /= Lp_norm(A_true.eval(), metric_settings.p);
       }
       break;
     case MAX_DEVIATION:
@@ -874,40 +842,34 @@ FloatingPoint SVD_Test<FloatingPoint, MatrixType>::count_metrics(
         ans = std::max(
             {count_metrics({U_DEVIATION1, metric_settings.p, true, "", false},
                            Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true_mat),
+                           S_true),
              count_metrics({U_DEVIATION2, metric_settings.p, true, "", false},
                            Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true_mat),
+                           S_true),
              count_metrics({V_DEVIATION1, metric_settings.p, true, "", false},
                            Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true_mat),
+                           S_true),
              count_metrics({V_DEVIATION2, metric_settings.p, true, "", false},
                            Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true_mat)});
+                           S_true)});
       } else {
         ans = std::max(
             {count_metrics({U_DEVIATION1, metric_settings.p, false, "", false},
                            Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true_mat),
+                           S_true),
              count_metrics({U_DEVIATION2, metric_settings.p, false, "", false},
                            Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true_mat),
+                           S_true),
              count_metrics({V_DEVIATION1, metric_settings.p, false, "", false},
                            Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true_mat),
+                           S_true),
              count_metrics({V_DEVIATION2, metric_settings.p, false, "", false},
                            Usize, Vsize, U_calc, V_calc, S_calc, U_true, V_true,
-                           S_true_mat)});
+                           S_true)});
       }
       break;
     default:
-      throw std::runtime_error("ERROR: Unknown metric type specified!");
-  }
-  // Проверка на NaN или inf перед возвратом, если необходимо
-  if (std::isnan(ans) || std::isinf(ans)) {
-    // Обработка: вернуть 0, максимальное значение или другое значение по
-    // умолчанию
-    return std::numeric_limits<FloatingPoint>::max();  // Например
+      throw std::runtime_error("ERROR: No such metric!");
   }
   return ans;
 }
