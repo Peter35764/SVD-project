@@ -8,6 +8,7 @@
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <random>
 
 #include "ctime"
@@ -40,14 +41,15 @@ class SVDGenerator {
   using MatrixUType = Eigen::Matrix<T, M, M>;
   using MatrixVType = Eigen::Matrix<T, N, N>;
   using MatrixSType = Eigen::Matrix<T, M, N>;
-  using DynamicMatrix = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
-  using SingValVector = std::vector<T>;
+  using MatrixDynamic = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+  using VectorDynamic = Eigen::Matrix<T, Eigen::Dynamic, 1>;
 
   bool generatedFLG = false;
   MatrixUType U;
   MatrixVType V;
   MatrixSType S;
-  SingValVector sigmas;
+  VectorDynamic sigmas;
+  MatrixDynamic initialMatrix;  // Итоговая матрица.
   std::default_random_engine RNG;
   std::uniform_real_distribution<T> distribution;
   bool includeBoundaries;
@@ -55,18 +57,14 @@ class SVDGenerator {
   int cols;
   int p;
 
-  void set_sing_vals(const SingValVector& sigmas1) {
+  void set_sing_vals(const VectorDynamic& sigmas1) {
     assert(p == sigmas1.size());
-
-    sigmas.clear();
-    for (int i = 0; i < p; ++i) {
-      sigmas.push_back(sigmas1[i]);
-    }
-    std::sort(sigmas.begin(), sigmas.end(), std::greater<T>());
+    sigmas = sigmas1;
+    std::sort(sigmas.data(), sigmas.data() + sigmas.size(), std::greater<T>());
   }
 
-  SingValVector gen_rand_nums(int n) {
-    SingValVector tmp(n);
+  VectorDynamic gen_rand_nums(int n) {
+    VectorDynamic tmp(n);
     for (int i = 0; i < n; ++i) tmp[i] = distribution(RNG);
     if (includeBoundaries) {
       tmp[0] = distribution.a();
@@ -89,34 +87,40 @@ class SVDGenerator {
     U = MatrixUType::Zero(rows, rows);
     V = MatrixVType::Zero(cols, cols);
     S = MatrixSType::Zero(rows, cols);
+    initialMatrix = MatrixSType::Zero(rows, cols);
 
     RNG = RNG_src;
     distribution = dist_src;
-    SingValVector sigmas1 = SingValVector(p);
+    VectorDynamic sigmas1 = VectorDynamic(p);
     std::fill(sigmas1.begin(), sigmas1.end(), T(0));
     set_sing_vals(sigmas1);
   }
 
-  MatrixUType MatrixU() {
+  MatrixUType getMatrixU() {
     if (!generatedFLG) generate(p);
     return U;
   }
 
-  MatrixVType MatrixV() {
+  MatrixVType getMatrixV() {
     if (!generatedFLG) generate(p);
     return V;
   }
 
-  MatrixSType MatrixS() {
+  MatrixSType getMatrixS() {
     if (!generatedFLG) generate(p);
     return S;
+  }
+
+  MatrixDynamic getInitialMatrix() {
+    if (!generatedFLG) generate(p);
+    return initialMatrix;
   }
 
   void generate(int nonzeros) {
     assert(nonzeros <= p);
     generatedFLG = true;
     std::fill(sigmas.begin(), sigmas.end(), T(0));
-    SingValVector nonzero_sigmas = gen_rand_nums(nonzeros);
+    VectorDynamic nonzero_sigmas = gen_rand_nums(nonzeros);
     std::copy(nonzero_sigmas.begin(), nonzero_sigmas.end(), sigmas.begin());
     std::sort(sigmas.begin(), sigmas.end(), std::greater<T>());
     // U,V-ортогональные матрицы, SIGMA - диагональная матрица
@@ -127,7 +131,7 @@ class SVDGenerator {
     разложения случайная матрица превращается в ортогональную и далее эта
     ортогональная матрица Q используется как U или V */
 
-    DynamicMatrix T_1(rows, rows), T_2(cols, cols), Q_1(rows, rows),
+    MatrixDynamic T_1(rows, rows), T_2(cols, cols), Q_1(rows, rows),
         Q_2(cols, cols), R_1(rows, rows), R_2(cols, cols);
     // Сингулярные значения нумеруются в порядке убывания
     // Тут на всякий случай сортируем массив сингулярных чисел, чтобы элменты
@@ -157,6 +161,8 @@ class SVDGenerator {
     Q_2 = (Eigen::FullPivHouseholderQR<Eigen::Matrix<T, N, M>>(T_2)).matrixQ();
     U = Q_1;
     V = Q_2.transpose();
+
+    initialMatrix = U * S * V;
   }
 };
 
