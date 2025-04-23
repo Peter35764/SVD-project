@@ -30,7 +30,7 @@
             (pkgs.writeShellScriptBin "build" ''cmake -G "Ninja" CMakeLists.txt && ninja'') # build project via CMake
             (pkgs.writeShellScriptBin "run" ''cmake -G "Ninja" CMakeLists.txt && ninja && ./svd_test'') # run project via CMake
             (pkgs.writeShellScriptBin "bd" ''cmake -G "Ninja" CMakeLists.txt && ninja'') # alias for build
-            (pkgs.writeShellScriptBin "compare" ''python ./docs/benchmarks/compare_csv.py'')
+            (pkgs.writeShellScriptBin "compare" ''python ./src/benchmarks/compare_csv.py'')
             (pkgs.writeShellScriptBin "dv" ''nix develop path:$PWD'')
           ];
           buildInputs = with pkgs;
