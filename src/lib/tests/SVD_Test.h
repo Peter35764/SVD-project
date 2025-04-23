@@ -138,7 +138,7 @@ class SVD_Test {
 
   using SvdRunnerFunc =
       std::function<void(SVD_Test *, const svd_test_funcSettings &)>;
-  static std::map<std::string, SvdRunnerFunc> svd_test_runners;
+
   static std::map<std::string, SvdRunnerFunc> initialize_svd_runners();
 
   using SvdExecutorFunc =
