@@ -25,23 +25,18 @@
 #include "../SVD_project.h"
 #include "config.h"
 
-#define TESTING_BUNDLE_NAME \
-  "TestingResultsBundle-" << std::put_time(ptm, "%d-%m-%Y-%H%M%S")
+#define TESTING_BUNDLE_NAME "TestBundle-" << std::put_time(ptm, "%d-%m-%Y-%H%M")
 
 namespace SVD_Project {
-inline std::string createTestingBundleFolder() {
+std::string genNameForBundleFolder() {
   auto now = std::chrono::system_clock::now();
   std::time_t now_time = std::chrono::system_clock::to_time_t(now);
   std::tm *ptm = std::localtime(&now_time);
   std::ostringstream oss;
   oss << TESTING_BUNDLE_NAME;
   std::string folderName = oss.str();
-  std::filesystem::create_directory(folderName);
   return folderName;
 }
-}  // namespace SVD_Project
-
-namespace SVD_Project {
 
 // Traits для определения, требует ли алгоритм передачи спектра.
 // По умолчанию алгоритм не требует передачи спектра.
@@ -175,14 +170,10 @@ SVD_Test<FloatingPoint, MatrixType>::initialize_svd_runners() {
 }
 
 template <typename FloatingPoint, typename MatrixType>
-std::map<std::string,
-         typename SVD_Test<FloatingPoint, MatrixType>::SvdRunnerFunc>
-    SVD_Test<FloatingPoint, MatrixType>::svd_test_runners =
-        initialize_svd_runners();
-
-template <typename FloatingPoint, typename MatrixType>
 void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
     const std::vector<svd_test_funcSettings> &vec_settings) {
+  std::cout << "\033[2J\033[H";
+
   size_t numAlgos = vec_settings.size();
   std::mutex dur_mutex;
   std::vector<std::pair<std::string, double>> test_times;
@@ -192,11 +183,17 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
 
   auto overall_start = std::chrono::high_resolution_clock::now();
 
-  for (const auto &s : vec_settings) {
-    sem.acquire();
-    threads.emplace_back([this, s, &test_times, &dur_mutex, &sem]() {
-      auto t_start = std::chrono::high_resolution_clock::now();
+  std::map<std::string,
+           typename SVD_Test<FloatingPoint, MatrixType>::SvdRunnerFunc>
+      svd_test_runners = initialize_svd_runners();
 
+  for (const auto &s : vec_settings) {
+    std::filesystem::create_directories(s.fileName);
+
+    sem.acquire();
+    threads.emplace_back([this, s, &test_times, &dur_mutex, &sem,
+                          &overall_start, &svd_test_runners]() {
+      auto t_start = std::chrono::high_resolution_clock::now();
       auto it = svd_test_runners.find(s.algorithmName);
       if (it != svd_test_runners.end()) {
         it->second(this, s);
@@ -226,7 +223,6 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
   double overall_duration =
       std::chrono::duration<double>(overall_end - overall_start).count();
 
-  std::cout << "\033[2J\033[H";
   int output_line = static_cast<int>(numAlgos) + 2;
   std::cout << "\033[" << output_line << ";0H"
             << "Full execution time = " << overall_duration << " seconds.\n";
