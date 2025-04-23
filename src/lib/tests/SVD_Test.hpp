@@ -133,39 +133,42 @@ std::map<std::string,
 SVD_Test<FloatingPoint, MatrixType>::initialize_svd_runners() {
   std::map<std::string, SvdRunnerFunc> runners;
 
-  runners["SVD_Project::GivRef_SVD"] = [](SVD_Test *instance,
-                                          const svd_test_funcSettings &s) {
-    instance->template svd_test_func<SVDGenerator, SVD_Project::GivRef_SVD>(s);
-  };
-  runners["SVD_Project::v0_GivRef_SVD"] = [](SVD_Test *instance,
-                                             const svd_test_funcSettings &s) {
-    instance->template svd_test_func<SVDGenerator, SVD_Project::v0_GivRef_SVD>(
-        s);
-  };
-  runners["SVD_Project::NaiveMRRR_SVD"] = [](SVD_Test *instance,
-                                             const svd_test_funcSettings &s) {
-    instance->template svd_test_func<SVDGenerator, SVD_Project::NaiveMRRR_SVD>(
-        s);
-  };
-  runners["SVD_Project::v0_NaiveMRRR_SVD"] =
-      [](SVD_Test *instance, const svd_test_funcSettings &s) {
-        instance->template svd_test_func<SVDGenerator,
-                                         SVD_Project::v0_NaiveMRRR_SVD>(s);
-      };
-  runners["SVD_Project::RevJac_SVD"] = [](SVD_Test *instance,
-                                          const svd_test_funcSettings &s) {
-    instance->template svd_test_func<SVDGenerator, SVD_Project::RevJac_SVD>(s);
-  };
-  runners["SVD_Project::v0_RevJac_SVD"] = [](SVD_Test *instance,
-                                             const svd_test_funcSettings &s) {
-    instance->template svd_test_func<SVDGenerator, SVD_Project::v0_RevJac_SVD>(
-        s);
-  };
-  runners["Eigen::JacobiSVD"] = [](SVD_Test *instance,
-                                   const svd_test_funcSettings &s) {
-    instance->template svd_test_func<SVDGenerator, Eigen::JacobiSVD>(s);
-  };
-
+  if (!runners.size()) {
+    runners["SVD_Project::GivRef_SVD"] = [](SVD_Test *instance,
+                                            const svd_test_funcSettings &s) {
+      instance->template svd_test_func<SVDGenerator, SVD_Project::GivRef_SVD>(
+          s);
+    };
+    runners["SVD_Project::v0_GivRef_SVD"] = [](SVD_Test *instance,
+                                               const svd_test_funcSettings &s) {
+      instance
+          ->template svd_test_func<SVDGenerator, SVD_Project::v0_GivRef_SVD>(s);
+    };
+    runners["SVD_Project::NaiveMRRR_SVD"] = [](SVD_Test *instance,
+                                               const svd_test_funcSettings &s) {
+      instance
+          ->template svd_test_func<SVDGenerator, SVD_Project::NaiveMRRR_SVD>(s);
+    };
+    runners["SVD_Project::v0_NaiveMRRR_SVD"] =
+        [](SVD_Test *instance, const svd_test_funcSettings &s) {
+          instance->template svd_test_func<SVDGenerator,
+                                           SVD_Project::v0_NaiveMRRR_SVD>(s);
+        };
+    runners["SVD_Project::RevJac_SVD"] = [](SVD_Test *instance,
+                                            const svd_test_funcSettings &s) {
+      instance->template svd_test_func<SVDGenerator, SVD_Project::RevJac_SVD>(
+          s);
+    };
+    runners["SVD_Project::v0_RevJac_SVD"] = [](SVD_Test *instance,
+                                               const svd_test_funcSettings &s) {
+      instance
+          ->template svd_test_func<SVDGenerator, SVD_Project::v0_RevJac_SVD>(s);
+    };
+    runners["Eigen::JacobiSVD"] = [](SVD_Test *instance,
+                                     const svd_test_funcSettings &s) {
+      instance->template svd_test_func<SVDGenerator, Eigen::JacobiSVD>(s);
+    };
+  }
   return runners;
 }
 
@@ -204,7 +207,6 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
                     << "' in run_tests_parallel.\n";
         }
       }
-
       auto t_end = std::chrono::high_resolution_clock::now();
       double duration = std::chrono::duration<double>(t_end - t_start).count();
       {
