@@ -1,5 +1,3 @@
-// testing.cpp
-
 #include <chrono>
 #include <ctime>
 #include <filesystem>
@@ -13,52 +11,14 @@
 
 #include "lib/SVD_project.h"
 
-// Александр Нам, КМБО-04-20
-// Any questions: alexnam16@gmail.com
-// Владислав Букин, КМБО-04-20
-
-// Функция возвращает матрицу-таблицу формата:
-// | размерность | sigma_max/sigma_min | диап. синг. чисел |
-// | sum_n(norm[I - U.transpose*U])/n | sum_n(norm[I - U*U.transpose])/n |
-// | sum_n(norm[I - V.transpose*V])/n | sum_n(norm[I - V*V.transpose])/n |
-// | max(abs((sigma_true_i - sigma_calc_i)/sigma_true_i)) |
-// Размер выборки фиксированного размера матриц определяется задаваемым
-// параметром 'n'.
-
-// Функция написана с теми условиями, что:
-//    1. Класс SVD разложения наследуется от класса Eigen::SVDBase, причем
-//    должен существоваться конструктор класса,
-//       который вторым параметром принимает настройку вычислений матриц U и V,
-//       т.е. thin или full.
-//    2. Генерация случайных матриц происходит с помощью SVDGenerator из
-//    generate_svd.h
-//    3. В функцию передаётся std::vector соотношений максимального и
-//    минимального сингулярного числа
-//    4. В функцию передаётся std::vector<std::pair<int,int>> размеров матриц
-//    для исследования
-//    5. В функцию передаётся int n размер выборки фиксированного размера матриц
-//    для подсчёта средних
-//    6. Функция работает достаточно долго, особенно для матриц больших
-//    размеров, поэтому выводится прогресс в процентах
-//    7. Результат исследования не печатается в консоль, а сохраняется в файл,
-//    название выбирается первым параметром
-
-// Функция принимает параметрами:
-// - fileName: имя текстового файла, куда будет сохранен результат, т.е. таблица
-// - SigmaMaxMinRatiosVec: вектор соотношений максимального и минимального
-// сингулярных чисел;
-//                        нужен т.к. ошибка может сильно отличаться у разных
-//                        соотношений сингулярных чисел;
-// - MatSizesVec: вектор размеров матриц для теста;
-// - n: количество матриц, которые генерируются с одинаковыми параметрами для
-// усреднения выборки и подсчёта средних
-// - algorithmName: название алгоритма, используется в выводе прогресса
-// - lineNumber: номер строки в терминале, которую будет обновлять данный
-// алгоритм
-
 int main() {
   using SVDT = SVD_Project::SVDT;
   namespace fs = std::filesystem;
+
+  SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5, std::cout);
+  SVDT::compareMatrices("SVD_Project::GivRef_SVD", 5, 5, std::cout);
+
+  return 0;
 
   // std::string folderName = SVD_Project::genNameForBundleFolder();
 
@@ -140,10 +100,8 @@ int main() {
 
   // SVDT tester(allSettings);
 
-  // Пример использования статического метода compareMatrices с выбранным алгоритмом.
-  SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5, std::cout);
-  SVDT::compareMatrices("SVD_Project::v0_RevJac_SVD", 5, 5, std::cout);
+  // Пример использования статического метода compareMatrices с выбранным
+  // алгоритмом.
 
   // std::cout << "\nResults have been saved in folder: " << folderName << "\n";
-  return 0;
 }
