@@ -614,10 +614,31 @@ SVD_Test<FloatingPoint, MatrixType>::execute_svd_algorithm(
   }
 }
 
-// Реализация статического метода compareMatrices.
-// compareMatrices должна принимать название алгоритма, размеры матрицы
-// и поток. Она выводит изначальную матрицу, собранную матрицу и процент
-// совпавших знаков.
+template <typename FloatingPoint, typename MatrixType>
+typename SVD_Test<FloatingPoint, MatrixType>::MatrixDynamic
+SVD_Test<FloatingPoint, MatrixType>::convertVectorToDiagonalMatrix(
+    const VectorDynamic &s_calc) {
+  Eigen::Index size = s_calc.size();
+  MatrixDynamic S_calc_matrix = MatrixDynamic::Zero(size, size);
+  for (Eigen::Index i = 0; i < size; ++i) {
+    S_calc_matrix(i, i) = s_calc(i);
+  }
+  return S_calc_matrix;
+}
+
+template <typename FloatingPoint, typename MatrixType>
+SVD_Test<FloatingPoint, MatrixType>::VectorDynamic
+SVD_Test<FloatingPoint, MatrixType>::convertSquareMatrixDiagonalToVector(
+    const MatrixDynamic &S_calc_matrix) {
+  Eigen::Index size = S_calc_matrix.rows();
+  assert(S_calc_matrix.cols() == size && "Input matrix must be square.");
+  VectorDynamic vector = VectorDynamic::Zero(size);
+  for (Eigen::Index i = 0; i < size; ++i) {
+    vector(i) = S_calc_matrix(i, i);
+  }
+  return vector;
+}
+
 template <typename FloatingPoint, typename MatrixType>
 void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
     const std::string &algoName, int rows, int cols, std::ostream &out) {
