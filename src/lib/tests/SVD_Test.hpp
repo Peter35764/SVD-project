@@ -645,9 +645,9 @@ void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
   std::random_device rd;
   std::default_random_engine gen(rd());
   std::uniform_real_distribution<FloatingPoint> distr(-100, 100);
-  MatrixDynamic A(rows, cols);
-  for (int i = 0; i < rows; ++i)
-    for (int j = 0; j < cols; ++j) A(i, j) = distr(gen);
+  SVDGenerator<FloatingPoint> svd_gen(rows, cols, gen, distr, true);
+  int minNM = std::min(rows, cols);
+  MatrixDynamic A(svd_gen.getInitialMatrix());
 
   SVDResult result = execute_svd_algorithm(
       algoName, A, Eigen::ComputeFullU | Eigen::ComputeFullV);
@@ -655,14 +655,10 @@ void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
   VectorDynamic S_calc = result.S;
   MatrixDynamic V_calc = result.V;
 
-  MatrixDynamic S_mat = MatrixDynamic::Zero(rows, cols);
-  int min_dim = std::min(rows, cols);
-  int num_singular_values = S_calc.size();
-  for (int i = 0; i < std::min(min_dim, num_singular_values); ++i) {
-    S_mat(i, i) = S_calc(i);
-  }
+  MatrixDynamic S_calc_matrix = convertVectorToDiagonalMatrix(S_calc);
 
-  MatrixDynamic A_rec = U_calc * S_mat * V_calc.transpose();
+  MatrixDynamic S_true = svd_gen.getMatrixS();
+  MatrixDynamic A_rec = U_calc * S_calc_matrix * V_calc.transpose();
 
   auto sign = [](FloatingPoint val) -> int {
     if (val == FloatingPoint(0)) return 0;
