@@ -1,25 +1,42 @@
 #ifndef SVD_TEST_HPP
 #define SVD_TEST_HPP
 
+#include <Eigen/SVD>
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <random>
+#include <semaphore>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 #include <thread>
 #include <type_traits>
+#include <utility>
 
 #include "../SVD_project.h"
+#include "config.h"
 
-// #include "config.h"
+#define TESTING_BUNDLE_NAME "TestBundle-" << std::put_time(ptm, "%d-%m-%Y-%H%M")
 
 namespace SVD_Project {
+std::string genNameForBundleFolder() {
+  auto now = std::chrono::system_clock::now();
+  std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+  std::tm *ptm = std::localtime(&now_time);
+  std::ostringstream oss;
+  oss << TESTING_BUNDLE_NAME;
+  std::string folderName = oss.str();
+  return folderName;
+}
 
 // Traits для определения, требует ли алгоритм передачи спектра.
 // По умолчанию алгоритм не требует передачи спектра.
@@ -33,18 +50,30 @@ template <typename Matrix>
 struct requires_sigma<v0_RevJac_SVD<Matrix>> : std::true_type {};
 
 template <typename SVDClass, typename Matrix, typename Vector>
+SVDClass create_svd_impl(const Matrix &A, const Vector &sigma,
+                         unsigned int options, bool solve_with_sigmas,
+                         std::true_type) {
+  if (solve_with_sigmas) {
+    return SVDClass(A, sigma, options);
+  } else {
+    Eigen::JacobiSVD<Matrix> svd_ref(A,
+                                     Eigen::ComputeThinU | Eigen::ComputeThinV);
+    Vector computed_sigma = svd_ref.singularValues();
+    return SVDClass(A, computed_sigma, options);
+  }
+}
+
+template <typename SVDClass, typename Matrix, typename Vector>
+SVDClass create_svd_impl(const Matrix &A, const Vector &, unsigned int options,
+                         bool, std::false_type) {
+  return SVDClass(A, options);
+}
+
+template <typename SVDClass, typename Matrix, typename Vector>
 SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options,
                     bool solve_with_sigmas) {
-  if constexpr (requires_sigma<SVDClass>::value) {
-    if (solve_with_sigmas) {
-      return SVDClass(A, sigma, options);
-    } else {
-      throw std::invalid_argument(
-          "Алгоритм требует передачи спектра, но solve_with_sigmas == false");
-    }
-  } else {
-    return SVDClass(A, options);
-  }
+  return create_svd_impl<SVDClass>(A, sigma, options, solve_with_sigmas,
+                                   requires_sigma<SVDClass>{});
 }
 
 //-----------------------------------------------------------------------------
@@ -52,9 +81,9 @@ SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options,
 //-----------------------------------------------------------------------------
 
 template <typename FloatingPoint, typename MatrixType>
-template <typename Derived>
-FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lpq_norm(
-    const Eigen::MatrixBase<Derived> &M, FloatingPoint p, FloatingPoint q) {
+FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lpq_norm(const MatrixType &M,
+                                                            FloatingPoint p,
+                                                            FloatingPoint q) {
   auto abs_p = M.array().abs().pow(p);
   auto row_sums = abs_p.rowwise().sum();
   auto inner_sums = row_sums.array().pow(q / p);
@@ -62,9 +91,8 @@ FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lpq_norm(
 }
 
 template <typename FloatingPoint, typename MatrixType>
-template <typename Derived>
-FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lp_norm(
-    const Eigen::MatrixBase<Derived> &M, FloatingPoint p) {
+FloatingPoint SVD_Test<FloatingPoint, MatrixType>::Lp_norm(const MatrixType &M,
+                                                           FloatingPoint p) {
   return Lpq_norm(M, p, p);
 }
 
@@ -99,44 +127,92 @@ SVD_Test<FloatingPoint, MatrixType>::SVD_Test(
 }
 
 template <typename FloatingPoint, typename MatrixType>
+std::map<std::string,
+         typename SVD_Test<FloatingPoint, MatrixType>::SvdRunnerFunc>
+SVD_Test<FloatingPoint, MatrixType>::initialize_svd_runners() {
+  std::map<std::string, SvdRunnerFunc> runners;
+
+  if (!runners.size()) {
+    runners["SVD_Project::GivRef_SVD"] = [](SVD_Test *instance,
+                                            const svd_test_funcSettings &s) {
+      instance->template svd_test_func<SVDGenerator, SVD_Project::GivRef_SVD>(
+          s);
+    };
+    runners["SVD_Project::v0_GivRef_SVD"] = [](SVD_Test *instance,
+                                               const svd_test_funcSettings &s) {
+      instance
+          ->template svd_test_func<SVDGenerator, SVD_Project::v0_GivRef_SVD>(s);
+    };
+    runners["SVD_Project::NaiveMRRR_SVD"] = [](SVD_Test *instance,
+                                               const svd_test_funcSettings &s) {
+      instance
+          ->template svd_test_func<SVDGenerator, SVD_Project::NaiveMRRR_SVD>(s);
+    };
+    runners["SVD_Project::v0_NaiveMRRR_SVD"] =
+        [](SVD_Test *instance, const svd_test_funcSettings &s) {
+          instance->template svd_test_func<SVDGenerator,
+                                           SVD_Project::v0_NaiveMRRR_SVD>(s);
+        };
+    runners["SVD_Project::RevJac_SVD"] = [](SVD_Test *instance,
+                                            const svd_test_funcSettings &s) {
+      instance->template svd_test_func<SVDGenerator, SVD_Project::RevJac_SVD>(
+          s);
+    };
+    runners["SVD_Project::v0_RevJac_SVD"] = [](SVD_Test *instance,
+                                               const svd_test_funcSettings &s) {
+      instance
+          ->template svd_test_func<SVDGenerator, SVD_Project::v0_RevJac_SVD>(s);
+    };
+    runners["Eigen::JacobiSVD"] = [](SVD_Test *instance,
+                                     const svd_test_funcSettings &s) {
+      instance->template svd_test_func<SVDGenerator, Eigen::JacobiSVD>(s);
+    };
+  }
+  return runners;
+}
+
+template <typename FloatingPoint, typename MatrixType>
 void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
     const std::vector<svd_test_funcSettings> &vec_settings) {
+  std::cout << "\033[2J\033[H";
+
   size_t numAlgos = vec_settings.size();
   std::mutex dur_mutex;
   std::vector<std::pair<std::string, double>> test_times;
   std::vector<std::thread> threads;
 
+  std::counting_semaphore<THREADS> sem(THREADS);
+
   auto overall_start = std::chrono::high_resolution_clock::now();
 
+  std::map<std::string,
+           typename SVD_Test<FloatingPoint, MatrixType>::SvdRunnerFunc>
+      svd_test_runners = initialize_svd_runners();
+
   for (const auto &s : vec_settings) {
-    threads.emplace_back([this, s, &test_times, &dur_mutex]() {
+    std::filesystem::create_directories(s.fileName);
+
+    sem.acquire();
+    threads.emplace_back([this, s, &test_times, &dur_mutex, &sem,
+                          &overall_start, &svd_test_runners]() {
       auto t_start = std::chrono::high_resolution_clock::now();
-
-      // Для RevJac_SVD используется конструктор с передачей спектра
-      if (s.algorithmName == "SVD_Project::GivRef_SVD") {
-        this->svd_test_func<SVDGenerator, SVD_Project::GivRef_SVD>(s);
-      } else if (s.algorithmName == "SVD_Project::v0_GivRef_SVD") {
-        this->svd_test_func<SVDGenerator, SVD_Project::v0_GivRef_SVD>(s);
-      } else if (s.algorithmName == "SVD_Project::NaiveMRRR_SVD") {
-        this->svd_test_func<SVDGenerator, SVD_Project::NaiveMRRR_SVD>(s);
-      } else if (s.algorithmName == "SVD_Project::v0_NaiveMRRR_SVD") {
-        this->svd_test_func<SVDGenerator, SVD_Project::v0_NaiveMRRR_SVD>(s);
-      } else if (s.algorithmName == "SVD_Project::RevJac_SVD") {
-        this->svd_test_func<SVDGenerator, SVD_Project::RevJac_SVD>(s);
-      } else if (s.algorithmName == "SVD_Project::v0_RevJac_SVD") {
-        this->svd_test_func<SVDGenerator, SVD_Project::v0_RevJac_SVD>(s);
+      auto it = svd_test_runners.find(s.algorithmName);
+      if (it != svd_test_runners.end()) {
+        it->second(this, s);
+      } else {
+        {
+          std::lock_guard<std::mutex> lock(cout_mutex);
+          std::cerr << "\nERROR: Unknown algorithm '" << s.algorithmName
+                    << "' in run_tests_parallel.\n";
+        }
       }
-      // non SVD-Project algorithms
-      else if (s.algorithmName == "Eigen::JacobiSVD") {
-        this->svd_test_func<::SVDGenerator, Eigen::JacobiSVD>(s);
-      }
-
       auto t_end = std::chrono::high_resolution_clock::now();
       double duration = std::chrono::duration<double>(t_end - t_start).count();
       {
         std::lock_guard<std::mutex> lock(dur_mutex);
         test_times.emplace_back(s.algorithmName, duration);
       }
+      sem.release();
     });
   }
 
@@ -148,13 +224,22 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
   double overall_duration =
       std::chrono::duration<double>(overall_end - overall_start).count();
 
-  std::cout << "\033[2J\033[H";
   int output_line = static_cast<int>(numAlgos) + 2;
   std::cout << "\033[" << output_line << ";0H"
             << "Full execution time = " << overall_duration << " seconds.\n";
 
+  if (vec_settings.empty()) {
+    std::lock_guard<std::mutex> lock(cout_mutex);
+    std::cerr
+        << "Error: Test settings vector is empty, cannot write times file.\n";
+    return;
+  }
+
   std::filesystem::path p(vec_settings.front().fileName);
   std::string folderName = p.parent_path().string();
+  if (folderName.empty()) {
+    folderName = ".";
+  }
 
   std::ofstream timeFile(folderName + "/individual_test_times.txt");
   if (timeFile) {
@@ -219,15 +304,14 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
   for (const auto &MatSize : MatSizesVec) {
     generalProgressSum += (MatSize.first * MatSize.second);
   }
-
   // Диапазоны для генерации сингулярных значений.
   const std::vector<std::pair<FloatingPoint, FloatingPoint>> Intervals = {
       {0, 1}, {1, 100}};
-
-  FloatingPoint ProgressCoeff = n * Intervals.size() *
-                                SigmaMaxMinRatiosVec.size() *
-                                generalProgressSum / 100.0;
+  FloatingPoint ProgressCoeff =
+      n * Intervals.size() * SigmaMaxMinRatiosVec.size() * generalProgressSum;
+  if (ProgressCoeff == 0) ProgressCoeff = 1;
   FloatingPoint progress = 0;
+  FloatingPoint currentProgressCounter = 0;
 
   std::vector<std::vector<std::string>> table;
   // Формируем заголовок таблицы.
@@ -245,9 +329,10 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
       Eigen::Matrix<FloatingPoint, Eigen::Dynamic, Eigen::Dynamic>;
   using VectorDynamic = Eigen::Matrix<FloatingPoint, Eigen::Dynamic, 1>;
 
-  MatrixDynamic U_true, S_true, V_true;  // Истинное SVD-разложение.
-  MatrixDynamic U_calc, V_calc;          // Вычисленные сингулярные векторы.
-  VectorDynamic S_calc;                  // Вычисленные сингулярные значения.
+  MatrixDynamic U_true, S_true_mat, V_true;  // Истинное SVD-разложение.
+  MatrixDynamic U_calc, V_calc;              // Вычисленные сингулярные векторы.
+  VectorDynamic S_calc;  // Вычисленные сингулярные значения.
+  VectorDynamic S_true_vec;
 
   std::random_device rd;
   std::default_random_engine gen(rd());
@@ -260,8 +345,9 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
 
     U_true.resize(N, N);
     U_calc.resize(N, N);
-    S_true.resize(N, M);
+    S_true_mat.resize(N, M);
     S_calc.resize(minNM);
+    S_true_vec.resize(minNM);
     V_true.resize(M, M);
     V_calc.resize(M, M);
 
@@ -269,58 +355,83 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
       for (const auto &interval : Intervals) {
         assert((interval.first < interval.second) &&
                "Error: left boundary >= right boundary");
-        assert((interval.first * SigmaMaxMinRatio <= interval.second) &&
-               "Error: no sigma values exist with such ratio in such interval");
+        assert((SigmaMaxMinRatio >= FloatingPoint(1)) &&
+               "Error: Sigma ratio must be >= 1");
+
+        if (interval.second < interval.first * SigmaMaxMinRatio &&
+            interval.first != 0) {
+          continue;
+        }
+
+        FloatingPoint sigma_min_lower_bound = interval.first;
+        FloatingPoint sigma_min_upper_bound =
+            (SigmaMaxMinRatio > 0) ? (interval.second / SigmaMaxMinRatio)
+                                   : interval.second;
+        if (sigma_min_upper_bound < sigma_min_lower_bound &&
+            sigma_min_lower_bound > 0) {
+          sigma_min_upper_bound = sigma_min_lower_bound;
+        }
 
         std::uniform_real_distribution<FloatingPoint> distrSigmaMin(
-            interval.first, interval.second / SigmaMaxMinRatio);
-
-        FloatingPoint sigma_min = distrSigmaMin(gen);
-        FloatingPoint sigma_max = SigmaMaxMinRatio * sigma_min;
-
-        // Определение допустимого промежутка сингулярных значений
-        std::uniform_real_distribution<FloatingPoint> distr(sigma_min,
-                                                            sigma_max);
-        assert((minNM >= 2) && "Error: no columns or rows allowed");
+            sigma_min_lower_bound, sigma_min_upper_bound);
 
         // Контейнер для накопления результатов по метрикам.
         std::map<MetricSettings, FloatingPoint> results;
         for (const auto &ms : metricsSettings) {
-          results[ms] = FloatingPoint(0);
+          if (ms.enabled) {
+            results[ms] = FloatingPoint(0);
+          }
         }
 
         // Повторяем тест n раз для усреднения.
         for (size_t i = 1; i <= n; ++i) {
+          FloatingPoint sigma_min = distrSigmaMin(gen);
+          FloatingPoint sigma_max = SigmaMaxMinRatio * sigma_min;
+          sigma_max = std::min(sigma_max, interval.second);
+          if (sigma_min > sigma_max && SigmaMaxMinRatio == 1.0) {
+            sigma_min = sigma_max;
+          } else if (sigma_min > sigma_max) {
+            sigma_min = sigma_max / SigmaMaxMinRatio;
+          }
+
+          std::uniform_real_distribution<FloatingPoint> distr(sigma_min,
+                                                              sigma_max);
+
+          assert((minNM >= 1) &&
+                 "Error: Matrix dimensions must be at least 1x1");
+
           gen_cl<FloatingPoint> svd_gen(N, M, gen, distr, true);
           svd_gen.generate(minNM);
 
           U_true = svd_gen.MatrixU();
-          S_true = svd_gen.MatrixS();
+          S_true_mat = svd_gen.MatrixS();
           V_true = svd_gen.MatrixV();
 
-          MatrixDynamic A = (U_true * S_true * V_true.transpose()).eval();
+          S_true_vec = S_true_mat.diagonal().head(minNM).eval();
 
-          bool local_solve_with_sigmas = solve_with_sigmas;
-          VectorDynamic sigma_to_pass = local_solve_with_sigmas
-                                            ? S_true.diagonal().eval()
-                                            : VectorDynamic();
+          MatrixDynamic A = (U_true * S_true_mat * V_true.transpose()).eval();
+
+          VectorDynamic sigma_to_pass = S_true_vec;
           auto svd_func = create_svd<svd_cl<MatrixDynamic>>(
               A, sigma_to_pass, Eigen::ComputeFullU | Eigen::ComputeFullV,
-              local_solve_with_sigmas);
+              solve_with_sigmas);
 
           U_calc = svd_func.matrixU();
           S_calc = svd_func.singularValues();
           V_calc = svd_func.matrixV();
 
           for (const auto &ms : metricsSettings) {
-            results[ms] += count_metrics(ms, N, M, U_calc, V_calc, S_calc,
-                                         U_true, V_true, S_true);
+            if (ms.enabled) {
+              results[ms] += count_metrics(ms, N, M, U_calc, V_calc, S_calc,
+                                           U_true, V_true, S_true_mat);
+            }
           }
 
-          progress += static_cast<FloatingPoint>(M * N) / ProgressCoeff;
+          currentProgressCounter += static_cast<FloatingPoint>(M * N);
+          progress = currentProgressCounter / ProgressCoeff * 100.0;
           double percent = static_cast<double>(progress);
           int barWidth = 50;
-          int pos = barWidth * static_cast<int>(percent) / 100;
+          int pos = static_cast<int>(barWidth * percent / 100.0);
 
           std::ostringstream progressStream;
           progressStream << algorithmName << ": " << std::fixed
@@ -334,26 +445,38 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
               progressStream << " ";
           }
           progressStream << "]";
-
           {
             std::lock_guard<std::mutex> lock(cout_mutex);
-            std::cout << "\033[" << lineNumber << ";0H" << progressStream.str()
-                      << "\033[0K" << std::flush;
+            if (lineNumber > 0) {
+              std::cout << "\033[" << lineNumber << ";0H"
+                        << progressStream.str() << "\033[K" << std::flush;
+            } else {
+              std::cout << progressStream.str() << "\r" << std::flush;
+            }
           }
-        }  // Конец итераций для данного набора параметров.
+        }  // Конец итераций для данного набора параметров
 
         for (auto &pair : results) {
-          pair.second /= n;
+          if (n > 0) {
+            pair.second /= n;
+          }
         }
 
         std::vector<std::string> row;
-        row.push_back(num2str(N) + "x" + num2str(M));
+        // Используем num2str для всех числовых колонок, кроме Dimension
+        row.push_back(std::to_string(N) + "x" +
+                      std::to_string(M));  // Dimension как строка
         row.push_back(num2str(SigmaMaxMinRatio));
         row.push_back("[" + num2str(interval.first) + ", " +
                       num2str(interval.second) + "]");
         for (const auto &ms : metricsSettings) {
           if (!ms.enabled) continue;
-          row.push_back(num2str(results[ms]));
+          auto it = results.find(ms);
+          if (it != results.end()) {
+            row.push_back(num2str(it->second));  // Метрики тоже форматируем
+          } else {
+            row.push_back("N/A");
+          }
         }
         table.push_back(row);
       }
@@ -366,7 +489,7 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
     file.close();
   } else {
     std::lock_guard<std::mutex> lock(cout_mutex);
-    std::cerr << "Error while creating/opening file!\n";
+    std::cerr << "Error while creating/opening file: " << fileName << "!\n";
   }
 
   std::string csvFileName = fileName;
@@ -384,8 +507,189 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
     std::lock_guard<std::mutex> lock(cout_mutex);
     std::cerr << "Error while creating/opening file " << csvFileName << "!\n";
   }
+  {
+    std::lock_guard<std::mutex> lock(cout_mutex);
+    std::ostringstream progressStream;
+    int barWidth = 50;
+    progressStream << algorithmName << ": " << std::fixed
+                   << std::setprecision(4) << 100.0 << "% [";
+    for (int j = 0; j < barWidth; ++j) progressStream << "=";
+    progressStream << "]";
+    if (lineNumber > 0) {
+      std::cout << "\033[" << lineNumber << ";0H" << progressStream.str()
+                << "\033[K" << std::endl;
+    } else {
+      std::cout << progressStream.str() << std::endl;
+    }
+  }
 }
 
+template <typename FloatingPoint, typename MatrixType>
+std::map<std::string,
+         typename SVD_Test<FloatingPoint, MatrixType>::SvdExecutorFunc>
+SVD_Test<FloatingPoint, MatrixType>::initialize_svd_executors() {
+  std::map<std::string, SvdExecutorFunc> executors;
+
+  auto create_executor = []<template <typename> class SvdImpl>(
+                             const MatrixDynamic &A,
+                             unsigned int options) -> SVDResult {
+    VectorDynamic sigma_to_pass;
+    bool needs_sigma = requires_sigma<SvdImpl<MatrixDynamic>>::value;
+
+    if (needs_sigma) {
+      Eigen::JacobiSVD<MatrixDynamic> svd_ref(
+          A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+      sigma_to_pass = svd_ref.singularValues();
+    }
+
+    auto svd = create_svd<SvdImpl<MatrixDynamic>>(A, sigma_to_pass, options,
+                                                  needs_sigma);
+
+    return {svd.matrixU(), svd.singularValues(), svd.matrixV()};
+  };
+
+  executors["Eigen::JacobiSVD"] = [](const MatrixDynamic &A,
+                                     unsigned int options) -> SVDResult {
+    Eigen::JacobiSVD<MatrixDynamic> svd(A, options);
+    return {svd.matrixU(), svd.singularValues(), svd.matrixV()};
+  };
+
+  executors["SVD_Project::GivRef_SVD"] =
+      [&create_executor](const MatrixDynamic &A,
+                         unsigned int options) -> SVDResult {
+    return create_executor.template operator()<SVD_Project::GivRef_SVD>(
+        A, options);
+  };
+  executors["SVD_Project::v0_GivRef_SVD"] =
+      [&create_executor](const MatrixDynamic &A,
+                         unsigned int options) -> SVDResult {
+    return create_executor.template operator()<SVD_Project::v0_GivRef_SVD>(
+        A, options);
+  };
+  executors["SVD_Project::NaiveMRRR_SVD"] =
+      [&create_executor](const MatrixDynamic &A,
+                         unsigned int options) -> SVDResult {
+    return create_executor.template operator()<SVD_Project::NaiveMRRR_SVD>(
+        A, options);
+  };
+  executors["SVD_Project::v0_NaiveMRRR_SVD"] =
+      [&create_executor](const MatrixDynamic &A,
+                         unsigned int options) -> SVDResult {
+    return create_executor.template operator()<SVD_Project::v0_NaiveMRRR_SVD>(
+        A, options);
+  };
+  executors["SVD_Project::RevJac_SVD"] =
+      [&create_executor](const MatrixDynamic &A,
+                         unsigned int options) -> SVDResult {
+    return create_executor.template operator()<SVD_Project::RevJac_SVD>(
+        A, options);
+  };
+  executors["SVD_Project::v0_RevJac_SVD"] =
+      [&create_executor](const MatrixDynamic &A,
+                         unsigned int options) -> SVDResult {
+    return create_executor.template operator()<SVD_Project::v0_RevJac_SVD>(
+        A, options);
+  };
+
+  return executors;
+}
+
+template <typename FloatingPoint, typename MatrixType>
+std::map<std::string,
+         typename SVD_Test<FloatingPoint, MatrixType>::SvdExecutorFunc>
+    SVD_Test<FloatingPoint, MatrixType>::svd_executors =
+        initialize_svd_executors();
+
+template <typename FloatingPoint, typename MatrixType>
+typename SVD_Test<FloatingPoint, MatrixType>::SVDResult
+SVD_Test<FloatingPoint, MatrixType>::execute_svd_algorithm(
+    const std::string &algoName, const MatrixDynamic &A, unsigned int options) {
+  auto it = svd_executors.find(algoName);
+  if (it != svd_executors.end()) {
+    return it->second(A, options);
+  } else {
+    throw std::invalid_argument(
+        "Unknown algorithm name in execute_svd_algorithm: " + algoName);
+  }
+}
+
+template <typename FloatingPoint, typename MatrixType>
+typename SVD_Test<FloatingPoint, MatrixType>::MatrixDynamic
+SVD_Test<FloatingPoint, MatrixType>::convertVectorToDiagonalMatrix(
+    const VectorDynamic &s_calc) {
+  Eigen::Index size = s_calc.size();
+  MatrixDynamic S_calc_matrix = MatrixDynamic::Zero(size, size);
+  for (Eigen::Index i = 0; i < size; ++i) {
+    S_calc_matrix(i, i) = s_calc(i);
+  }
+  return S_calc_matrix;
+}
+
+template <typename FloatingPoint, typename MatrixType>
+SVD_Test<FloatingPoint, MatrixType>::VectorDynamic
+SVD_Test<FloatingPoint, MatrixType>::convertSquareMatrixDiagonalToVector(
+    const MatrixDynamic &S_calc_matrix) {
+  Eigen::Index size = S_calc_matrix.rows();
+  assert(S_calc_matrix.cols() == size && "Input matrix must be square.");
+  VectorDynamic vector = VectorDynamic::Zero(size);
+  for (Eigen::Index i = 0; i < size; ++i) {
+    vector(i) = S_calc_matrix(i, i);
+  }
+  return vector;
+}
+
+template <typename FloatingPoint, typename MatrixType>
+void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
+    const std::string &algoName, int rows, int cols, std::ostream &out) {
+  std::random_device rd;
+  std::default_random_engine gen(rd());
+  std::uniform_real_distribution<FloatingPoint> distr(-100, 100);
+  SVDGenerator<FloatingPoint> svd_gen(rows, cols, gen, distr, true);
+  int minNM = std::min(rows, cols);
+  MatrixDynamic A(svd_gen.getInitialMatrix());
+
+  SVDResult result = execute_svd_algorithm(
+      algoName, A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+  MatrixDynamic U_calc = result.U;
+  VectorDynamic S_calc = result.S;
+  MatrixDynamic V_calc = result.V;
+
+  MatrixDynamic S_calc_matrix = convertVectorToDiagonalMatrix(S_calc);
+
+  MatrixDynamic S_true = svd_gen.getMatrixS();
+  MatrixDynamic A_rec = U_calc * S_calc_matrix * V_calc.transpose();
+
+  auto sign = [](FloatingPoint val) -> int {
+    if (val == FloatingPoint(0)) return 0;
+    return (val > 0) ? 1 : -1;
+  };
+
+  int count = 0;
+  int total = rows * cols;
+
+  for (int i = 0; i < rows; ++i) {
+    for (int j = 0; j < cols; ++j) {
+      int sign_A = sign(A(i, j));
+      int sign_A_rec = sign(A_rec(i, j));
+      if (sign_A == sign_A_rec) {
+        count++;
+      }
+    }
+  }
+
+  FloatingPoint percent = (total > 0)
+                              ? (100.0 * static_cast<FloatingPoint>(count) /
+                                 static_cast<FloatingPoint>(total))
+                              : 0.0;
+
+  out << "Algorithm: " << algoName << "\n";
+  out << "Original Matrix (" << rows << "x" << cols << "):\n" << A << "\n\n";
+  out << "Reconstructed Matrix:\n" << A_rec << "\n\n";
+  out << "Percentage of matching signs (based on all elements): " << std::fixed
+      << std::setprecision(2) << percent << "%\n";
+}
+
+// Реализация метода printTable.
 template <typename FloatingPoint, typename MatrixType>
 void SVD_Test<FloatingPoint, MatrixType>::printTable(
     std::ostream &out, const std::vector<std::vector<std::string>> &data) {
@@ -393,21 +697,43 @@ void SVD_Test<FloatingPoint, MatrixType>::printTable(
   std::vector<size_t> widths;
   for (const auto &row : data) {
     for (size_t i = 0; i < row.size(); ++i) {
-      if (i >= widths.size())
-        widths.push_back(row[i].size());
-      else
-        widths[i] = std::max(widths[i], row[i].size());
+      if (i >= widths.size()) widths.resize(i + 1, 0);
+      widths[i] = std::max(widths[i], row[i].size());
     }
   }
-  for (const auto &row : data) {
-    for (size_t i = 0; i < row.size(); ++i) {
-      out << std::left << std::setw(widths[i] + 3) << row[i];
-      if (i < row.size() - 1) out << "\t";
+
+  if (!data.empty()) {
+    for (size_t i = 0; i < data[0].size(); ++i) {
+      if (i < widths.size()) {
+        out << std::string(widths[i] + 1, '-') << " ";
+      }
     }
     out << "\n";
   }
+
+  bool is_header = true;
+  for (const auto &row : data) {
+    for (size_t i = 0; i < row.size(); ++i) {
+      if (i < widths.size()) {
+        out << std::left << std::setw(widths[i] + 1) << row[i];
+      } else {
+        out << std::left << std::setw(row[i].size() + 1) << row[i];
+      }
+    }
+    out << "\n";
+    if (is_header && data.size() > 1) {
+      for (size_t i = 0; i < row.size(); ++i) {
+        if (i < widths.size()) {
+          out << std::string(widths[i] + 1, '-') << " ";
+        }
+      }
+      out << "\n";
+      is_header = false;
+    }
+  }
 }
 
+// Реализация метода printCSV.
 template <typename FloatingPoint, typename MatrixType>
 void SVD_Test<FloatingPoint, MatrixType>::printCSV(
     std::ostream &out, const std::vector<std::vector<std::string>> &data) {
@@ -416,7 +742,14 @@ void SVD_Test<FloatingPoint, MatrixType>::printCSV(
     for (size_t i = 0; i < data[r].size(); ++i) {
       if (!first) out << ",";
       std::string cellFormatted = data[r][i];
-      if (cellFormatted.find(',') != std::string::npos) {
+      bool needs_quoting = (cellFormatted.find(',') != std::string::npos ||
+                            cellFormatted.find('\"') != std::string::npos);
+      if (needs_quoting) {
+        size_t pos = cellFormatted.find('\"');
+        while (pos != std::string::npos) {
+          cellFormatted.replace(pos, 1, "\"\"");
+          pos = cellFormatted.find('\"', pos + 2);
+        }
         cellFormatted = "\"" + cellFormatted + "\"";
       }
       out << cellFormatted;
@@ -537,11 +870,10 @@ FloatingPoint SVD_Test<FloatingPoint, MatrixType>::count_metrics(
       break;
     default:
       throw std::runtime_error("ERROR: No such metric!");
-      break;
   }
   return ans;
 }
 
-};  // namespace SVD_Project
+}  // namespace SVD_Project
 
 #endif  // SVD_TEST_HPP

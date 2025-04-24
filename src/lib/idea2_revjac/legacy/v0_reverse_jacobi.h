@@ -12,7 +12,6 @@ class v0_RevJac_SVD : public Eigen::SVDBase<v0_RevJac_SVD<_MatrixType>> {
   typedef typename _MatrixType::Index Index;
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatrixDynamic;
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VectorDynamic;
-  enum Rotation { Left, Right };
 
   using _SingularVectorType = VectorDynamic;
 
@@ -26,30 +25,16 @@ class v0_RevJac_SVD : public Eigen::SVDBase<v0_RevJac_SVD<_MatrixType>> {
   v0_RevJac_SVD& compute();
 
   const MatrixDynamic& matrixU() const { return m_matrixU; }
-  const MatrixDynamic& matrixV() const {
-    return m_transposedMatrixV;  // Crashes if .transpose() used.
-  }
+  const MatrixDynamic& matrixV() const { return m_matrixV; }
   const _SingularVectorType& singularValues() const { return m_singularValues; }
 
  private:
   MatrixDynamic m_matrixU;
-  MatrixDynamic m_transposedMatrixV;
+  MatrixDynamic m_matrixV;
   const _SingularVectorType& m_singularValues;
   const _MatrixType& m_initialMatrix;
-  MatrixDynamic m_currentMatrix;
-  _MatrixType m_differenceMatrix;
-  Rotation m_lastRotation;
-  Index m_currentI, m_currentJ;
 
   void iterate();
-  bool convergenceReached() const;
-  void updateDifference();
-  void calculateBiggestDifference();
-  Eigen::JacobiRotation<Scalar> composeLeftRotation(const Index& i,
-                                                    const Index& j) const;
-  Eigen::JacobiRotation<Scalar> composeRightRotation(const Index& i,
-                                                     const Index& j) const;
-  // Eigen::JacobiRotation<Scalar> identityRotation() const;
 };
 
 }  // namespace SVD_Project

@@ -8,6 +8,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -30,13 +31,10 @@ namespace SVD_Project {
 template <typename FloatingPoint, typename MatrixType>
 class SVD_Test {
  public:
-  template <typename Derived>
-  static FloatingPoint Lpq_norm(const Eigen::MatrixBase<Derived> &M,
-                                FloatingPoint p, FloatingPoint q);
+  static FloatingPoint Lpq_norm(const MatrixType &M, FloatingPoint p,
+                                FloatingPoint q);
 
-  template <typename Derived>
-  static FloatingPoint Lp_norm(const Eigen::MatrixBase<Derived> &M,
-                               FloatingPoint p);
+  static FloatingPoint Lp_norm(const MatrixType &M, FloatingPoint p);
 
   enum MetricType {
     U_DEVIATION1,
@@ -75,6 +73,12 @@ class SVD_Test {
       Eigen::Matrix<FloatingPoint, Eigen::Dynamic, Eigen::Dynamic>;
   using VectorDynamic = Eigen::Matrix<FloatingPoint, Eigen::Dynamic, 1>;
 
+  struct SVDResult {
+    MatrixDynamic U;
+    VectorDynamic S;
+    MatrixDynamic V;
+  };
+
   struct svd_test_funcSettings {
     std::string fileName;  // Имя файла для вывода результатов.
     std::vector<FloatingPoint>
@@ -97,6 +101,9 @@ class SVD_Test {
   template <template <typename> class gen_cl, template <typename> class svd_cl>
   void svd_test_func(svd_test_funcSettings settings);
 
+  static void compareMatrices(const std::string &algoName, int rows, int cols,
+                              std::ostream &out);
+
  protected:
   template <template <typename> class gen_cl, template <typename> class svd_cl>
   void svd_test_func(std::string fileName,
@@ -104,9 +111,13 @@ class SVD_Test {
                      const std::vector<std::pair<int, int>> &MatSizesVec, int n,
                      const std::string &algorithmName, int lineNumber,
                      const std::vector<MetricSettings> &metricsSettings,
-                     bool solve_with_sigmas); 
+                     bool solve_with_sigmas);
   void run_tests_parallel(
       const std::vector<svd_test_funcSettings> &vec_settings);
+
+  static SVDResult execute_svd_algorithm(const std::string &algoName,
+                                         const MatrixDynamic &A,
+                                         unsigned int options);
 
   void printTable(std::ostream &out,
                   const std::vector<std::vector<std::string>> &data);
@@ -121,6 +132,21 @@ class SVD_Test {
                               const MatrixDynamic &U_true,
                               const MatrixDynamic &V_true,
                               const MatrixDynamic &S_true);
+
+  using SvdRunnerFunc =
+      std::function<void(SVD_Test *, const svd_test_funcSettings &)>;
+
+  static std::map<std::string, SvdRunnerFunc> initialize_svd_runners();
+
+  using SvdExecutorFunc =
+      std::function<SVDResult(const MatrixDynamic &, unsigned int)>;
+  static std::map<std::string, SvdExecutorFunc> svd_executors;
+  static std::map<std::string, SvdExecutorFunc> initialize_svd_executors();
+
+  static MatrixDynamic convertVectorToDiagonalMatrix(
+      const VectorDynamic &s_calc);
+  static VectorDynamic convertSquareMatrixDiagonalToVector(
+      const MatrixDynamic &diagonalMatrix);
 };
 using SVDT = SVD_Project::SVD_Test<
     double, Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>>;
