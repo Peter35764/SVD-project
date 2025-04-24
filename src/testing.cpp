@@ -16,7 +16,8 @@ int main() {
   namespace fs = std::filesystem;
 
   SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5, std::cout);
-  SVDT::compareMatrices("SVD_Project::GivRef_SVD", 5, 5, std::cout);
+  SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, std::cout);
+  SVDT::compareMatrices("SVD_Project::v0_RevJac_SVD", 5, 5, std::cout);
 
   return 0;
 
