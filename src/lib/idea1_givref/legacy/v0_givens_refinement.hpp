@@ -1,10 +1,11 @@
-#pragma once
+#ifndef V0_GENERATE_SVD_H
+#define V0_GENERATE_SVD_H
 #include <Eigen/Core>
+#include <Eigen/Dense>
 #include <Eigen/SVD>
-#include <Eigen/dense>
 #include <random>
 
-#include "generate_svd.h"
+namespace SVD_Project {
 
 template <typename T, int N = Eigen::Dynamic>
 class QR_zero_shift {
@@ -248,6 +249,26 @@ class QR_zero_shift {
     trigonom_i = 0;
   }
 
+  QR_zero_shift(const SquareMatrix& b,
+                const Eigen::Matrix<T, Eigen::Dynamic, 1>& s) {
+    n = b.rows();
+    iter_num = 0;
+    left_J = SquareMatrix::Identity(n, n);
+    right_J = SquareMatrix::Identity(n, n);
+    auto bid = Eigen::internal::UpperBidiagonalization<SquareMatrix>(b);
+    B = bid.bidiagonal();
+    sigm_B = B;
+    for (int i = 0; i < n; ++i) {
+      sigm_B(i, i) = s(i);
+    }
+    true_sigm_B = sigm_B;
+    Cosines = Eigen::VectorXd();
+    Sines = Eigen::VectorXd();
+    NewCosines = Eigen::VectorXd();
+    NewSines = Eigen::VectorXd();
+    trigonom_i = 0;
+  }
+
   // Основная функция задающая количество итераций
   // алгоритма."null_superdiagonal" - , "null_superdiagonal" - зануление
   // супердиагонали полученный матрицы с сингулярными значениями
@@ -405,3 +426,61 @@ class QR_zero_shift {
   int Get_size() { return n; }
   int Get_iter_num() { return iter_num; }
 };
+
+// wrapper for tests
+template <typename MatrixType>
+class v0_GivRef_SVD {
+ public:
+  using Scalar = typename MatrixType::Scalar;
+  using Index = typename MatrixType::Index;
+  using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+  using SquareMatrix = MatrixType;
+
+  v0_GivRef_SVD(const MatrixType& A, const VectorType& s, unsigned int = 0)
+      : mA(A) {
+    if (s.size() == A.rows()) {
+      qr = new QR_zero_shift<Scalar, Eigen::Dynamic>(A, s);
+    } else {
+      qr = new QR_zero_shift<Scalar, Eigen::Dynamic>(A);
+    }
+    compute();
+  }
+
+  v0_GivRef_SVD(const MatrixType& A, const VectorType& s, std::ostream*,
+                unsigned int = 0)
+      : v0_GivRef_SVD(A, s, 0) {}
+
+  v0_GivRef_SVD(const MatrixType& A, unsigned int opts = 0)
+      : v0_GivRef_SVD(A, VectorType::Zero(A.rows()), opts) {}
+
+  ~v0_GivRef_SVD() { delete qr; }
+
+  v0_GivRef_SVD& compute() {
+    qr->Implicit_QR_with_zero_shift(10, true, true);
+
+    _U = qr->reconstruct_left();
+    _V = qr->reconstruct_right();
+
+    _sing = VectorType(qr->Get_size());
+    for (int i = 0; i < qr->Get_size(); i++) {
+      _sing(i) = qr->Get_sigm_B()(i, i);
+    }
+
+    return *this;
+  }
+
+  v0_GivRef_SVD& compute(std::ostream*) { return compute(); }
+
+  const MatrixType& matrixU() const { return _U; }
+  const MatrixType& matrixV() const { return _V; }
+  const VectorType& singularValues() const { return _sing; }
+
+ private:
+  MatrixType mA;
+  MatrixType _U, _V;
+  VectorType _sing;
+  QR_zero_shift<Scalar, Eigen::Dynamic>* qr;
+};
+
+}  // namespace SVD_Project
+#endif  // V0_GENERATE_SVD_H
