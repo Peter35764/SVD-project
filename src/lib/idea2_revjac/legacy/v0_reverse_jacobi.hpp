@@ -1,8 +1,11 @@
 #ifndef V0_REVERSE_JACOBI_HPP
 #define V0_REVERSE_JACOBI_HPP
 
+#include <Eigen/Core>
 #include <Eigen/Jacobi>
-#include <iostream>  // TODO delete if unused
+#include <Eigen/SVD>
+#include <boost/math/tools/minima.hpp>
+#include <iostream>
 
 // necessary for correct display in ide (or clangd lsp), does not
 // affect the assembly process and can be removed
@@ -15,107 +18,72 @@ v0_RevJac_SVD<_MatrixType>::v0_RevJac_SVD(
     const _MatrixType& initial, const _SingularVectorType& singularValues,
     unsigned int computationOptions)
     : m_initialMatrix(initial), m_singularValues(singularValues) {
-  Index cols = initial.cols();
-  Index rows = initial.rows();
-
-  m_matrixU = MatrixDynamic::Identity(rows, rows);
-  m_transposedMatrixV = MatrixDynamic::Identity(cols, cols);
-  m_lastRotation = Rotation::Left;
-  m_currentMatrix =
-      m_matrixU * m_singularValues.asDiagonal() * m_transposedMatrixV;
-
-  this->compute();
+  assert(m_initialMatrix.cols() == m_initialMatrix.rows());
+  this->m_matrixV =
+      _MatrixType::Identity(m_initialMatrix.rows(), m_initialMatrix.cols());
+  this->m_matrixU =
+      _MatrixType::Identity(m_initialMatrix.rows(), m_initialMatrix.cols());
 }
 
 template <typename _MatrixType>
 v0_RevJac_SVD<_MatrixType>& v0_RevJac_SVD<_MatrixType>::compute() {
-  for (size_t i = 0; i < MAX_ITERATIONS; i++) {
-    iterate();
-    if (convergenceReached()) {
-      break;
-    }
-  }
-  return *this;
-};
+  _MatrixType temp = this->m_singularValues.asDiagonal();
+  // std::cout << "m_initialMatrix:" << std::endl << initial << std::endl;
+  // std::cout << "singular:" << std::endl << temp << std::endl;
+  for (int i = 0; i < MAX_ITERATIONS; i++) {
+    // while ((temp - m_initialMatrix).norm() > tolerance) {
+    for (int p = 0; p < m_initialMatrix.rows(); p++) {
+      for (int q = p + 1; q < m_initialMatrix.cols(); q++) {
+        // Подбираем c и s (c^2 + s^2 = 1), что:
+        // [ c s ]^T   [ temp_{pp} temp_{pq} ]   [ c s ]   [ *
+        // m_initialMatrix_{pq} ] [ ]   * [                     ] * [     ] = [
+        // ]
+        // [-s c ]     [ temp_{qp} temp_{qq} ]   [-s c ]   [
+        // m_initialMatrix_{pq} * ] temp_{pq}*(c^2 - s^2) + (temp_{pp} -
+        // temp_{qq})cs = m_initialMatrix_{pq} std::cout << temp(p, q) << " " <<
+        // temp(p, p) << " " << temp(q, q) << " " << m_initialMatrix(p, q) <<
+        // std::endl;
+        struct MinFronebius {
+          int p, q;
+          _MatrixType const& initial;
+          _MatrixType const& temp;
 
-template <typename _MatrixType>
-void v0_RevJac_SVD<_MatrixType>::iterate() {
-  updateDifference();
+          MinFronebius(int p, int q, _MatrixType const& initial,
+                       _MatrixType const& temp)
+              : p(p), q(q), initial(initial), temp(temp) {}
 
-  calculateBiggestDifference();
+          Scalar operator()(Scalar const& c) {
+            Scalar s = sqrt(1 - c * c);
+            auto rotation = Eigen::JacobiRotation(c, s);
+            _MatrixType temp2 = temp;
 
-  if (m_lastRotation == Rotation::Left) {
-    m_transposedMatrixV.applyOnTheRight(
-        m_currentI, m_currentJ,
-        composeRightRotation(m_currentI, m_currentJ).adjoint());
-    m_lastRotation = Rotation::Right;
-  } else {
-    m_matrixU.applyOnTheLeft(
-        m_currentI, m_currentJ,
-        composeLeftRotation(m_currentI, m_currentJ).adjoint());
-    m_lastRotation = Rotation::Left;
-  }
-}
-
-template <typename _MatrixType>
-bool v0_RevJac_SVD<_MatrixType>::convergenceReached() const {
-  return (m_differenceMatrix.norm() < TOLERANCE);
-  std::cout << "\nconvergenceReached\n TODO DELETE THIS MESSAGE";
-}
-
-template <typename _MatrixType>
-void v0_RevJac_SVD<_MatrixType>::updateDifference() {
-  m_currentMatrix =
-      m_matrixU * m_singularValues.asDiagonal() * m_transposedMatrixV;
-  m_differenceMatrix = m_currentMatrix - m_initialMatrix;
-}
-
-template <typename _MatrixType>
-void v0_RevJac_SVD<_MatrixType>::calculateBiggestDifference() {
-  Index maxIndex = m_lastRotation == Rotation::Left ? m_transposedMatrixV.cols()
-                                                    : m_matrixU.rows();
-  Scalar absBiggestDiff = 0;
-  for (Index k = 0; k < maxIndex; k++) {
-    for (Index l = 0; l < maxIndex; l++) {
-      if (k == l) continue;  // Пропустить диагональ
-      Scalar currDiff = std::abs(m_differenceMatrix(k, l));
-      if (absBiggestDiff < currDiff) {
-        absBiggestDiff = currDiff;
-        m_currentI = k;
-        m_currentJ = l;
+            temp2.applyOnTheLeft(p, q, rotation.transpose());
+            temp2.applyOnTheRight(p, q, rotation);
+            return (temp2 - initial).norm();
+          }
+        };
+        auto result =
+            boost::math::tools::brent_find_minima<MinFronebius, Scalar>(
+                MinFronebius(p, q, m_initialMatrix, temp), 0, 1,
+                std::numeric_limits<Scalar>::digits);
+        Scalar c = result.first;
+        Scalar s = sqrt(1 - c * c);
+        auto rotation = Eigen::JacobiRotation(c, s);
+        temp.applyOnTheLeft(p, q, rotation.transpose());
+        temp.applyOnTheRight(p, q, rotation);
+        this->m_matrixV.applyOnTheLeft(p, q, rotation);
+        std::cout << "c = " << c << "; s = " << s << std::endl;
+        // std::cout << "DIFF: " << result.first << " " << result.second << " "
+        // << (temp - m_initialMatrix).norm() << std::endl;
       }
     }
   }
+  // this->m_matrixU = this->m_matrixV.transpose();
+  this->m_computeFullU = true;
+  this->m_computeFullV = true;
+  std::cout << (temp - m_initialMatrix).norm() << "\n";
+  return *this;
 }
-
-template <typename _MatrixType>
-Eigen::JacobiRotation<typename v0_RevJac_SVD<_MatrixType>::Scalar>
-v0_RevJac_SVD<_MatrixType>::composeLeftRotation(const Index& i,
-                                                const Index& j) const {
-  Eigen::JacobiRotation<Scalar> rot;
-  rot.makeGivens(m_differenceMatrix(i, i),
-                 m_differenceMatrix(i, j));  // TODO check div by 0
-  return rot;
-}
-
-template <typename _MatrixType>
-Eigen::JacobiRotation<typename v0_RevJac_SVD<_MatrixType>::Scalar>
-v0_RevJac_SVD<_MatrixType>::composeRightRotation(const Index& i,
-                                                 const Index& j) const {
-  Eigen::JacobiRotation<Scalar> rot;
-  rot.makeGivens(m_differenceMatrix(i, i),
-                 m_differenceMatrix(i, j));  // TODO check div by 0
-  return rot;
-}
-
-// template <typename _MatrixType>
-// Eigen::JacobiRotation<typename v0_RevJac_SVD<_MatrixType>::Scalar>
-// v0_RevJac_SVD<_MatrixType>::identityRotation() const {
-//   Eigen::JacobiRotation<Scalar> rot;
-//   rot.c() = Scalar(1);
-//   rot.s() = Scalar(0);
-//   return rot;
-// }
 
 }  // namespace SVD_Project
 
