@@ -233,25 +233,34 @@ TODO
 
 Однако углы для $J, K$ находятся неоднозначно.
 
-% Не забыть добавить ссылку к учебнику! + расписать подробнее, потому что нужно учесть все детали разных способов
-В случае матрицы размера $m \times n, \ m>n$ поступают несколькими способами.
-Первый подход делает матрицу квадратный при помощи
+% BUSY - ищу материалы с развернутым содержанием, добавить еще в глоссарий.
+В случае матрицы размера $m \times n, \ m>n$ используется предобработка с использованием QR-разложения ~\cite{10.5555/867597}: 
 \begin{center}
-    $\bar{A} = [A,0] =(\bar{a}_{ij})\in M_{m\times m}(\mathbb{C})$.
+    $A = Q_{m\times m}R_{m\times n} = Q\begin{bmatrix}
+        R_1\\0
+    \end{bmatrix} = \begin{bmatrix}
+        Q_1&Q_2
+    \end{bmatrix}
+    \begin{bmatrix}
+        R_1\\0
+    \end{bmatrix},
+    $
 \end{center}
-%Теперь при решении поиска поворотов Якоби будем иметь
-%\begin{equation}
-   % \begin{bmatrix}
-   %     c_J&s_J\\-s_J&c_J
-   % \end{bmatrix}^T
-  %  \begin{bmatrix}
-  %      \bar{a}_{pp}&\bar{a}_{pq}\\\bar{a}_{qp}&\bar{a}_{qq}
- %   \end{bmatrix}
-  %  \begin{bmatrix}
-   %     c_K&s_K\\-s_K&c_K
- %   \end{bmatrix}
-%\end{equation}
-%\subsubsubsection{Односторонний метод Якоби}
+где $R_1 \in \mathbb{R}^{n\times n}, Q_1 \in \mathbb{R}^{m\times n}, Q_2\in \mathbb{R}^{m\times (m-n)}$ ~\cite{Golub2013}. После этого метод Якоби применяется для матрицы $R_1$:
+\begin{center}
+    $W^TR_1V=\Sigma = \mathrm{diag(\sigma_1,...,\sigma_n)}$.
+\end{center}
+Определяя 
+\begin{center}
+    $U = Q\begin{bmatrix}
+        W&0\\0&I
+    \end{bmatrix},$    
+\end{center}
+мы получаем
+\begin{center}
+     $U^TAV = \mathrm{diag}(\sigma_1,...,\sigma_n)$.
+\end{center}
+
 
 % Edit 7 (DONE) 
 % Попробовать ужать часть с односторонним методом. Тут он, наверное, имеет только историческую ценность. И нужно объяснить, почему выбирается именно двусторонний метод. Чем он так лучше в нашем случае? + TODO описать критерии сходимости этого этапа, вдохновляться первой задачей Миши
