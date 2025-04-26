@@ -127,146 +127,60 @@ SVD_Test<FloatingPoint, MatrixType>::SVD_Test(
 }
 
 template <typename FloatingPoint, typename MatrixType>
-inline const std::vector<
-    typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
-    SVD_Test<FloatingPoint, MatrixType>::algorithms = {
-        {"SVD_Project::GivRef_SVD",
-         [](SVD_Test<FloatingPoint, MatrixType> *instance,
-            const svd_test_funcSettings &s) {
-           instance
-               ->template svd_test_func<SVDGenerator, SVD_Project::GivRef_SVD>(
-                   s);
-         },
-         [](const MatrixDynamic &A, unsigned int options) -> SVDResult {
-           VectorDynamic sigma_to_pass;
-           bool needs_sigma =
-               requires_sigma<SVD_Project::GivRef_SVD<MatrixDynamic>>::value;
-           if (needs_sigma) {
-             Eigen::JacobiSVD<MatrixDynamic> svd_ref(
-                 A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-             sigma_to_pass = svd_ref.singularValues();
-           }
-           auto svd = create_svd<SVD_Project::GivRef_SVD<MatrixDynamic>>(
-               A, sigma_to_pass, options, needs_sigma);
-           return {svd.matrixU(), svd.singularValues(), svd.matrixV()};
-         }},
-        {"SVD_Project::v0_GivRef_SVD",
-         [](SVD_Test<FloatingPoint, MatrixType> *instance,
-            const svd_test_funcSettings &s) {
-           instance->template svd_test_func<SVDGenerator,
-                                            SVD_Project::v0_GivRef_SVD>(s);
-         },
-         [](const MatrixDynamic &A, unsigned int options) -> SVDResult {
-           VectorDynamic sigma_to_pass;
-           bool needs_sigma =
-               requires_sigma<SVD_Project::v0_GivRef_SVD<MatrixDynamic>>::value;
-           if (needs_sigma) {
-             Eigen::JacobiSVD<MatrixDynamic> svd_ref(
-                 A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-             sigma_to_pass = svd_ref.singularValues();
-           }
-           auto svd = create_svd<SVD_Project::v0_GivRef_SVD<MatrixDynamic>>(
-               A, sigma_to_pass, options, needs_sigma);
-           return {svd.matrixU(), svd.singularValues(), svd.matrixV()};
-         }},
-        {"SVD_Project::NaiveMRRR_SVD",
-         [](SVD_Test<FloatingPoint, MatrixType> *instance,
-            const svd_test_funcSettings &s) {
-           instance->template svd_test_func<SVDGenerator,
-                                            SVD_Project::NaiveMRRR_SVD>(s);
-         },
-         [](const MatrixDynamic &A, unsigned int options) -> SVDResult {
-           VectorDynamic sigma_to_pass;
-           bool needs_sigma =
-               requires_sigma<SVD_Project::NaiveMRRR_SVD<MatrixDynamic>>::value;
-           if (needs_sigma) {
-             Eigen::JacobiSVD<MatrixDynamic> svd_ref(
-                 A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-             sigma_to_pass = svd_ref.singularValues();
-           }
-           auto svd = create_svd<SVD_Project::NaiveMRRR_SVD<MatrixDynamic>>(
-               A, sigma_to_pass, options, needs_sigma);
-           return {svd.matrixU(), svd.singularValues(), svd.matrixV()};
-         }},
-        {"SVD_Project::v0_NaiveMRRR_SVD",
-         [](SVD_Test<FloatingPoint, MatrixType> *instance,
-            const svd_test_funcSettings &s) {
-           instance->template svd_test_func<SVDGenerator,
-                                            SVD_Project::v0_NaiveMRRR_SVD>(s);
-         },
-         [](const MatrixDynamic &A, unsigned int options) -> SVDResult {
-           VectorDynamic sigma_to_pass;
-           bool needs_sigma = requires_sigma<
-               SVD_Project::v0_NaiveMRRR_SVD<MatrixDynamic>>::value;
-           if (needs_sigma) {
-             Eigen::JacobiSVD<MatrixDynamic> svd_ref(
-                 A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-             sigma_to_pass = svd_ref.singularValues();
-           }
-           auto svd = create_svd<SVD_Project::v0_NaiveMRRR_SVD<MatrixDynamic>>(
-               A, sigma_to_pass, options, needs_sigma);
-           return {svd.matrixU(), svd.singularValues(), svd.matrixV()};
-         }},
-        {"SVD_Project::RevJac_SVD",
-         [](SVD_Test<FloatingPoint, MatrixType> *instance,
-            const svd_test_funcSettings &s) {
-           instance
-               ->template svd_test_func<SVDGenerator, SVD_Project::RevJac_SVD>(
-                   s);
-         },
-         [](const MatrixDynamic &A, unsigned int options) -> SVDResult {
-           VectorDynamic sigma_to_pass;
-           bool needs_sigma =
-               requires_sigma<SVD_Project::RevJac_SVD<MatrixDynamic>>::value;
-           if (needs_sigma) {
-             Eigen::JacobiSVD<MatrixDynamic> svd_ref(
-                 A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-             sigma_to_pass = svd_ref.singularValues();
-           }
-           auto svd = create_svd<SVD_Project::RevJac_SVD<MatrixDynamic>>(
-               A, sigma_to_pass, options, needs_sigma);
-           return {svd.matrixU(), svd.singularValues(), svd.matrixV()};
-         }},
-        {"SVD_Project::v0_RevJac_SVD",
-         [](SVD_Test<FloatingPoint, MatrixType> *instance,
-            const svd_test_funcSettings &s) {
-           instance->template svd_test_func<SVDGenerator,
-                                            SVD_Project::v0_RevJac_SVD>(s);
-         },
-         [](const MatrixDynamic &A, unsigned int options) -> SVDResult {
-           VectorDynamic sigma_to_pass;
-           bool needs_sigma =
-               requires_sigma<SVD_Project::v0_RevJac_SVD<MatrixDynamic>>::value;
-           if (needs_sigma) {
-             Eigen::JacobiSVD<MatrixDynamic> svd_ref(
-                 A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-             sigma_to_pass = svd_ref.singularValues();
-           }
-           auto svd = create_svd<SVD_Project::v0_RevJac_SVD<MatrixDynamic>>(
-               A, sigma_to_pass, options, needs_sigma);
-           return {svd.matrixU(), svd.singularValues(), svd.matrixV()};
-         }},
-        {"Eigen::JacobiSVD",
-         [](SVD_Test<FloatingPoint, MatrixType> *instance,
-            const svd_test_funcSettings &s) {
-           instance->template svd_test_func<SVDGenerator, Eigen::JacobiSVD>(s);
-         },
-         [](const MatrixDynamic &A, unsigned int options) -> SVDResult {
-           Eigen::JacobiSVD<MatrixDynamic> svd(A, options);
-           return {svd.matrixU(), svd.singularValues(), svd.matrixV()};
-         }}};
+template <template <typename> class svd_cl>
+const SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo
+SVD_Test<FloatingPoint, MatrixType>::createAlgorithmInfoEntry(
+    std::string name) {
+  return {name,
+          [](SVD_Test<FloatingPoint, MatrixType> *instance,
+             const svd_test_funcSettings &s) {
+            instance->template svd_test_func<SVDGenerator, svd_cl>(s);
+          },
+          [](const MatrixDynamic &A, unsigned int options) -> SVDResult {
+            VectorDynamic sigma_to_pass;
+            bool needs_sigma = requires_sigma<svd_cl<MatrixDynamic>>::value;
+            if (needs_sigma) {
+              Eigen::JacobiSVD<MatrixDynamic> svd_ref(
+                  A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+              sigma_to_pass = svd_ref.singularValues();
+            }
+            auto svd = create_svd<svd_cl<MatrixDynamic>>(A, sigma_to_pass,
+                                                         options, needs_sigma);
+            return {svd.matrixU(), svd.singularValues(), svd.matrixV()};
+          }
+
+  };
+};
+
+template <typename FloatingPoint, typename MatrixType>
+const std::vector<typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
+    SVD_Test<FloatingPoint, MatrixType>::algorithmsInfo = {
+        createAlgorithmInfoEntry<SVD_Project::GivRef_SVD>(
+            "SVD_Project::GivRef_SVD"),
+        createAlgorithmInfoEntry<SVD_Project::v0_GivRef_SVD>(
+            "SVD_Project::v0_GivRef_SVD"),
+        createAlgorithmInfoEntry<SVD_Project::NaiveMRRR_SVD>(
+            "SVD_Project::NaiveMRRR_SVD"),
+        createAlgorithmInfoEntry<SVD_Project::v0_NaiveMRRR_SVD>(
+            "SVD_Project::v0_NaiveMRRR_SVD"),
+        createAlgorithmInfoEntry<SVD_Project::RevJac_SVD>(
+            "SVD_Project::RevJac_SVD"),
+        createAlgorithmInfoEntry<SVD_Project::v0_RevJac_SVD>(
+            "SVD_Project::v0_RevJac_SVD"),
+        createAlgorithmInfoEntry<Eigen::JacobiSVD>("Eigen::JacobiSVD")};
 
 template <typename FloatingPoint, typename MatrixType>
 std::map<std::string,
          typename SVD_Test<FloatingPoint, MatrixType>::SvdRunnerFunc>
-SVD_Test<FloatingPoint, MatrixType>::initialize_svd_runners() {
+SVD_Test<FloatingPoint, MatrixType>::get_svd_runners() {
   std::map<std::string, SvdRunnerFunc> runners;
 
-  for (const auto &algo : algorithms) {
-    if (algo.runner) {
-      runners[algo.name] = algo.runner;
+  if (!runners.size()) {
+    for (const auto &algo : algorithmsInfo) {
+      if (algo.runner) runners[algo.name] = algo.runner;
     }
   }
+
   return runners;
 }
 
@@ -286,7 +200,7 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
 
   std::map<std::string,
            typename SVD_Test<FloatingPoint, MatrixType>::SvdRunnerFunc>
-      svd_test_runners = initialize_svd_runners();
+      svd_test_runners = get_svd_runners();
 
   for (const auto &s : vec_settings) {
     std::filesystem::path p(s.fileName);
@@ -627,14 +541,15 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
 template <typename FloatingPoint, typename MatrixType>
 std::map<std::string,
          typename SVD_Test<FloatingPoint, MatrixType>::SvdExecutorFunc>
-SVD_Test<FloatingPoint, MatrixType>::initialize_svd_executors() {
+SVD_Test<FloatingPoint, MatrixType>::get_svd_executors() {
   std::map<std::string, SvdExecutorFunc> executors;
 
-  for (const auto &algo : algorithms) {
-    if (algo.executor) {
-      executors[algo.name] = algo.executor;
+  if (!executors.size()) {
+    for (const auto &algo : algorithmsInfo) {
+      if (algo.executor) executors[algo.name] = algo.executor;
     }
   }
+
   return executors;
 }
 
@@ -642,7 +557,7 @@ template <typename FloatingPoint, typename MatrixType>
 typename SVD_Test<FloatingPoint, MatrixType>::SVDResult
 SVD_Test<FloatingPoint, MatrixType>::execute_svd_algorithm(
     const std::string &algoName, const MatrixDynamic &A, unsigned int options) {
-  static const auto &executors = initialize_svd_executors();
+  static const auto &executors = get_svd_executors();
   auto it = executors.find(algoName);
   if (it != executors.end()) {
     return it->second(A, options);
@@ -667,7 +582,7 @@ SVD_Test<FloatingPoint, MatrixType>::convertVectorToDiagonalMatrix(
 template <typename FloatingPoint, typename MatrixType>
 std::vector<std::string>
 SVD_Test<FloatingPoint, MatrixType>::getAlgorithmNames() {
-  static const auto &executors = initialize_svd_executors();
+  static const auto &executors = get_svd_executors();
   std::vector<std::string> names;
   names.reserve(executors.size());
   for (auto &kv : executors) {
