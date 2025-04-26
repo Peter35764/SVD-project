@@ -60,13 +60,11 @@ class SVD_Test {
     std::string generateName(const std::string &baseName, bool relative,
                              MetricType type);
 
+    // for use in map
     bool operator<(const MetricSettings &other) const {
-      if (type != other.type) return type < other.type;
-      if (p != other.p) return p < other.p;
-      if (is_relative != other.is_relative)
-        return is_relative < other.is_relative;
-      if (name != other.name) return name < other.name;
-      return enabled < other.enabled;
+      return std::tie(type, p, is_relative, name, enabled) <
+             std::tie(other.type, other.p, other.is_relative, other.name,
+                      other.enabled);
     }
   };
 
