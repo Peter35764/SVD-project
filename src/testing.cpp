@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "lib/SVD_project.h"
-#include "lib/tests/SVD_Test.hpp"
 
 int main() {
   using SVDT = SVD_Project::SVDT;
@@ -24,14 +23,9 @@ int main() {
   //  Вывод всех ключей в svd_executors
   auto names = SVDT::getAlgorithmNames();
   std::cout << "Available SVD algorithms:\n";
-  for (auto &n : names) std::cout << "  " << n << "\n";
-  try {
-    SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, std::cout);
-    SVDT::compareMatrices("SVD_Project::v0_RevJac_SVD", 5, 5, std::cout);
-  } catch (const std::invalid_argument &e) {
-    std::cerr << "Invalid argument: " << e.what() << std::endl;
-    return 1;
-  }
+
+  SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, std::cout);
+  SVDT::compareMatrices("SVD_Project::v0_RevJac_SVD", 5, 5, std::cout);
 
   std::string folderName = SVD_Project::genNameForBundleFolder();
 
