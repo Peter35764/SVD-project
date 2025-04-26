@@ -692,52 +692,58 @@ SVD_Test<FloatingPoint, MatrixType>::convertSquareMatrixDiagonalToVector(
 template <typename FloatingPoint, typename MatrixType>
 void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
     const std::string &algoName, int rows, int cols, std::ostream &out) {
-  std::random_device rd;
-  std::default_random_engine gen(rd());
-  std::uniform_real_distribution<FloatingPoint> distr(-100, 100);
-  SVDGenerator<FloatingPoint> svd_gen(rows, cols, gen, distr, true);
-  int minNM = std::min(rows, cols);
-  MatrixDynamic A(svd_gen.getInitialMatrix());
+  try {
+    std::random_device rd;
+    std::default_random_engine gen(rd());
+    std::uniform_real_distribution<FloatingPoint> distr(-100, 100);
+    SVDGenerator<FloatingPoint> svd_gen(rows, cols, gen, distr, true);
+    int minNM = std::min(rows, cols);
+    MatrixDynamic A(svd_gen.getInitialMatrix());
 
-  SVDResult result = execute_svd_algorithm(
-      algoName, A, Eigen::ComputeFullU | Eigen::ComputeFullV);
-  MatrixDynamic U_calc = result.U;
-  VectorDynamic S_calc = result.S;
-  MatrixDynamic V_calc = result.V;
+    SVDResult result = execute_svd_algorithm(
+        algoName, A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    MatrixDynamic U_calc = result.U;
+    VectorDynamic S_calc = result.S;
+    MatrixDynamic V_calc = result.V;
 
-  MatrixDynamic S_calc_matrix = convertVectorToDiagonalMatrix(S_calc);
+    MatrixDynamic S_calc_matrix = convertVectorToDiagonalMatrix(S_calc);
 
-  MatrixDynamic S_true = svd_gen.getMatrixS();
-  MatrixDynamic A_rec = U_calc * S_calc_matrix * V_calc.transpose();
+    MatrixDynamic S_true = svd_gen.getMatrixS();
+    MatrixDynamic A_rec = U_calc * S_calc_matrix * V_calc.transpose();
 
-  auto sign = [](FloatingPoint val) -> int {
-    if (val == FloatingPoint(0)) return 0;
-    return (val > 0) ? 1 : -1;
-  };
+    auto sign = [](FloatingPoint val) -> int {
+      if (val == FloatingPoint(0)) return 0;
+      return (val > 0) ? 1 : -1;
+    };
 
-  int count = 0;
-  int total = rows * cols;
+    int count = 0;
+    int total = rows * cols;
 
-  for (int i = 0; i < rows; ++i) {
-    for (int j = 0; j < cols; ++j) {
-      int sign_A = sign(A(i, j));
-      int sign_A_rec = sign(A_rec(i, j));
-      if (sign_A == sign_A_rec) {
-        count++;
+    for (int i = 0; i < rows; ++i) {
+      for (int j = 0; j < cols; ++j) {
+        int sign_A = sign(A(i, j));
+        int sign_A_rec = sign(A_rec(i, j));
+        if (sign_A == sign_A_rec) {
+          count++;
+        }
       }
     }
+
+    FloatingPoint percent = (total > 0)
+                                ? (100.0 * static_cast<FloatingPoint>(count) /
+                                   static_cast<FloatingPoint>(total))
+                                : 0.0;
+
+    out << "Algorithm: " << algoName << "\n";
+    out << "Original Matrix (" << rows << "x" << cols << "):\n" << A << "\n\n";
+    out << "Reconstructed Matrix:\n" << A_rec << "\n\n";
+    out << "Percentage of matching signs (based on all elements): "
+        << std::fixed << std::setprecision(2) << percent << "%\n";
+
+  } catch (const std::invalid_argument &e) {
+    std::cerr << "Invalid argument: " << e.what() << std::endl;
+    std::quick_exit(EXIT_FAILURE);
   }
-
-  FloatingPoint percent = (total > 0)
-                              ? (100.0 * static_cast<FloatingPoint>(count) /
-                                 static_cast<FloatingPoint>(total))
-                              : 0.0;
-
-  out << "Algorithm: " << algoName << "\n";
-  out << "Original Matrix (" << rows << "x" << cols << "):\n" << A << "\n\n";
-  out << "Reconstructed Matrix:\n" << A_rec << "\n\n";
-  out << "Percentage of matching signs (based on all elements): " << std::fixed
-      << std::setprecision(2) << percent << "%\n";
 }
 
 // Реализация метода printTable.
