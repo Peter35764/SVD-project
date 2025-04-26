@@ -579,7 +579,7 @@ SVD_Test<FloatingPoint, MatrixType>::convertVectorToDiagonalMatrix(
   return S_calc_matrix;
 }
 
-template<typename FloatingPoint, typename MatrixType>
+template <typename FloatingPoint, typename MatrixType>
 std::vector<std::string>
 SVD_Test<FloatingPoint, MatrixType>::getAlgorithmNames() {
   static const auto &executors = initialize_svd_executors();
