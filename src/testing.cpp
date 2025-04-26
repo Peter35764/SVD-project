@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "lib/SVD_project.h"
+#include "lib/tests/SVD_Test.hpp"
 
 int main() {
   using SVDT = SVD_Project::SVDT;

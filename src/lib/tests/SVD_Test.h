@@ -89,6 +89,22 @@ class SVD_Test {
     bool solve_with_sigmas;  // Флаг управления передачей спектра.
   };
 
+  using SvdRunnerFunc =
+      std::function<void(SVD_Test *, const svd_test_funcSettings &)>;
+
+  using SvdExecutorFunc =
+      std::function<SVDResult(const MatrixDynamic &, unsigned int)>;
+
+  struct AlgorithmInfo {
+    std::string name;
+    SvdRunnerFunc runner;
+    SvdExecutorFunc executor;
+  };
+
+  static const std::vector<AlgorithmInfo> algorithms;
+
+  static std::vector<std::string> getAlgorithmNames();
+
   SVD_Test();
 
   SVD_Test(const std::vector<svd_test_funcSettings> &vec_settings);
