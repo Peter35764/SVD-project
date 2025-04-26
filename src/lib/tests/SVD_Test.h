@@ -149,9 +149,7 @@ class SVD_Test {
                               const MatrixDynamic &V_true,
                               const MatrixDynamic &S_true);
 
-
   static std::map<std::string, SvdRunnerFunc> initialize_svd_runners();
-
 
   static std::map<std::string, SvdExecutorFunc> initialize_svd_executors();
 
