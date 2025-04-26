@@ -21,6 +21,8 @@
 #include <thread>
 #include <vector>
 
+#include "../SVD_project.h"
+
 namespace SVD_Project {
 inline std::mutex cout_mutex;
 int flush = 0;
@@ -31,10 +33,9 @@ namespace SVD_Project {
 template <typename FloatingPoint, typename MatrixType>
 class SVD_Test {
  public:
-  static FloatingPoint Lpq_norm(const MatrixType &M, FloatingPoint p,
-                                FloatingPoint q);
-
-  static FloatingPoint Lp_norm(const MatrixType &M, FloatingPoint p);
+  using MatrixDynamic =
+      Eigen::Matrix<FloatingPoint, Eigen::Dynamic, Eigen::Dynamic>;
+  using VectorDynamic = Eigen::Matrix<FloatingPoint, Eigen::Dynamic, 1>;
 
   enum MetricType {
     U_DEVIATION1,
@@ -69,10 +70,6 @@ class SVD_Test {
     }
   };
 
-  using MatrixDynamic =
-      Eigen::Matrix<FloatingPoint, Eigen::Dynamic, Eigen::Dynamic>;
-  using VectorDynamic = Eigen::Matrix<FloatingPoint, Eigen::Dynamic, 1>;
-
   struct SVDResult {
     MatrixDynamic U;
     VectorDynamic S;
@@ -94,22 +91,6 @@ class SVD_Test {
     bool solve_with_sigmas;  // Флаг управления передачей спектра.
   };
 
-  using SvdRunnerFunc =
-      std::function<void(SVD_Test *, const svd_test_funcSettings &)>;
-
-  using SvdExecutorFunc =
-      std::function<SVDResult(const MatrixDynamic &, unsigned int)>;
-
-  struct AlgorithmInfo {
-    std::string name;
-    SvdRunnerFunc runner;
-    SvdExecutorFunc executor;
-  };
-
-  static const std::vector<AlgorithmInfo> algorithms;
-
-  static std::vector<std::string> getAlgorithmNames();
-
   SVD_Test();
 
   SVD_Test(const std::vector<svd_test_funcSettings> &vec_settings);
@@ -117,10 +98,29 @@ class SVD_Test {
   template <template <typename> class gen_cl, template <typename> class svd_cl>
   void svd_test_func(svd_test_funcSettings settings);
 
+  // ======================
+  //     Static methods
+  // ======================
+
+  static FloatingPoint Lpq_norm(const MatrixType &M, FloatingPoint p,
+                                FloatingPoint q);
+
+  static FloatingPoint Lp_norm(const MatrixType &M, FloatingPoint p);
+
   static void compareMatrices(const std::string &algoName, int rows, int cols,
                               std::ostream &out);
 
+  static std::vector<std::string> getAlgorithmNames();
+
  protected:
+  using SvdRunnerFunc =
+      std::function<void(SVD_Test *, const svd_test_funcSettings &)>;
+  using SvdExecutorFunc =
+      std::function<SVDResult(const MatrixDynamic &, unsigned int)>;
+
+  static std::map<std::string, SvdRunnerFunc> get_svd_runners();
+  static std::map<std::string, SvdExecutorFunc> get_svd_executors();
+
   template <template <typename> class gen_cl, template <typename> class svd_cl>
   void svd_test_func(std::string fileName,
                      const std::vector<FloatingPoint> &SigmaMaxMinRatiosVec,
@@ -135,12 +135,6 @@ class SVD_Test {
                                          const MatrixDynamic &A,
                                          unsigned int options);
 
-  void printTable(std::ostream &out,
-                  const std::vector<std::vector<std::string>> &data);
-  void printCSV(std::ostream &out,
-                const std::vector<std::vector<std::string>> &data);
-  std::string num2str(FloatingPoint value);
-
   FloatingPoint count_metrics(MetricSettings metric_settings, size_t Usize,
                               size_t Vsize, const MatrixDynamic &U_calc,
                               const MatrixDynamic &V_calc,
@@ -149,15 +143,28 @@ class SVD_Test {
                               const MatrixDynamic &V_true,
                               const MatrixDynamic &S_true);
 
-  static std::map<std::string, SvdRunnerFunc> initialize_svd_runners();
+  void printTable(std::ostream &out,
+                  const std::vector<std::vector<std::string>> &data);
+  void printCSV(std::ostream &out,
+                const std::vector<std::vector<std::string>> &data);
+  std::string num2str(FloatingPoint value);
 
-  static std::map<std::string, SvdExecutorFunc> initialize_svd_executors();
+  struct AlgorithmInfo {
+    std::string name;
+    SvdRunnerFunc runner;
+    SvdExecutorFunc executor;
+  };
+
+  template <template <typename> class svd_cl>
+  static const AlgorithmInfo createAlgorithmInfoEntry(std::string name);
+  static const std::vector<AlgorithmInfo> algorithmsInfo;
 
   static MatrixDynamic convertVectorToDiagonalMatrix(
       const VectorDynamic &s_calc);
   static VectorDynamic convertSquareMatrixDiagonalToVector(
       const MatrixDynamic &diagonalMatrix);
 };
+
 using SVDT = SVD_Project::SVD_Test<
     double, Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>>;
 
