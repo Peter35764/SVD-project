@@ -94,6 +94,22 @@ class SVD_Test {
     bool solve_with_sigmas;  // Флаг управления передачей спектра.
   };
 
+  using SvdRunnerFunc =
+      std::function<void(SVD_Test *, const svd_test_funcSettings &)>;
+
+  using SvdExecutorFunc =
+      std::function<SVDResult(const MatrixDynamic &, unsigned int)>;
+
+  struct AlgorithmInfo {
+    std::string name;
+    SvdRunnerFunc runner;
+    SvdExecutorFunc executor;
+  };
+
+  static const std::vector<AlgorithmInfo> algorithms;
+
+  static std::vector<std::string> getAlgorithmNames();
+
   SVD_Test();
 
   SVD_Test(const std::vector<svd_test_funcSettings> &vec_settings);
@@ -133,14 +149,10 @@ class SVD_Test {
                               const MatrixDynamic &V_true,
                               const MatrixDynamic &S_true);
 
-  using SvdRunnerFunc =
-      std::function<void(SVD_Test *, const svd_test_funcSettings &)>;
 
   static std::map<std::string, SvdRunnerFunc> initialize_svd_runners();
 
-  using SvdExecutorFunc =
-      std::function<SVDResult(const MatrixDynamic &, unsigned int)>;
-  static std::map<std::string, SvdExecutorFunc> svd_executors;
+
   static std::map<std::string, SvdExecutorFunc> initialize_svd_executors();
 
   static MatrixDynamic convertVectorToDiagonalMatrix(
