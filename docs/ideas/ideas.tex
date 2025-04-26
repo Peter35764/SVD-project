@@ -385,13 +385,23 @@ TODO
 
 Каждый шаг алгоритма направлен на уменьшение $\left\|  A-C_{(i)}\right\|_F$ следующим образом:
 \begin{enumerate}
-    \item Формируем матрицу $A-C_{(k-1)} = N$
-    \item Находим максимальный элемент $\displaystyle\max_{i,j}\left\{ \left| N_{ij} \right| \right\} = g$. 
-% Edit 29 (TODO)
+    \item Формирование матрицы $A-C_{(k-1)} = N$
+    \item Нахождение максимального элемента $\displaystyle\max_{i,j}\left\{ \left| N_{ij} \right| \right\} = g$. 
+% Edit 29 (DONE)
 % Раскрыть этап с rot
-    \item Используя значения $i,j,g$, применяем функцию $rot$ для получения $cos(\theta),sin(\theta)$ с последующим формированием матрицы поворота Якоби $B_{(i)}$. 
-    \item Формируем матрицу $C_{(k)} = C_{(k - 1)}B_{(k)}$, если $i \equiv 1(mod\ 2)$\newline
-    $C_{(k)} = B_{(k)}C_{(k - 1)}$, $i \equiv 0 \ (mod\ 2)$.
+    \item Применение функции $makeGivens$ из библиотеки \textbf{EIGEN} для матрицы
+    \begin{center}
+        $\begin{bmatrix}
+            n_{ii} & n_{ij}\\
+            n_{ji} & n_{jj}
+        \end{bmatrix}$, где $n_{ij} = g$,
+    \end{center}
+    таким образом, чтобы занулить элемент $g$ и сформировать матрицу поворота Якоби $B_{(k)}$.
+    \item Формирование матрицы $C_{(k)} = 
+    \begin{cases}
+    C_{(k - 1)}B_{(k)}, & \text{если } i \equiv 1 \ (mod 2),\\
+    B_{(k)}C_{(k - 1)}, & \text{если } i \equiv 0 \ (mod\ 2).
+    \end{cases}$
 \end{enumerate}
 Итерации продолжаются до тех пор, пока $\left\|  A-C_{(i)}\right\|_F >tol$, $tol$ - заданный допуск. Правый сингулярный вектор $U = B_{(2n)}...B_{(4)}B_{(2)}$, левый сингулярный вектор $V^T = B_{(1)}B_{(3)}...B_{(2n-1)}$.
 
