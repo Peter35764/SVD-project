@@ -61,7 +61,6 @@ SET(HEADER_FILES
   src/lib/idea2_revjac/legacy/v0_reverse_jacobi.h
   src/lib/idea2_revjac/legacy/v0_reverse_jacobi.hpp
 
-
   # Umbrella header
   src/lib/SVD_project.h
 )
@@ -74,23 +73,6 @@ SET(SOURCE_FILES
   src/givens_refinement.cpp
   src/reverse_jacobi.cpp
   src/naive_mrrr.cpp
-)
-
-        # Old algorithms
-        src/iterative_refinement.cpp
-        src/jacobi.cpp
-        src/GolubKahanSVD.cpp
-
-        # Parf&Drozdov
-        src/givens_refinement.cpp
-        src/reverse_jacobi.cpp
-        src/mrrr.cpp
-
-        # Новый алгоритм
-        src/naive_bidiag_svd.hpp
-
-        # Основной исполняемый файл (если есть)
-        src/main.cpp
 )
 
 # =====================================================================

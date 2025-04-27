@@ -592,18 +592,6 @@ SVD_Test<FloatingPoint, MatrixType>::getAlgorithmNames() {
 }
 
 template <typename FloatingPoint, typename MatrixType>
-std::vector<std::string>
-SVD_Test<FloatingPoint, MatrixType>::getAlgorithmNames() {
-  static const auto &executors = get_svd_executors();
-  std::vector<std::string> names;
-  names.reserve(executors.size());
-  for (auto &kv : executors) {
-    names.push_back(kv.first);
-  }
-  return names;
-}
-
-template <typename FloatingPoint, typename MatrixType>
 typename SVD_Test<FloatingPoint, MatrixType>::VectorDynamic
 SVD_Test<FloatingPoint, MatrixType>::convertSquareMatrixDiagonalToVector(
     const MatrixDynamic &S_calc_matrix) {
