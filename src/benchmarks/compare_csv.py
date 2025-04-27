@@ -317,11 +317,11 @@ class MainWindow(QMainWindow):
 
         self.comparison_table.setSortingEnabled(True)
         self.comparison_table.cellClicked.connect(self.on_cell_clicked)
-        for i in reversed(range(self.table_layout.count())):
-            widget = self.table_layout.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
         self.table_layout.addWidget(self.comparison_table)
+
+        self.table_container.show() # Show table container
+        self.plot_container.hide() # Hide plot container
+
 
     def on_cell_clicked(self, row, col):
         if (row, col) in self.comparison_data:
@@ -359,6 +359,58 @@ class MainWindow(QMainWindow):
                         self.data1 = self.load_csv(filepath)
                         self.display_tables()
         event.acceptProposedAction()
+
+    def plot_residual_graph(self):
+        filepath, _ = QFileDialog.getOpenFileName(self, "Выберите файл для графика невязки", "", "Текстовые файлы (*.txt *.log);;Все файлы (*)")
+        if not filepath:
+            return
+
+        self.clear_tables() # Clear tables when plotting
+        self.clear_plot() # Clear previous plot
+
+
+        steps = []
+        residuals = []
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                for i, line in enumerate(f):
+                    try:
+                        residual_value = float(line.strip())
+                        steps.append(i + 1)
+                        residuals.append(residual_value)
+                    except ValueError:
+                        continue
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось прочитать файл или распарсить данные:\n{e}")
+            self.table_container.hide() # Hide containers on error
+            self.plot_container.hide()
+            return
+
+        if not steps:
+            QMessageBox.warning(self, "Предупреждение", "В файле не найдены числовые значения невязки.")
+            self.table_container.hide() # Hide containers if no data
+            self.plot_container.hide()
+            return
+
+
+        fig = Figure()
+        ax = fig.add_subplot(111)
+        ax.plot(steps, residuals)
+        ax.set_xlabel("Шаг итерации")
+        ax.set_ylabel("Невязка")
+        ax.set_title("График невязки от шага итерации")
+        ax.grid(True)
+        ax.set_yscale('log')
+
+        self.canvas = FigureCanvas(fig)
+        self.toolbar = NavigationToolbar(self.canvas, self)
+
+        self.plot_layout.addWidget(self.toolbar)
+        self.plot_layout.addWidget(self.canvas)
+        self.canvas.draw()
+
+        self.table_container.hide() # Hide table container
+        self.plot_container.show() # Show plot container
 
 
 def generate_requirements():
