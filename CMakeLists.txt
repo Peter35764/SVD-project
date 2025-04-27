@@ -1,5 +1,3 @@
-# TODO добавить создание папки генерации сборки и папки для бинарников + переписать инструкцию
-
 cmake_minimum_required(VERSION 3.10)
 
 project(svd VERSION 1.0.0 DESCRIPTION "Implementations of experimental SVD algorithms")
@@ -11,8 +9,8 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS YES CACHE BOOL "Export all symbols")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-set(THREADS 4 CACHE STRING "количество потоков") # "количество потоков при запуске тестов (один тест в один поток, сами тесты (пока) не параллельны)
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS YES CACHE BOOL "Export all symbols")
+set(THREADS 4 CACHE STRING "Количество потоков при запуске тестов (один тест в один поток)")
 
 configure_file(src/config.h.in config.h)
 include_directories(${CMAKE_BINARY_DIR})
@@ -26,8 +24,7 @@ find_package(Eigen3 REQUIRED)
 find_package(lapacke REQUIRED)
 find_package(Boost REQUIRED)
 
-# При возникновении ошибок сборки на unix-like системах можно попробовать установку через pkg-config:
-
+# Если возникают проблемы с pkg-config, можно раскомментировать следующий блок:
 # find_package(PkgConfig REQUIRED)
 # pkg_check_modules(EIGEN3 REQUIRED eigen3)
 # pkg_check_modules(LAPACKE REQUIRED lapacke)
@@ -56,16 +53,16 @@ SET(HEADER_FILES
   src/lib/idea1_givref/givens_refinement.hpp
   src/lib/idea2_revjac/reverse_jacobi.h
   src/lib/idea2_revjac/reverse_jacobi.hpp
-  src/lib/idea3_naive/naive_mrrr.h
-  src/lib/idea3_naive/naive_mrrr.hpp
+  src/lib/idea3_naive/naive_mrrr/naive_mrrr.h
+  src/lib/idea3_naive/naive_mrrr/naive_mrrr.hpp
+  src/lib/idea3_naive/naive_bidiag_svd/naive_bidiag_svd.h
+  src/lib/idea3_naive/naive_bidiag_svd/naive_bidiag_svd.hpp
 
   # Legacy
   src/lib/idea1_givref/legacy/v0_givens_refinement.h
   src/lib/idea1_givref/legacy/v0_givens_refinement.hpp
   src/lib/idea2_revjac/legacy/v0_reverse_jacobi.h
   src/lib/idea2_revjac/legacy/v0_reverse_jacobi.hpp
-  src/lib/idea3_naive/legacy/v0_naive_mrrr.h
-  src/lib/idea3_naive/legacy/v0_naive_mrrr.hpp
 
   # Umbrella header
   src/lib/SVD_project.h
@@ -86,19 +83,19 @@ SET(SOURCE_FILES
 
 # ============= Цели сборки: ===============
 
-# Библиотека
+# Сборка библиотеки svd (фреймворк)
 add_library(svd ${SOURCE_FILES} ${HEADER_FILES})
 target_link_libraries(svd Eigen3::Eigen lapacke Boost::boost)
 
-# Основные тесты  (testing.cpp)
+# Тестовый исполняемый файл для testing.cpp
 add_executable(svd_test src/testing.cpp)
 target_link_libraries(svd_test PRIVATE svd Eigen3::Eigen lapacke)
 
-# Сценарий тестирования, описанный в givens_refinement.cpp  (idea 1)
+# Тестовый исполняемый файл для givens_refinement.cpp (idea 1)
 add_executable(svd_test_givref src/givens_refinement.cpp)
 target_link_libraries(svd_test_givref PRIVATE svd Eigen3::Eigen lapacke)
 
-# Сценарий тестирования, описанный в reverse_jacobi.cpp  (idea 2)
+# Тестовый исполняемый файл для reverse_jacobi.cpp (idea 2)
 add_executable(svd_test_revjac src/reverse_jacobi.cpp)
 target_link_libraries(svd_test_revjac PRIVATE svd Eigen3::Eigen lapacke)
 
