@@ -159,14 +159,14 @@ const std::vector<typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
             "SVD_Project::GivRef_SVD"),
         createAlgorithmInfoEntry<SVD_Project::v0_GivRef_SVD>(
             "SVD_Project::v0_GivRef_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::NaiveMRRR_SVD>(
-            "SVD_Project::NaiveMRRR_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::v0_NaiveMRRR_SVD>(
-            "SVD_Project::v0_NaiveMRRR_SVD"),
         createAlgorithmInfoEntry<SVD_Project::RevJac_SVD>(
             "SVD_Project::RevJac_SVD"),
         createAlgorithmInfoEntry<SVD_Project::v0_RevJac_SVD>(
             "SVD_Project::v0_RevJac_SVD"),
+        createAlgorithmInfoEntry<SVD_Project::NaiveMRRR_SVD>(
+            "SVD_Project::NaiveMRRR_SVD"),
+        createAlgorithmInfoEntry<SVD_Project::NaiveBidiagSVD>(
+            "SVD_Project::NaiveBidiagSVD"),
         createAlgorithmInfoEntry<Eigen::JacobiSVD>("Eigen::JacobiSVD")};
 
 template <typename FloatingPoint, typename MatrixType>
