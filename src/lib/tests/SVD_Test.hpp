@@ -159,6 +159,8 @@ const std::vector<typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
             "SVD_Project::GivRef_SVD"),
         createAlgorithmInfoEntry<SVD_Project::v0_GivRef_SVD>(
             "SVD_Project::v0_GivRef_SVD"),
+        createAlgorithmInfoEntry<SVD_Project::v1_GivRef_SVD>(
+            "SVD_Project::v1_GivRef_SVD"),
         createAlgorithmInfoEntry<SVD_Project::RevJac_SVD>(
             "SVD_Project::RevJac_SVD"),
         createAlgorithmInfoEntry<SVD_Project::v0_RevJac_SVD>(
