@@ -59,37 +59,37 @@ bool testROTImplementations(float f, float g, float epsilon = 1e-6f) {
   return cs_match && sn_match && r_match;
 }
 
-// Test our GivRef_SVD implementation
-void testGivRefSVD() {
-  using namespace std;
-  using namespace Eigen;
+// // Test our GivRef_SVD implementation
+// void testGivRefSVD() {
+//   using namespace std;
+//   using namespace Eigen;
 
-  // Create a test matrix
-  MatrixXf testMatrix(3, 3);
-  testMatrix << 1, 2, 3, 4, 5, 6, 7, 8, 9;
+//   // Create a test matrix
+//   MatrixXf testMatrix(3, 3);
+//   testMatrix << 1, 2, 3, 4, 5, 6, 7, 8, 9;
 
-  // Create singular values
-  VectorXf sValues(3);
-  sValues << 10, 5, 1;
+//   // Create singular values
+//   VectorXf sValues(3);
+//   sValues << 10, 5, 1;
 
-  // Test with stream output
-  cout << "\n\nTesting GivRef_SVD with divergence stream:\n";
-  SVD_Project::GivRef_SVD<MatrixXf> svd(testMatrix);
-  svd.setDivergenceOstream(&cout);
-  svd.compute(testMatrix);
+//   // Test with stream output
+//   cout << "\n\nTesting GivRef_SVD with divergence stream:\n";
+//   SVD_Project::GivRef_SVD<MatrixXf> svd(testMatrix);
+//   svd.setDivergenceOstream(&cout);
+//   svd.compute(testMatrix);
 
-  cout << "\nComputed singular values: " << svd.singularValues().transpose()
-       << endl;
+//   cout << "\nComputed singular values: " << svd.singularValues().transpose()
+//        << endl;
 
-  // Test with constructor taking singular values
-  cout << "\nTesting GivRef_SVD with provided singular values:\n";
-  SVD_Project::GivRef_SVD<MatrixXf> svd2(testMatrix, sValues);
-  svd2.setDivergenceOstream(&cout);
-  svd2.compute(testMatrix);
+//   // Test with constructor taking singular values
+//   cout << "\nTesting GivRef_SVD with provided singular values:\n";
+//   SVD_Project::GivRef_SVD<MatrixXf> svd2(testMatrix, sValues);
+//   svd2.setDivergenceOstream(&cout);
+//   svd2.compute(testMatrix);
 
-  cout << "\nComputed singular values: " << svd2.singularValues().transpose()
-       << endl;
-}
+//   cout << "\nComputed singular values: " << svd2.singularValues().transpose()
+//        << endl;
+// }
 
 int main() {
   // using namespace std;
@@ -134,7 +134,7 @@ int main() {
   // cout << "Testcase 6: Matrix values\n";
   // testROTImplementations(A(0, 0), A(1, 0));
 
-  testGivRefSVD();
+  // testGivRefSVD();
 
   return 0;
 }
