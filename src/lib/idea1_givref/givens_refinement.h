@@ -78,6 +78,17 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
   using Base::singularValues;
 
  protected:
+  /*
+   * @brief Performs one QR iteration of the SVD algorithm using Givens
+   * rotations
+   */
+  void performQRIteration();
+
+  MatrixType left_J;   // Left Jacobi rotation matrix
+  MatrixType right_J;  // Right Jacobi rotation matrix
+  MatrixType sigm_B;   // Working copy of the bidiagonal matrix
+  Index m;             // Number of rows
+  Index n;             // Number of columns
 };
 
 }  // namespace SVD_Project
