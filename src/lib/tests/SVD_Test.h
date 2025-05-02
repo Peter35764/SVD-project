@@ -30,6 +30,16 @@ int flush = 0;
 
 namespace SVD_Project {
 
+// =========== buffer for no output ===========
+class NullBuffer : public std::streambuf {
+ public:
+  int overflow(int c) override { return c; }
+};
+
+static NullBuffer null_buffer;
+static std::ostream null_stream(&null_buffer);
+// ============================================
+
 template <typename FloatingPoint, typename MatrixType>
 class SVD_Test {
  public:
@@ -106,7 +116,8 @@ class SVD_Test {
   static FloatingPoint Lp_norm(const MatrixType &M, FloatingPoint p);
 
   static void compareMatrices(const std::string &algoName, int rows, int cols,
-                              std::ostream &out);
+                              unsigned int computationOptions = 0,
+                              std::ostream &out = null_stream);
 
   static std::vector<std::string> getAlgorithmNames();
 
