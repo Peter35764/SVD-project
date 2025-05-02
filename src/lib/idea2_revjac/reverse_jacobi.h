@@ -16,7 +16,7 @@ class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatrixDynamic;
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VectorDynamic;
 
-  enum Rotation { Left, Right };
+  enum RotationType { Left, Right };
 
  public:
   RevJac_SVD() = default;
@@ -24,6 +24,9 @@ class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
   RevJac_SVD(const _MatrixType& initial, const VectorDynamic& singularValues,
              unsigned int computationOptions = 0);
   RevJac_SVD(const _MatrixType& initial, const VectorDynamic& singularValues,
+             std::ostream* os, unsigned int computationOptions = 0);
+  RevJac_SVD(const _MatrixType& initial, const VectorDynamic& singularValues,
+             const MatrixDynamic& matrixU, const MatrixDynamic& matrixV,
              std::ostream* os, unsigned int computationOptions = 0);
 
   RevJac_SVD& compute();
@@ -36,24 +39,14 @@ class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
   const VectorDynamic& singularValues() const { return m_singularValues; }
 
  private:
-  void iterate();
+  void iterate(Index i, Index j);
   bool convergenceReached() const;
-  void updateDifference();
-  void calculateBiggestDifference();
-  Eigen::JacobiRotation<Scalar> composeLeftRotation(const Index& i,
-                                                    const Index& j) const;
-  Eigen::JacobiRotation<Scalar> composeRightRotation(const Index& i,
-                                                     const Index& j) const;
-  // Eigen::JacobiRotation<Scalar> identityRotation() const;
 
-  MatrixDynamic m_matrixU;
-  MatrixDynamic m_transposedMatrixV;
   const VectorDynamic& m_singularValues;
   const _MatrixType& m_initialMatrix;
-  MatrixDynamic m_currentMatrix;
-  _MatrixType m_differenceMatrix;
-  Rotation m_lastRotation;
-  Index m_currentI, m_currentJ;
+  MatrixDynamic m_matrixU;
+  MatrixDynamic m_transposedMatrixV;
+  MatrixDynamic m_currentApproximation;
 
   std::ostream* m_divOstream;
 };

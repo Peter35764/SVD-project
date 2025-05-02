@@ -61,6 +61,8 @@ void test_RevJac_SVD() {
 
   Eigen::MatrixXd U = randomOrthogonalMatrix(n);
   Eigen::MatrixXd V = randomOrthogonalMatrix(n);
+  Eigen::MatrixXd inputU = randomOrthogonalMatrix(n);
+  Eigen::MatrixXd inputV = randomOrthogonalMatrix(n);
 
   Eigen::MatrixXd S_well_cond = Eigen::MatrixXd::Identity(n, n);
   Eigen::MatrixXd A_well_cond = U * S_well_cond * V.transpose();
@@ -70,8 +72,10 @@ void test_RevJac_SVD() {
     S(i) = 1.0;
   }
 
-  SVD_Project::RevJac_SVD<Eigen::MatrixXd> algorithm(A_well_cond, S,
-                                                     &std::cout);
+  // SVD_Project::RevJac_SVD<Eigen::MatrixXd> algorithm(A_well_cond, S,
+  //                                                    &std::cout);
+  SVD_Project::RevJac_SVD<Eigen::MatrixXd> algorithm(A_well_cond, S, inputU,
+                                                     inputV, &std::cout);
 
   std::cout << "1\n";
   std::cout << U << std::endl << algorithm.matrixU() << std::endl;
