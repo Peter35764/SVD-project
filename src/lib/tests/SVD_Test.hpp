@@ -608,17 +608,19 @@ SVD_Test<FloatingPoint, MatrixType>::convertSquareMatrixDiagonalToVector(
 
 template <typename FloatingPoint, typename MatrixType>
 void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
-    const std::string &algoName, int rows, int cols, std::ostream &out) {
+    const std::string &algoName, int rows, int cols,
+    unsigned int computationOptions, std::ostream &out) {
   try {
     std::random_device rd;
     std::default_random_engine gen(rd());
     std::uniform_real_distribution<FloatingPoint> distr(-100, 100);
     SVDGenerator<FloatingPoint> svd_gen(rows, cols, gen, distr, true);
     int minNM = std::min(rows, cols);
-    MatrixDynamic A(svd_gen.getInitialMatrix());
+    MatrixDynamic A(svd_gen.getInitialMatrix());  // create random matrix A
 
-    SVDResult result = execute_svd_algorithm(
-        algoName, A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    // run testing algorithm
+    SVDResult result = execute_svd_algorithm(algoName, A, computationOptions);
+
     MatrixDynamic U_calc = result.U;
     VectorDynamic S_calc = result.S;
     MatrixDynamic V_calc = result.V;
@@ -651,11 +653,12 @@ void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
                                    static_cast<FloatingPoint>(total))
                                 : 0.0;
 
-    out << "Algorithm: " << algoName << "\n";
-    out << "Original Matrix (" << rows << "x" << cols << "):\n" << A << "\n\n";
-    out << "Reconstructed Matrix:\n" << A_rec << "\n\n";
-    out << "Percentage of matching signs (based on all elements): "
-        << std::fixed << std::setprecision(2) << percent << "%\n";
+    std::cout << "Algorithm: " << algoName << "\n";
+    std::cout << "Original Matrix (" << rows << "x" << cols << "):\n"
+              << A << "\n\n";
+    std::cout << "Reconstructed Matrix:\n" << A_rec << "\n\n";
+    std::cout << "Percentage of matching signs (based on all elements): "
+              << std::fixed << std::setprecision(2) << percent << "%\n";
 
   } catch (const std::invalid_argument &e) {
     std::cerr << "Invalid argument: " << e.what() << std::endl;
