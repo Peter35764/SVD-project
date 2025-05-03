@@ -25,10 +25,14 @@ GivRef_SVD<_MatrixType>& GivRef_SVD<_MatrixType>::compute(
   n = B.cols();
   Index min_mn = std::min(m, n);
 
+  // Perform bidiagonalization
+  auto bid = Eigen::internal::UpperBidiagonalization<_MatrixType>(B);
+
   // Initialize the Jacobi rotation matrices and working matrix
   left_J = MatrixType::Identity(m, m);
   right_J = MatrixType::Identity(n, n);
-  sigm_B = B;
+
+  sigm_B = bid.bidiagonal();
 
   // Iterative SVD refinement using Givens rotations
   using RealScalar = typename MatrixType::RealScalar;
