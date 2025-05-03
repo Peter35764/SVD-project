@@ -3,6 +3,11 @@ import os
 import csv
 import re
 import subprocess
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QFileDialog, QTableWidget, QTableWidgetItem, QSplitter,
@@ -11,9 +16,6 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 '''
-TODO:
-- Преобразовать количество порядков в float в научной форме.
-- Установить дефолтное значение 1e-31.
 - Формат таблицы:
     • Если значение не изменилось – выводим просто значение.
     • Если изменилось – формат "старое -> новое".
@@ -31,7 +33,6 @@ class CustomTableWidgetItem(QTableWidgetItem):
         if not isinstance(other, CustomTableWidgetItem):
             return super().__lt__(other)
         header_l = self.header_name.lower()
-        # Логика для столбца "Dimension" / "размерность"
         if header_l in ["dimension", "размерность"]:
             try:
                 parts = self.text().lower().split('x')
@@ -45,9 +46,7 @@ class CustomTableWidgetItem(QTableWidgetItem):
                 other_val = 0
             return self_val < other_val
 
-        # Логика для столбцов, где заголовок содержит "interval"
         elif "interval" in header_l:
-            # Ожидается формат вида "[число, число]", например "[0, 1]"
             pattern_brackets = r'^\[\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?),\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)\s*\]$'
             match_self = re.match(pattern_brackets, self.text())
             if match_self:
@@ -74,7 +73,6 @@ class CustomTableWidgetItem(QTableWidgetItem):
                     other_val = 0.0
             return self_val < other_val
 
-        # Логика для остальных столбцов
         else:
             try:
                 if "->" in self.text():
@@ -135,7 +133,7 @@ class MainWindow(QMainWindow):
         self.file2_path = None
         self.data1 = None
         self.data2 = None
-        self.comparison_data = {}  # Для хранения пар: (old_val, new_val) по ячейкам
+        self.comparison_data = {}
 
         self.central_widget = QWidget()
         self.main_layout = QVBoxLayout(self.central_widget)
@@ -145,9 +143,11 @@ class MainWindow(QMainWindow):
         self.btn_file1 = QPushButton("Файл 1")
         self.btn_file2 = QPushButton("Файл 2")
         self.btn_compare = QPushButton("Сравнить")
+        self.btn_plot_residual = QPushButton("График невязки")
         self.button_layout.addWidget(self.btn_file1)
         self.button_layout.addWidget(self.btn_file2)
         self.button_layout.addWidget(self.btn_compare)
+        self.button_layout.addWidget(self.btn_plot_residual)
 
         self.label_threshold = QLabel("Порог:")
         self.button_layout.addWidget(self.label_threshold)
@@ -160,15 +160,26 @@ class MainWindow(QMainWindow):
         self.table_layout = QHBoxLayout(self.table_container)
         self.main_layout.addWidget(self.table_container)
 
+        self.plot_container = QWidget()
+        self.plot_layout = QVBoxLayout(self.plot_container)
+        self.main_layout.addWidget(self.plot_container)
+
+        # Изначально скроем контейнер графика
+        self.plot_container.hide()
+
+
         self.statusBar().showMessage("Кликните на ячейку для отображения сравнения")
 
         self.btn_file1.clicked.connect(self.load_file1)
         self.btn_file2.clicked.connect(self.load_file2)
         self.btn_compare.clicked.connect(self.compare_files)
+        self.btn_plot_residual.clicked.connect(self.plot_residual_graph)
 
         self.table1 = None
         self.table2 = None
         self.comparison_table = None
+        self.canvas = None
+        self.toolbar = None
 
         self.setAcceptDrops(True)
 
@@ -185,11 +196,31 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Ошибка", f"Не удалось прочитать файл {filepath}:\n{e}")
             return None
 
-    def display_tables(self):
+    def clear_plot(self):
+        for i in reversed(range(self.plot_layout.count())):
+            widget = self.plot_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+                widget.deleteLater()
+        self.canvas = None
+        self.toolbar = None
+
+    def clear_tables(self):
         for i in reversed(range(self.table_layout.count())):
             widget = self.table_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
+                widget.deleteLater()
+        self.table1 = None
+        self.table2 = None
+        self.comparison_table = None
+        self.comparison_data.clear()
+
+
+    def display_tables(self):
+        self.clear_plot()
+        self.clear_tables() # Clear previous tables explicitly
+
         if self.data1 and not self.data2:
             self.table1 = CsvTableWidget(self.data1)
             self.table_layout.addWidget(self.table1)
@@ -200,6 +231,10 @@ class MainWindow(QMainWindow):
             splitter.addWidget(self.table1)
             splitter.addWidget(self.table2)
             self.table_layout.addWidget(splitter)
+
+        self.table_container.show() # Show table container
+        self.plot_container.hide() # Hide plot container
+
 
     def load_file1(self):
         filepath, _ = QFileDialog.getOpenFileName(self, "Выберите CSV файл для Файла 1", "", "CSV файлы (*.csv)")
@@ -216,19 +251,25 @@ class MainWindow(QMainWindow):
             self.display_tables()
 
     def compare_files(self):
+        self.clear_plot()
+        self.clear_tables() # Clear previous tables explicitly
+
         if not self.data1 or not self.data2:
             QMessageBox.warning(self, "Предупреждение", "Необходимо загрузить оба файла для сравнения!")
+            self.table_container.hide() # Hide table container if comparison fails
+            self.plot_container.hide() # Ensure plot is hidden too
             return
-        # Перечитываем файлы на случай изменений
+
         if self.file1_path:
             self.data1 = self.load_csv(self.file1_path)
         if self.file2_path:
             self.data2 = self.load_csv(self.file2_path)
         if not (self.data1 and self.data2 and len(self.data1) > 0 and len(self.data2) > 0):
             QMessageBox.critical(self, "Ошибка", "Файлы пустые или некорректны!")
+            self.table_container.hide() # Hide table container on error
+            self.plot_container.hide() # Ensure plot is hidden too
             return
 
-        # Определяем объединенный набор столбцов (union header)
         old_header = self.data1[0]
         new_header = self.data2[0]
         union_header = list(old_header)
@@ -236,7 +277,6 @@ class MainWindow(QMainWindow):
             if col not in union_header:
                 union_header.append(col)
 
-        # Определяем максимальное число строк данных
         rows1 = len(self.data1) - 1
         rows2 = len(self.data2) - 1
         max_rows = max(rows1, rows2)
@@ -255,35 +295,30 @@ class MainWindow(QMainWindow):
             threshold = float(self.le_threshold.text())
         except ValueError:
             QMessageBox.critical(self, "Ошибка", "Некорректное пороговое значение!")
+            self.table_container.hide() # Hide table container on error
+            self.plot_container.hide() # Ensure plot is hidden too
             return
 
-        # Для каждой строки данных (начиная с индекса 1) формируем итоговую строку
         for r in range(1, max_rows + 1):
             table_row = r - 1
             for j, col in enumerate(union_header):
-                # Если столбец присутствует в старом файле, берем значение, иначе пусто
                 if col in old_header:
                     idx_old = old_header.index(col)
                     old_val = self.data1[r][idx_old] if r <= rows1 and idx_old < len(self.data1[r]) else ""
                 else:
                     old_val = ""
-                # Если столбец присутствует в новом файле, берем значение
                 if col in new_header:
                     idx_new = new_header.index(col)
                     new_val = self.data2[r][idx_new] if r <= rows2 and idx_new < len(self.data2[r]) else ""
                 else:
                     new_val = ""
-                # Формирование текста ячейки:
-                # Если оба значения есть:
                 if old_val and new_val:
                     if old_val == new_val:
                         display_text = old_val
                     else:
                         display_text = f"{old_val} -> {new_val}"
-                # Если значение только из старого файла:
                 elif old_val:
                     display_text = f"{old_val} (1)"
-                # Если значение только из нового файла:
                 elif new_val:
                     display_text = f"{new_val} (2)"
                 else:
@@ -291,7 +326,6 @@ class MainWindow(QMainWindow):
                 item = CustomTableWidgetItem(display_text, col)
                 self.comparison_table.setItem(table_row, j, item)
                 self.comparison_data[(table_row, j)] = (old_val, new_val)
-                # Зададим фоновый цвет (при наличии числовых данных, можно добавить выделение по порогу)
                 try:
                     if old_val and new_val:
                         num_old = float(old_val)
