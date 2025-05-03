@@ -124,8 +124,10 @@ class SVD_Test {
  protected:
   using SvdRunnerFunc =
       std::function<void(SVD_Test *, const svd_test_funcSettings &)>;
+
   using SvdExecutorFunc =
-      std::function<SVDResult(const MatrixDynamic &, unsigned int)>;
+      std::function<SVDResult(const MatrixDynamic &, unsigned int, std::ostream*, const VectorDynamic*)>;
+
 
   static std::map<std::string, SvdRunnerFunc> get_svd_runners();
   static std::map<std::string, SvdExecutorFunc> get_svd_executors();
@@ -142,7 +144,10 @@ class SVD_Test {
 
   static SVDResult execute_svd_algorithm(const std::string &algoName,
                                          const MatrixDynamic &A,
-                                         unsigned int options);
+                                         unsigned int options,
+                                         std::ostream* divergence_stream,
+                                         const VectorDynamic* true_singular_values = nullptr);
+
 
   FloatingPoint count_metrics(MetricSettings metric_settings, size_t Usize,
                               size_t Vsize, const MatrixDynamic &U_calc,
