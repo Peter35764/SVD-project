@@ -187,31 +187,21 @@ SVD_Test<FloatingPoint, MatrixType>::createAlgorithmInfoEntry(
           [](const MatrixDynamic &A, unsigned int options,
              std::ostream *divergence_stream,
              const VectorDynamic *true_singular_values)
-              -> SVDResult {  // Modified signature
+              -> SVDResult {
             VectorDynamic sigma_to_pass;
             bool needs_sigma_trait =
                 requires_sigma<svd_cl<MatrixDynamic>>::value;
             bool have_true_sigma_provided =
                 (true_singular_values != nullptr &&
-                 true_singular_values->size() > 0);  // Check size > 0
+                 true_singular_values->size() > 0);  
 
             if (have_true_sigma_provided) {
               sigma_to_pass = *true_singular_values;
             } else if (needs_sigma_trait) {
-              // Fallback to computing if trait is true and not provided
-              // externally
               Eigen::JacobiSVD<MatrixDynamic> svd_ref(
                   A, Eigen::ComputeThinU | Eigen::ComputeThinV);
               sigma_to_pass = svd_ref.singularValues();
             }
-            // Note: If needs_sigma_trait is false and no true_singular_values
-            // are provided, sigma_to_pass remains empty, which is fine for
-            // algorithms that don't need it.
-
-            // Call create_svd, passing true_singular_values if available
-            // The create_svd logic will handle using the correct constructor
-            // based on availability, passed parameters (A, sigma_to_pass, os),
-            // and the requires_sigma trait.
             auto svd = create_svd<svd_cl<MatrixDynamic>>(
                 A, sigma_to_pass, options,
                 have_true_sigma_provided || needs_sigma_trait,
