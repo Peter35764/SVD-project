@@ -1,6 +1,7 @@
 #include <chrono>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -20,8 +21,21 @@ int main() {
   //                       std::cout);
   SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5,
                         Eigen::ComputeFullU | Eigen::ComputeFullV, std::cout);
+  SVDT::compareMatrices("Eigen::JacobiSVD", 50, 50,
+                        Eigen::ComputeFullU | Eigen::ComputeFullV, std::cout);
 
-  return 0;
+  std::ofstream divergence_output_file("givens_compare_divergence.txt");
+  std::ofstream divergence2_output_file("revjac_compare_divergence.txt");
+
+  SVDT::compareMatrices("SVD_Project::GivRef_SVD", 50, 50,
+                        Eigen::ComputeFullU | Eigen::ComputeFullV,
+                        divergence_output_file);
+  divergence_output_file.close();
+  SVDT::compareMatrices("SVD_Project::RevJac_SVD", 50, 50,
+                        Eigen::ComputeFullU | Eigen::ComputeFullV,
+                        divergence2_output_file);
+
+  divergence2_output_file.close();
 
   /*
   std::string folderName = SVD_Project::genNameForBundleFolder();
@@ -103,11 +117,9 @@ int main() {
 
   SVDT tester(allSettings);
 
-  // Пример использования статического метода compareMatrices с выбранным
-  // алгоритмом.
-
   std::cout << "\nResults have been saved in folder: " << folderName << "\n";
 
   return 0;
 */
+  return 0;
 }
