@@ -4,6 +4,7 @@
 #include "idea3_naive/naive_mrrr/naive_mrrr.h"
 #include "tests/SVD_Test.h"
 #include "tests/generate_svd.h"
+#include "lib/idea3_naive/naive_golub_kahan_svd/tgk_inverse.h"
 
 // Legacy
 #include "idea1_givref/legacy/v0_givens_refinement.h"
