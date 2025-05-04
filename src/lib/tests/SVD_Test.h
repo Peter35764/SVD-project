@@ -30,6 +30,16 @@ int flush = 0;
 
 namespace SVD_Project {
 
+// =========== buffer for no output ===========
+class NullBuffer : public std::streambuf {
+ public:
+  int overflow(int c) override { return c; }
+};
+
+static NullBuffer null_buffer;
+static std::ostream null_stream(&null_buffer);
+// ============================================
+
 template <typename FloatingPoint, typename MatrixType>
 class SVD_Test {
  public:
@@ -106,15 +116,18 @@ class SVD_Test {
   static FloatingPoint Lp_norm(const MatrixType &M, FloatingPoint p);
 
   static void compareMatrices(const std::string &algoName, int rows, int cols,
-                              std::ostream &out);
+                              unsigned int computationOptions = 0,
+                              std::ostream &out = null_stream);
 
   static std::vector<std::string> getAlgorithmNames();
 
  protected:
   using SvdRunnerFunc =
       std::function<void(SVD_Test *, const svd_test_funcSettings &)>;
+
   using SvdExecutorFunc =
-      std::function<SVDResult(const MatrixDynamic &, unsigned int)>;
+      std::function<SVDResult(const MatrixDynamic &, unsigned int,
+                              std::ostream *, const VectorDynamic *)>;
 
   static std::map<std::string, SvdRunnerFunc> get_svd_runners();
   static std::map<std::string, SvdExecutorFunc> get_svd_executors();
@@ -129,9 +142,10 @@ class SVD_Test {
   void run_tests_parallel(
       const std::vector<svd_test_funcSettings> &vec_settings);
 
-  static SVDResult execute_svd_algorithm(const std::string &algoName,
-                                         const MatrixDynamic &A,
-                                         unsigned int options);
+  static SVDResult execute_svd_algorithm(
+      const std::string &algoName, const MatrixDynamic &A, unsigned int options,
+      std::ostream *divergence_stream,
+      const VectorDynamic *true_singular_values = nullptr);
 
   FloatingPoint count_metrics(MetricSettings metric_settings, size_t Usize,
                               size_t Vsize, const MatrixDynamic &U_calc,

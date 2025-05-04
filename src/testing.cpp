@@ -1,6 +1,7 @@
 #include <chrono>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -14,19 +15,19 @@
 int main() {
   using SVDT = SVD_Project::SVDT;
   namespace fs = std::filesystem;
+  std::cout << "DEBUG: Calling compareMatrices with algorithm: "
+               "\"SVD_Project::v0_GivRef_SVD\""
+            << std::endl;
+  // SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5, std::cout);
+  // SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, std::cout);
+  // SVDT::compareMatrices("SVD_Project::v0_RevJac_SVD", 5, 5, std::cout);
+  //  Вывод всех ключей в svd_executors
+  auto names = SVDT::getAlgorithmNames();
+  std::cout << "Available SVD algorithms:\n";
 
   SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, std::cout);
   SVDT::compareMatrices("SVD_Project::v0_RevJac_SVD", 5, 5, std::cout);
 
-  auto names = SVDT::getAlgorithmNames();
-  std::cout << "Available SVD algorithms:\n";
-
-  SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5, std::cout);
-  SVDT::compareMatrices("SVD_Project::NaiveBidiagSVD", 5, 5, std::cout);
-
-  return 0;
-
-  /*
   std::string folderName = SVD_Project::genNameForBundleFolder();
 
   // Задание параметров тестирования
@@ -106,11 +107,10 @@ int main() {
 
   SVDT tester(allSettings);
 
-  // Пример использования статического метода compareMatrices с выбранным
-  // алгоритмом.
-
   std::cout << "\nResults have been saved in folder: " << folderName << "\n";
 
+  return 0;
+*/
   return 0;
 */
 }
