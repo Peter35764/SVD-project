@@ -1,6 +1,7 @@
 #include <chrono>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -102,9 +103,6 @@ int main() {
                     // settingsRevJac};
 
   SVDT tester(allSettings);
-
-  // Пример использования статического метода compareMatrices с выбранным
-  // алгоритмом.
 
   std::cout << "\nResults have been saved in folder: " << folderName << "\n";
 

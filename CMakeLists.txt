@@ -47,6 +47,7 @@ SET(HEADER_FILES
   src/lib/tests/generate_svd.h
   src/lib/tests/SVD_Test.h
   src/lib/tests/SVD_Test.hpp
+  src/lib/tests/SVD_Test_config.h
 
   # Parf&Drozdov
   src/lib/idea1_givref/givens_refinement.h
