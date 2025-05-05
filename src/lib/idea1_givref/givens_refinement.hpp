@@ -1,8 +1,10 @@
 #ifndef GIVENS_REFINEMENT_HPP
 #define GIVENS_REFINEMENT_HPP
 
+#include <Eigen/Dense>
 #include <Eigen/Jacobi>
 #include <cmath>
+#include <iostream>
 
 #include "givens_refinement.h"
 
@@ -14,25 +16,27 @@ GivRef_SVD<_MatrixType>::GivRef_SVD() {}
 
 template <typename _MatrixType>
 GivRef_SVD<_MatrixType>& GivRef_SVD<_MatrixType>::compute(
-    const MatrixType& B, unsigned int computationOptions) {
+    const MatrixType& A, unsigned int computationOptions) {
   // Set computation flags based on provided options
   this->m_computeFullU = (computationOptions & Eigen::ComputeFullU) != 0;
   this->m_computeThinU = (computationOptions & Eigen::ComputeThinU) != 0;
   this->m_computeFullV = (computationOptions & Eigen::ComputeFullV) != 0;
   this->m_computeThinV = (computationOptions & Eigen::ComputeThinV) != 0;
 
+  Eigen::internal::UpperBidiagonalization<_MatrixType> bidiag(A);
+  MatrixType B = bidiag.bidiagonal().toDenseMatrix();
+
+  // std::cout << "\bidiag\n" << B;
+
   m = B.rows();
   n = B.cols();
   Index min_mn = std::min(m, n);
-
-  // Perform bidiagonalization
-  auto bid = Eigen::internal::UpperBidiagonalization<_MatrixType>(B);
 
   // Initialize the Jacobi rotation matrices and working matrix
   left_J = MatrixType::Identity(m, m);
   right_J = MatrixType::Identity(n, n);
 
-  sigm_B = bid.bidiagonal();
+  sigm_B = B;
 
   // Iterative SVD refinement using Givens rotations
   using RealScalar = typename MatrixType::RealScalar;
@@ -47,6 +51,10 @@ GivRef_SVD<_MatrixType>& GivRef_SVD<_MatrixType>::compute(
       off_diag_norm += std::abs(sigm_B(i, i + 1));
     if (off_diag_norm < tol) break;
   }
+
+  // std::cout << "\nsigm_B\n" << sigm_B;
+  // std::cout << "\nright\n" << right_J;
+  // std::cout << "\nleft\n" << left_J;
 
   // Extract singular values
   this->m_singularValues = sigm_B.diagonal().head(min_mn);

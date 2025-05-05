@@ -24,11 +24,13 @@
 #include <vector>
 
 #include "../SVD_project.h"
+#include "SVD_Test_config.h"
 #include "config.h"
 
 #define TESTING_BUNDLE_NAME "TestBundle-" << std::put_time(ptm, "%d-%m-%Y-%H%M")
 
 namespace SVD_Project {
+
 std::string genNameForBundleFolder() {
   auto now = std::chrono::system_clock::now();
   std::time_t now_time = std::chrono::system_clock::to_time_t(now);
@@ -38,22 +40,6 @@ std::string genNameForBundleFolder() {
   std::string folderName = oss.str();
   return folderName;
 }
-
-// Traits для определения, требует ли алгоритм передачи спектра.
-// По умолчанию алгоритм не требует передачи спектра.
-template <typename SVDClass>
-struct requires_sigma : std::false_type {};
-
-template <typename Matrix>
-struct requires_sigma<RevJac_SVD<Matrix>> : std::true_type {};
-
-template <typename Matrix>
-struct requires_sigma<GivRef_SVD<Matrix>> : std::true_type {
-};  // Нужно делать так, пока нет конструктора который считает невязку и не
-    // требует сингулярных значений
-
-template <typename Matrix>
-struct requires_sigma<v0_RevJac_SVD<Matrix>> : std::true_type {};
 
 template <typename SVDClass, typename Matrix, typename Vector>
 SVDClass create_svd_impl(const Matrix &A, const Vector &sigma,
@@ -212,25 +198,6 @@ SVD_Test<FloatingPoint, MatrixType>::createAlgorithmInfoEntry(
 
   };
 };
-
-template <typename FloatingPoint, typename MatrixType>
-const std::vector<typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
-    SVD_Test<FloatingPoint, MatrixType>::algorithmsInfo = {
-        createAlgorithmInfoEntry<SVD_Project::GivRef_SVD>(
-            "SVD_Project::GivRef_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::v0_GivRef_SVD>(
-            "SVD_Project::v0_GivRef_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::v1_GivRef_SVD>(
-            "SVD_Project::v1_GivRef_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::RevJac_SVD>(
-            "SVD_Project::RevJac_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::v0_RevJac_SVD>(
-            "SVD_Project::v0_RevJac_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::NaiveMRRR_SVD>(
-            "SVD_Project::NaiveMRRR_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::NaiveBidiagSVD>(
-            "SVD_Project::NaiveBidiagSVD"),
-        createAlgorithmInfoEntry<Eigen::JacobiSVD>("Eigen::JacobiSVD")};
 
 template <typename FloatingPoint, typename MatrixType>
 std::map<std::string,
@@ -673,6 +640,20 @@ SVD_Test<FloatingPoint, MatrixType>::convertSquareMatrixDiagonalToVector(
 }
 
 template <typename FloatingPoint, typename MatrixType>
+typename SVD_Test<FloatingPoint, MatrixType>::VectorDynamic
+SVD_Test<FloatingPoint, MatrixType>::processSingularValues(
+    const VectorDynamic &sv) {
+  VectorDynamic result = sv;
+
+  result = result.cwiseAbs();
+  std::sort(
+      result.data(), result.data() + result.size(),
+      [](const FloatingPoint &a, const FloatingPoint &b) { return a > b; });
+
+  return result;
+}
+
+template <typename FloatingPoint, typename MatrixType>
 void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
     const std::string &algoName, int rows, int cols,
     unsigned int computationOptions, std::ostream &out) {
@@ -683,9 +664,6 @@ void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
     SVDGenerator<FloatingPoint> svd_gen(rows, cols, gen, distr, true);
     int minNM = std::min(rows, cols);
     MatrixDynamic A(svd_gen.getInitialMatrix());  // create random matrix A
-
-    // run testing algorithm
-    SVDResult result = execute_svd_algorithm(algoName, A, computationOptions);
 
     VectorDynamic S_true_vec_ref = svd_gen.getMatrixS().diagonal().eval();
     std::sort(S_true_vec_ref.data(),
@@ -724,18 +702,27 @@ void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
       }
     }
 
-    FloatingPoint percent = (total > 0)
-                                ? (100.0 * static_cast<FloatingPoint>(count) /
-                                   static_cast<FloatingPoint>(total))
-                                : 0.0;
+    FloatingPoint signs_percent =
+        (total > 0) ? (100.0 * static_cast<FloatingPoint>(count) /
+                       static_cast<FloatingPoint>(total))
+                    : 0.0;
+    FloatingPoint frob_norm = Lp_norm(
+        processSingularValues(S_true_vec_ref) - processSingularValues(S_calc),
+        2);
 
-    std::cout << "Algorithm: " << algoName << "\n";
+    std::cout << "\n=======================================\n";
+
+    std::cout << "Algorithm: " << algoName << "\n\n";
     std::cout << "Original Matrix (" << rows << "x" << cols << "):\n"
               << A << "\n\n";
     std::cout << "Reconstructed Matrix:\n" << A_rec << "\n\n";
-    std::cout << "Percentage of matching signs: " << std::fixed
-              << std::setprecision(2) << percent << "%\n";
-    std::cout << "--------------------\n";
+    std::cout << "Percentage of matching signs (based on all elements): "
+              << std::fixed << std::setprecision(2) << signs_percent << "%\n";
+    std::cout << "Frobenius norm of difference between initial and calculated "
+                 "singular values: "
+              << std::fixed << std::setprecision(3) << frob_norm << "\n";
+
+    std::cout << "=======================================\n";
 
   } catch (const std::invalid_argument &e) {
     std::cerr << "Invalid argument: " << e.what() << std::endl;
