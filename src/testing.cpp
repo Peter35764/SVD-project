@@ -25,8 +25,9 @@ int main() {
   auto names = SVDT::getAlgorithmNames();
   std::cout << "Available SVD algorithms:\n";
 
-  SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, std::cout);
-  SVDT::compareMatrices("SVD_Project::v0_RevJac_SVD", 5, 5, std::cout);
+  SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, 0);
+  SVDT::compareMatrices("SVD_Project::v0_RevJac_SVD", 5, 5, 0);
+
 
   std::string folderName = SVD_Project::genNameForBundleFolder();
 
