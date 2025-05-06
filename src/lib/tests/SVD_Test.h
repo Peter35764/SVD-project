@@ -177,6 +177,7 @@ class SVD_Test {
       const VectorDynamic &s_calc);
   static VectorDynamic convertSquareMatrixDiagonalToVector(
       const MatrixDynamic &diagonalMatrix);
+  static VectorDynamic processSingularValues(const VectorDynamic &sv);
 };
 
 using SVDT = SVD_Project::SVD_Test<

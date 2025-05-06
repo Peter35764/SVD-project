@@ -1,88 +1,97 @@
 #ifndef GIVENS_REFINEMENT_H
 #define GIVENS_REFINEMENT_H
 
-#include <Eigen/SVD>
-#include <ostream>
-#include <vector>
+#include <Eigen/Dense>
+// #include <Eigen/Eigenvalues>
+// #include <algorithm>
+// #include <cmath>
+// #include <stdexcept>
+// #include <vector>
+
+namespace SVD_Project {
+template <typename _MatrixType>
+class GivRef_SVD;
+}
+
+namespace Eigen {
+namespace internal {
+
+template <typename _MatrixType>
+struct traits<SVD_Project::GivRef_SVD<_MatrixType>>
+    : public traits<_MatrixType> {
+  typedef _MatrixType MatrixType;
+};
+
+}  // namespace internal
+}  // namespace Eigen
 
 namespace SVD_Project {
 
+/**
+ * @brief Implicit zero-shift QR with modifications
+ *
+ * @tparam _MatrixType matrix type (example Eigen::Matrix<double,
+ * Eigen::Dynamic, Eigen::Dynamic>).
+ */
 template <typename _MatrixType>
 class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
-  typedef Eigen::SVDBase<GivRef_SVD> Base;
-
-  typedef typename _MatrixType::Scalar Scalar;
-  typedef typename _MatrixType::Index Index;
-
-  typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatrixDynamic;
-  typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VectorDynamic;
-
  public:
-  GivRef_SVD() = default;
-  // This structure is required for tests
-  explicit GivRef_SVD(const _MatrixType &matrix,
-                      unsigned int computationOptions = 0);
-  explicit GivRef_SVD(const _MatrixType &matrix,
-                      const typename Base::SingularValuesType &singularValues,
-                      unsigned int computationOptions = 0);
-  explicit GivRef_SVD(const _MatrixType &matrix,
-                      const typename Base::SingularValuesType &singularValues,
-                      std::ostream *os, unsigned int computationOptions = 0);
+  using Base = Eigen::SVDBase<GivRef_SVD<_MatrixType>>;
+  using MatrixType = _MatrixType;
+  using Scalar = typename MatrixType::Scalar;
+  using RealScalar = typename Eigen::NumTraits<Scalar>::Real;
+  using Index = Eigen::Index;
 
-  GivRef_SVD &compute(const _MatrixType &matrix,
-                      unsigned int computationOptions = 0);
-  GivRef_SVD &compute(const _MatrixType &matrix, std::ostream *os,
-                      unsigned int computationOptions = 0);
+  GivRef_SVD();
 
-  void setDivergenceOstream(std::ostream *os);
-  const typename Base::MatrixUType &matrixU() const { return m_matrixU; }
-  const typename Base::MatrixVType &matrixV() const { return m_matrixV; }
-  const typename Base::SingularValuesType &singularValues() const {
-    return m_singularValues;
+  /**
+   * @brief A constructor that calculates the SVD immediately upon object
+   * creation.
+   *
+   * @param B input bidiagonal matrix.
+   * @param computationOptions Calculation flags (example, Eigen::ComputeFullU |
+   * Eigen::ComputeFullV).
+   */
+  GivRef_SVD(const MatrixType& B,
+             unsigned int computationOptions = Eigen::ComputeThinU |
+                                               Eigen::ComputeThinV) {
+    compute(B, computationOptions);
   }
 
- private:
-  // Introducing helpers for compute decomposition
-  void setupMatrices(const _MatrixType &matrix);
-  void iterQRtillConv(Scalar tol, int max_iter);
-  void fixFormatResults();
+  ~GivRef_SVD() = default;
 
-  std::vector<Scalar> ROT(Scalar f, Scalar g);
-  void Impl_QR_zero_iter();
-  void revert_negative_singular();
-  bool isConvergedSafely(Scalar tol,
-                         int max_iter);  // cant be const since we want to
-                                         // actually null the elements on check
+  /**
+   * @brief Calculates the SVD of the initial matrix A.
+   *
+   * @param A
+   * @param computationOptions Calculation flags (example, Eigen::ComputeFullU |
+   * Eigen::ComputeFullV).
+   * @return Reference to class
+   */
+  GivRef_SVD& compute(const MatrixType& A,
+                      unsigned int computationOptions = Eigen::ComputeThinU |
+                                                        Eigen::ComputeThinV);
 
-  MatrixDynamic m_matrixU, m_matrixV;
-  VectorDynamic m_singularValues;
-  MatrixDynamic left_J;
-  MatrixDynamic right_J;
-  MatrixDynamic sigm_B;
-  MatrixDynamic true_sigm_B;
-  MatrixDynamic B;
-  VectorDynamic Cosines;
-  VectorDynamic Sines;
-  VectorDynamic Tans;
-  VectorDynamic NewCosines;
-  VectorDynamic NewSines;
-  Index n;
-  Index m;       // rows
-  Index n_cols;  // init cols
-  Index trigonom_i;
-  Index iter_num;
-  bool has_true_sigm;  // to diff constructors, whether true_sigm_B is available
+  // getters for resulting vectors (from Eigen::SVDBase)
+  using Base::matrixU;
+  using Base::matrixV;
+  using Base::singularValues;
 
-  std::ostream *m_divOstream;
+ protected:
+  /*
+   * @brief Performs one QR iteration of the SVD algorithm using Givens
+   * rotations
+   */
+  void performQRIteration();
+
+  MatrixType left_J;   // Left Jacobi rotation matrix
+  MatrixType right_J;  // Right Jacobi rotation matrix
+  MatrixType sigm_B;   // Working copy of the bidiagonal matrix
+  Index m;             // Number of rows
+  Index n;             // Number of columns
 };
 
 }  // namespace SVD_Project
-
-template <typename _MatrixType>
-struct Eigen::internal::traits<SVD_Project::GivRef_SVD<_MatrixType>>
-    : Eigen::internal::traits<_MatrixType> {
-  typedef _MatrixType MatrixType;
-};
 
 #include "givens_refinement.hpp"
 
