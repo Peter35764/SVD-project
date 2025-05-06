@@ -141,6 +141,7 @@ TGKInv_SVD<M>& TGKInv_SVD<M>::compute(std::ostream* dbg)
   detail::mgs(m_matrixV);
 
   if (m_dbg) (*m_dbg) << "TGKInv_SVD finished for n=" << n << '\n';
+  this->m_isInitialized = true;
   return *this;
 }
 

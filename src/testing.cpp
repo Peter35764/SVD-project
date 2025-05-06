@@ -16,9 +16,8 @@ int main() {
   using SVDT = SVD_Project::SVDT;
   namespace fs = std::filesystem;
 
-  SVDT::compareMatrices("SVD_Project::GivRef_SVD", 5, 5,
-                        Eigen::ComputeFullU | Eigen::ComputeFullV, std::cout);
-  SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5,
+
+  SVDT::compareMatrices("SVD_Project::TGKInv_SVD", 5, 5,
                         Eigen::ComputeFullU | Eigen::ComputeFullV, std::cout);
 
   return 0;

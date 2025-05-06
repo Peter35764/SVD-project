@@ -59,6 +59,7 @@ SET(HEADER_FILES
   src/lib/idea3_naive/naive_bidiag_svd/naive_bidiag_svd.h
   src/lib/idea3_naive/naive_bidiag_svd/naive_bidiag_svd.hpp
   src/lib/idea3_naive/naive_golub_kahan_svd/tgk_inverse.h
+  src/lib/idea3_naive/naive_golub_kahan_svd/tgk_inverse.hpp
 
   # Legacy
   src/lib/idea1_givref/legacy/v0_givens_refinement.h

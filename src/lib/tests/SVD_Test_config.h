@@ -18,6 +18,9 @@ struct requires_sigma<RevJac_SVD<Matrix>> : std::true_type {};
 template <typename Matrix>
 struct requires_sigma<v0_RevJac_SVD<Matrix>> : std::true_type {};
 
+template <typename Matrix>
+struct requires_sigma<TGKInv_SVD<Matrix>> : std::true_type {};
+
 template <typename FloatingPoint, typename MatrixType>
 const std::vector<typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
     SVD_Test<FloatingPoint, MatrixType>::algorithmsInfo = {
@@ -35,6 +38,8 @@ const std::vector<typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
             "SVD_Project::NaiveMRRR_SVD"),
         createAlgorithmInfoEntry<SVD_Project::NaiveBidiagSVD>(
             "SVD_Project::NaiveBidiagSVD"),
+        createAlgorithmInfoEntry<SVD_Project::TGKInv_SVD>(
+            "SVD_Project::TGKInv_SVD"),
         createAlgorithmInfoEntry<Eigen::JacobiSVD>("Eigen::JacobiSVD")};
 
 }  // namespace SVD_Project
