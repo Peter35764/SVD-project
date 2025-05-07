@@ -39,18 +39,23 @@ std::string genNameForBundleFolder() {
   return folderName;
 }
 
-// Traits для определения, требует ли алгоритм передачи спектра.
-// По умолчанию алгоритм не требует передачи спектра.
+
+/// @brief Трейт для определения, требует ли алгоритм SVD сингулярные значения, в качестве входных данных
+/// @tparam SVDClass Класс SVD\
+/// @details По умолчанию алгоритмы не требуют спектр
 template <typename SVDClass>
 struct requires_sigma : std::false_type {};
 
+/// @brief Специализация для RevJac_SVD, указывающая, что для него требуется спектр
 template <typename Matrix>
 struct requires_sigma<RevJac_SVD<Matrix>> : std::true_type {};
 
+/// @brief Специализация для GivRef_SVD, указывающая, что требуется спектр.
+/// @details Это необходимо до тех пор, пока не появится конструктор, который вычисляет невязки без требования сингулярных значений.
 template <typename Matrix>
 struct requires_sigma<GivRef_SVD<Matrix>> : std::true_type {
-};  // Нужно делать так, пока нет конструктора который считает невязку и не
-    // требует сингулярных значений
+};  
+
 
 template <typename Matrix>
 struct requires_sigma<v0_RevJac_SVD<Matrix>> : std::true_type {};

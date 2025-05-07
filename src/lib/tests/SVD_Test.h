@@ -47,30 +47,43 @@ class SVD_Test {
       Eigen::Matrix<FloatingPoint, Eigen::Dynamic, Eigen::Dynamic>;
   using VectorDynamic = Eigen::Matrix<FloatingPoint, Eigen::Dynamic, 1>;
 
+    /// @brief  Метрики, используемые при тестировании SVD.
   enum MetricType {
-    U_DEVIATION1,
-    U_DEVIATION2,
-    V_DEVIATION1,
-    V_DEVIATION2,
-    ERROR_SIGMA,
-    RECON_ERROR,
-    MAX_DEVIATION
+    U_DEVIATION1, ///< Отклонение U от ортогональности : $||I - U U^T||_{p}$
+    U_DEVIATION2, ///< Отклонение U от ортогональности : $||I - U^T U||_{p}$
+    V_DEVIATION1, ///< Отклонение V от ортогональности : $||I - V V^T||_{p}$
+    V_DEVIATION2, ///< Отклонение V от ортогональности : $||I - V^T V||_{p}$
+    ERROR_SIGMA,  ///< Ошибка в сингулярных значениях : $|| \Sigma_{true} - \Sigma_{calc} ||_p$ (абсолютная) или $|| (\Sigma_{true} - \Sigma_{calc}) ./ \Sigma_{true} ||_p$ (относительная)
+    RECON_ERROR,  ///< Ошибка реконструкции : $||(A - A_{reconstructed})||_{p}$ (абсолютная) или $|| (A - A_{reconstructed}) ./ A ||_{p}$ (относительная)
+    MAX_DEVIATION ///< Максимальное из отклонений U и V (использующих норму Lp).
   };
 
+    /// @brief Настройки для конкретной метрики.
   struct MetricSettings {
-    MetricType type;   // Тип метрики.
-    FloatingPoint p;   // Параметр нормы.
-    bool is_relative;  // true, если ошибка относительная, false – абсолютная.
-    std::string name;  // Имя метрики (будет дополнено "(rel)" или "(abs)").
-    bool enabled;      // Флаг: если true – метрика выводится.
-
+    MetricType type;   /// Тип метрики.
+    FloatingPoint p;   /// Параметр нормы.
+    bool is_relative;  /// true, если ошибка относительная, false – абсолютная.
+    std::string name;  /// Имя метрики (будет дополнено "(rel)" или "(abs)").
+    bool enabled;      /// Флаг: если true – метрика выводится.
+    
+    /// @brief Конструктор для MetricSettings.
+    /// @param type_ Тип метрики.
+    /// @param p_ Параметр нормы.
+    /// @param is_relative_ Является ли метрика относительной.
+    /// @param name_ Базовое имя метрики.
+    /// @param enabled_ Включена ли метрика.
     MetricSettings(MetricType type_, FloatingPoint p_, bool is_relative_,
                    std::string name_, bool enabled_);
 
+    /// @brief Генерирует полное имя метрики.
+    /// @param baseName Базовое имя.
+    /// @param relative Флаг относительности.
+    /// @param type Тип метрики.
+    /// @return Сгенерированное имя.
     std::string generateName(const std::string &baseName, bool relative,
                              MetricType type);
 
-    // for use in map
+    /// @brief Оператор сравнения для использования в map.
     bool operator<(const MetricSettings &other) const {
       return std::tie(type, p, is_relative, name, enabled) <
              std::tie(other.type, other.p, other.is_relative, other.name,
@@ -78,31 +91,40 @@ class SVD_Test {
     }
   };
 
+    /// @brief Структура для хранения результатов вычисления SVD.
   struct SVDResult {
-    MatrixDynamic U;
-    VectorDynamic S;
-    MatrixDynamic V;
+    MatrixDynamic U; ///< Вычисленные левые сингулярные векторы.
+    VectorDynamic S; ///< Вычисленные сингулярные значения.
+    MatrixDynamic V; ///< Вычисленные правые сингулярные векторы.
   };
 
+    /// @brief Настройки для одного запуска тестовой функции SVD.
   struct svd_test_funcSettings {
-    std::string fileName;  // Имя файла для вывода результатов.
+    std::string fileName;  ///< Имя файла для вывода результатов.
     std::vector<FloatingPoint>
-        SigmaMaxMinRatiosVec;  // Коэффициенты sigma_max/sigma_min. Чем больше,
+        SigmaMaxMinRatiosVec;  ///< Коэффициенты sigma_max/sigma_min. Чем больше,
                                // тем хуже обусловленность, 1 = все сигмы равны.
     std::vector<std::pair<int, int>>
-        MatSizesVec;  // Размеры тестируемых матриц.
-    int n;            // Количество итераций (выборка).
+        MatSizesVec;  ///< Размеры тестируемых матриц.
+    int n;            ///< Количество итераций (выборка).
     std::string
-        algorithmName;  // Название алгоритма (для отображения прогресса).
-    int lineNumber;     // Номер строки вывода прогресса в консоли.
-    std::vector<MetricSettings> metricsSettings;  // Настройки метрик.
-    bool solve_with_sigmas;  // Флаг управления передачей спектра.
+        algorithmName;  ///< Название алгоритма (для отображения прогресса).
+    int lineNumber;     ///< Номер строки вывода прогресса в консоли.
+    std::vector<MetricSettings> metricsSettings;  ///< Настройки метрик.
+    bool solve_with_sigmas;  ///< Флаг управления передачей спектра.
   };
 
+    /// @brief Конструктор по умолчанию.
   SVD_Test();
 
+  /// @brief Конструктор, который немедленно запускает тесты на основе предоставленных настроек.
+  /// @param vec_settings Вектор настроек тестов для различных алгоритмов.
   SVD_Test(const std::vector<svd_test_funcSettings> &vec_settings);
 
+  /// @brief Запускает один тест SVD для конкретного алгоритма и настроек.
+  /// @tparam gen_cl Шаблон класса генератора матриц.
+  /// @tparam svd_cl Шаблон класса SVD.
+  /// @param settings Настройки теста.
   template <template <typename> class gen_cl, template <typename> class svd_cl>
   void svd_test_func(svd_test_funcSettings settings);
 
@@ -110,11 +132,28 @@ class SVD_Test {
   //     Static methods
   // ======================
 
+  /// @brief Вычисляет норму Lpq матрицы.
+  /// @f[ ||M||_{p,q} = \left( \sum_{i=1}^m \left( \sum_{j=1}^n |M_{ij}|^p \right)^{q/p} \right)^{1/q} @f]
+  /// @param M Входная матрица.
+  /// @param p Значение 'p' для нормы.
+  /// @param q Значение 'q' для нормы.
+  /// @return Вычисленная норма Lpq.
   static FloatingPoint Lpq_norm(const MatrixType &M, FloatingPoint p,
                                 FloatingPoint q);
 
+  /// @brief Вычисляет норму Lp матрицы (частный случай Lpq, когда p=q).
+  /// @f[ ||M||_p = \left( \sum_{i=1}^m \sum_{j=1}^n |M_{ij}|^p \right)^{1/p} @f]
+  /// @param M Входная матрица.
+  /// @param p Значение 'p' для нормы.
+  /// @return Вычисленная норма Lp.
   static FloatingPoint Lp_norm(const MatrixType &M, FloatingPoint p);
 
+  /// @brief Сравнивает исходную матрицу с реконструированной матрицей из результатов SVD.
+  /// @param algoName Имя использованного алгоритма.
+  /// @param rows Количество строк в матрице.
+  /// @param cols Количество столбцов в матрице.
+  /// @param computationOptions Опции, использованные для вычисления SVD. По умолчанию 0.
+  /// @param out Выходной поток для результатов и деталей сравнения. По умолчанию null_stream.
   static void compareMatrices(const std::string &algoName, int rows, int cols,
                               unsigned int computationOptions = 0,
                               std::ostream &out = null_stream);
@@ -132,6 +171,17 @@ class SVD_Test {
   static std::map<std::string, SvdRunnerFunc> get_svd_runners();
   static std::map<std::string, SvdExecutorFunc> get_svd_executors();
 
+  /// @brief Запускает один тест SVD для конкретного алгоритма и подробных настроек.
+  /// @tparam gen_cl Шаблон класса генератора матриц.
+  /// @tparam svd_cl Шаблон класса SVD.
+  /// @param fileName Имя выходного файла.
+  /// @param SigmaMaxMinRatiosVec Вектор отношений сигма.
+  /// @param MatSizesVec Вектор размеров матриц.
+  /// @param n Количество выборок.
+  /// @param algorithmName Имя алгоритма.
+  /// @param lineNumber Номер строки для прогресса.
+  /// @param metricsSettings Настройки метрик.
+  /// @param solve_with_sigmas Следует ли предоставлять сигмы конструктору.
   template <template <typename> class gen_cl, template <typename> class svd_cl>
   void svd_test_func(std::string fileName,
                      const std::vector<FloatingPoint> &SigmaMaxMinRatiosVec,
@@ -139,6 +189,9 @@ class SVD_Test {
                      const std::string &algorithmName, int lineNumber,
                      const std::vector<MetricSettings> &metricsSettings,
                      bool solve_with_sigmas);
+
+  /// @brief Запускает несколько тестов SVD в параллельных потоках.
+  /// @param vec_settings Вектор настроек тестов для различных алгоритмов.
   void run_tests_parallel(
       const std::vector<svd_test_funcSettings> &vec_settings);
 
@@ -147,6 +200,18 @@ class SVD_Test {
       std::ostream *divergence_stream,
       const VectorDynamic *true_singular_values = nullptr);
 
+  /// @brief Вычисляет значение указанной метрики.
+  /// @param metric_settings Настройки метрики для вычисления.
+  /// @param Usize Количество строк в U.
+  /// @param Vsize Количество строк в V.
+  /// @param U_calc Вычисленная матрица U.
+  /// @param V_calc Вычисленная матрица V.
+  /// @param S_calc Вычисленный вектор сингулярных значений.
+  /// @param U_true Истинная матрица U.
+  /// @param V_true Истинная матрица V.
+  /// @param S_true Истинная матрица S (диагональная).
+  /// @return Вычисленное значение метрики.
+  /// @throw std::runtime_error если тип метрики неизвестен.    
   FloatingPoint count_metrics(MetricSettings metric_settings, size_t Usize,
                               size_t Vsize, const MatrixDynamic &U_calc,
                               const MatrixDynamic &V_calc,
