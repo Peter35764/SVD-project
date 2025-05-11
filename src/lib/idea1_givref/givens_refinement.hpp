@@ -15,7 +15,7 @@ template <typename _MatrixType>
 GivRef_SVD<_MatrixType>::GivRef_SVD() {}
 
 template <typename _MatrixType>
-GivRef_SVD<_MatrixType>& GivRef_SVD<_MatrixType>::compute(
+void GivRef_SVD<_MatrixType>::preparation_phase(
     const MatrixType& A, unsigned int computationOptions) {
   // Set computation flags based on provided options
   this->m_computeFullU = (computationOptions & Eigen::ComputeFullU) != 0;
@@ -30,16 +30,18 @@ GivRef_SVD<_MatrixType>& GivRef_SVD<_MatrixType>::compute(
 
   m = B.rows();
   n = B.cols();
-  Index min_mn = std::min(m, n);
 
   // Initialize the Jacobi rotation matrices and working matrix
   left_J = MatrixType::Identity(m, m);
   right_J = MatrixType::Identity(n, n);
 
   sigm_B = B;
+}
 
-  // Iterative SVD refinement using Givens rotations
+template <typename _MatrixType>
+void GivRef_SVD<_MatrixType>::qr_iterations_phase() {
   using RealScalar = typename MatrixType::RealScalar;
+  Index min_mn = std::min(m, n);
   RealScalar tol = RealScalar(1e-10) * sigm_B.norm();  // Convergence tolerance
 
   for (int iter = 0; iter < GIVREF_MAX_ITERATIONS; ++iter) {
@@ -51,7 +53,16 @@ GivRef_SVD<_MatrixType>& GivRef_SVD<_MatrixType>::compute(
       off_diag_norm += std::abs(sigm_B(i, i + 1));
     if (off_diag_norm < tol) break;
   }
+}
 
+template <typename _MatrixType>
+void GivRef_SVD<_MatrixType>::placeholder_phase() {
+  // TODO: placeholder
+}
+
+template <typename _MatrixType>
+void GivRef_SVD<_MatrixType>::finalizing_output_phase() {
+  Index min_mn = std::min(m, n);
   // std::cout << "\nsigm_B\n" << sigm_B;
   // std::cout << "\nright\n" << right_J;
   // std::cout << "\nleft\n" << left_J;
@@ -73,6 +84,15 @@ GivRef_SVD<_MatrixType>& GivRef_SVD<_MatrixType>::compute(
   }
 
   this->m_isInitialized = true;
+}
+
+template <typename _MatrixType>
+GivRef_SVD<_MatrixType>& GivRef_SVD<_MatrixType>::compute(
+    const MatrixType& A, unsigned int computationOptions) {
+  preparation_phase(A, computationOptions);
+  qr_iterations_phase();
+  placeholder_phase();
+  finalizing_output_phase();
   return *this;
 }
 

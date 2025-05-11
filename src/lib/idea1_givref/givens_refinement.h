@@ -84,6 +84,11 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
    */
   void performQRIteration();
 
+  void preparation_phase(const MatrixType& A, unsigned int computationOptions);
+  void qr_iterations_phase();
+  void placeholder_phase();  // Placeholder
+  void finalizing_output_phase();
+
   MatrixType left_J;   // Left Jacobi rotation matrix
   MatrixType right_J;  // Right Jacobi rotation matrix
   MatrixType sigm_B;   // Working copy of the bidiagonal matrix
