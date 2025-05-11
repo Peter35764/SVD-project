@@ -39,23 +39,23 @@ std::string genNameForBundleFolder() {
   return folderName;
 }
 
-
-/// @brief Трейт для определения, требует ли алгоритм SVD сингулярные значения, в качестве входных данных
+/// @brief Трейт для определения, требует ли алгоритм SVD сингулярные значения,
+/// в качестве входных данных
 /// @tparam SVDClass Класс SVD\
 /// @details По умолчанию алгоритмы не требуют спектр
 template <typename SVDClass>
 struct requires_sigma : std::false_type {};
 
-/// @brief Специализация для RevJac_SVD, указывающая, что для него требуется спектр
+/// @brief Специализация для RevJac_SVD, указывающая, что для него требуется
+/// спектр
 template <typename Matrix>
 struct requires_sigma<RevJac_SVD<Matrix>> : std::true_type {};
 
 /// @brief Специализация для GivRef_SVD, указывающая, что требуется спектр.
-/// @details Это необходимо до тех пор, пока не появится конструктор, который вычисляет невязки без требования сингулярных значений.
+/// @details Это необходимо до тех пор, пока не появится конструктор, который
+/// вычисляет невязки без требования сингулярных значений.
 template <typename Matrix>
-struct requires_sigma<GivRef_SVD<Matrix>> : std::true_type {
-};  
-
+struct requires_sigma<GivRef_SVD<Matrix>> : std::true_type {};
 
 template <typename Matrix>
 struct requires_sigma<v0_RevJac_SVD<Matrix>> : std::true_type {};
@@ -191,14 +191,12 @@ SVD_Test<FloatingPoint, MatrixType>::createAlgorithmInfoEntry(
           },
           [](const MatrixDynamic &A, unsigned int options,
              std::ostream *divergence_stream,
-             const VectorDynamic *true_singular_values)
-              -> SVDResult {
+             const VectorDynamic *true_singular_values) -> SVDResult {
             VectorDynamic sigma_to_pass;
             bool needs_sigma_trait =
                 requires_sigma<svd_cl<MatrixDynamic>>::value;
-            bool have_true_sigma_provided =
-                (true_singular_values != nullptr &&
-                 true_singular_values->size() > 0);  
+            bool have_true_sigma_provided = (true_singular_values != nullptr &&
+                                             true_singular_values->size() > 0);
 
             if (have_true_sigma_provided) {
               sigma_to_pass = *true_singular_values;
