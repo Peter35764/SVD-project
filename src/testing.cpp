@@ -16,27 +16,14 @@ int main() {
   using SVDT = SVD_Project::SVDT;
   namespace fs = std::filesystem;
 
-  // SVDT::compareMatrices("SVD_Project::GivRef_SVD", 5, 5,
-  //                       Eigen::ComputeFullU | Eigen::ComputeFullV,
-  //                       std::cout);
-  SVDT::compareMatrices("SVD_Project::RevJac_SVD", 5, 5,
-                        Eigen::ComputeFullU | Eigen::ComputeFullV, std::cout);
-  // SVDT::compareMatrices("Eigen::JacobiSVD", 50, 50,
-  //                       Eigen::ComputeFullU | Eigen::ComputeFullV,
-  //                       std::cout);
+  // SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, std::cout);
+  SVDT::compareMatrices("SVD_Project::RevJac_SVD", 5, 5, std::cout);
 
-  // std::ofstream divergence_output_file("givens_compare_divergence.txt");
-  // std::ofstream divergence2_output_file("revjac_compare_divergence.txt");
+  // auto names = SVDT::getAlgorithmNames();
+  // std::cout << "Available SVD algorithms:\n";
 
-  // SVDT::compareMatrices("SVD_Project::GivRef_SVD", 50, 50,
-  //                       Eigen::ComputeFullU | Eigen::ComputeFullV,
-  //                       divergence_output_file);
-  // divergence_output_file.close();
-  // SVDT::compareMatrices("SVD_Project::RevJac_SVD", 50, 50,
-  //                       Eigen::ComputeFullU | Eigen::ComputeFullV,
-  //                       divergence2_output_file);
-
-  // divergence2_output_file.close();
+  // SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5, std::cout);
+  // SVDT::compareMatrices("SVD_Project::NaiveBidiagSVD", 5, 5, std::cout);
 
   return 0;
 
