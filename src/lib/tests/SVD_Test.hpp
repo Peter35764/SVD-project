@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "../SVD_project.h"
+#include "SVD_Test_config.h"
 #include "config.h"
 
 #define TESTING_BUNDLE_NAME "TestBundle-" << std::put_time(ptm, "%d-%m-%Y-%H%M")
@@ -38,27 +39,6 @@ std::string genNameForBundleFolder() {
   std::string folderName = oss.str();
   return folderName;
 }
-
-/// @brief Трейт для определения, требует ли алгоритм SVD сингулярные значения,
-/// в качестве входных данных
-/// @tparam SVDClass Класс SVD\
-/// @details По умолчанию алгоритмы не требуют спектр
-template <typename SVDClass>
-struct requires_sigma : std::false_type {};
-
-/// @brief Специализация для RevJac_SVD, указывающая, что для него требуется
-/// спектр
-template <typename Matrix>
-struct requires_sigma<RevJac_SVD<Matrix>> : std::true_type {};
-
-/// @brief Специализация для GivRef_SVD, указывающая, что требуется спектр.
-/// @details Это необходимо до тех пор, пока не появится конструктор, который
-/// вычисляет невязки без требования сингулярных значений.
-template <typename Matrix>
-struct requires_sigma<GivRef_SVD<Matrix>> : std::true_type {};
-
-template <typename Matrix>
-struct requires_sigma<v0_RevJac_SVD<Matrix>> : std::true_type {};
 
 template <typename SVDClass, typename Matrix, typename Vector>
 SVDClass create_svd_impl(const Matrix &A, const Vector &sigma,
@@ -215,23 +195,6 @@ SVD_Test<FloatingPoint, MatrixType>::createAlgorithmInfoEntry(
 
   };
 };
-
-template <typename FloatingPoint, typename MatrixType>
-const std::vector<typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
-    SVD_Test<FloatingPoint, MatrixType>::algorithmsInfo = {
-        createAlgorithmInfoEntry<SVD_Project::GivRef_SVD>(
-            "SVD_Project::GivRef_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::v0_GivRef_SVD>(
-            "SVD_Project::v0_GivRef_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::NaiveMRRR_SVD>(
-            "SVD_Project::NaiveMRRR_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::v0_NaiveMRRR_SVD>(
-            "SVD_Project::v0_NaiveMRRR_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::RevJac_SVD>(
-            "SVD_Project::RevJac_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::v0_RevJac_SVD>(
-            "SVD_Project::v0_RevJac_SVD"),
-        createAlgorithmInfoEntry<Eigen::JacobiSVD>("Eigen::JacobiSVD")};
 
 template <typename FloatingPoint, typename MatrixType>
 std::map<std::string,

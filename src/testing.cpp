@@ -19,23 +19,26 @@ int main() {
   // SVDT::compareMatrices("SVD_Project::GivRef_SVD", 5, 5,
   //                       Eigen::ComputeFullU | Eigen::ComputeFullV,
   //                       std::cout);
-  SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5,
+  SVDT::compareMatrices("SVD_Project::RevJac_SVD", 5, 5,
                         Eigen::ComputeFullU | Eigen::ComputeFullV, std::cout);
-  SVDT::compareMatrices("Eigen::JacobiSVD", 50, 50,
-                        Eigen::ComputeFullU | Eigen::ComputeFullV, std::cout);
+  // SVDT::compareMatrices("Eigen::JacobiSVD", 50, 50,
+  //                       Eigen::ComputeFullU | Eigen::ComputeFullV,
+  //                       std::cout);
 
-  std::ofstream divergence_output_file("givens_compare_divergence.txt");
-  std::ofstream divergence2_output_file("revjac_compare_divergence.txt");
+  // std::ofstream divergence_output_file("givens_compare_divergence.txt");
+  // std::ofstream divergence2_output_file("revjac_compare_divergence.txt");
 
-  SVDT::compareMatrices("SVD_Project::GivRef_SVD", 50, 50,
-                        Eigen::ComputeFullU | Eigen::ComputeFullV,
-                        divergence_output_file);
-  divergence_output_file.close();
-  SVDT::compareMatrices("SVD_Project::RevJac_SVD", 50, 50,
-                        Eigen::ComputeFullU | Eigen::ComputeFullV,
-                        divergence2_output_file);
+  // SVDT::compareMatrices("SVD_Project::GivRef_SVD", 50, 50,
+  //                       Eigen::ComputeFullU | Eigen::ComputeFullV,
+  //                       divergence_output_file);
+  // divergence_output_file.close();
+  // SVDT::compareMatrices("SVD_Project::RevJac_SVD", 50, 50,
+  //                       Eigen::ComputeFullU | Eigen::ComputeFullV,
+  //                       divergence2_output_file);
 
-  divergence2_output_file.close();
+  // divergence2_output_file.close();
+
+  return 0;
 
   /*
   std::string folderName = SVD_Project::genNameForBundleFolder();
@@ -121,5 +124,4 @@ int main() {
 
   return 0;
 */
-  return 0;
 }

@@ -69,7 +69,8 @@ struct requires_sigma<v0_RevJac_SVD<Matrix>> : std::true_type {};
 /**
  * @brief Вектор константных структур AlgorithmInfo, содержащий информацию обо
  * всех зарегистрированных алгоритмах.
- *
+ *  std::ofstream divergence_output_file("givens_compare_divergence.txt");
+
  * Этот статический вектор содержит список всех алгоритмов SVD, доступных для
  * тестирования. Каждый элемент вектора создается с помощью статического метода
  * `createAlgorithmInfoEntry`, который связывает шаблонный класс алгоритма SVD с
@@ -121,16 +122,16 @@ const std::vector<typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
             "SVD_Project::GivRef_SVD"),
         createAlgorithmInfoEntry<SVD_Project::v0_GivRef_SVD>(
             "SVD_Project::v0_GivRef_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::v1_GivRef_SVD>(
-            "SVD_Project::v1_GivRef_SVD"),
+        // createAlgorithmInfoEntry<SVD_Project::v1_GivRef_SVD>(
+        //     "SVD_Project::v1_GivRef_SVD"),
         createAlgorithmInfoEntry<SVD_Project::RevJac_SVD>(
             "SVD_Project::RevJac_SVD"),
         createAlgorithmInfoEntry<SVD_Project::v0_RevJac_SVD>(
             "SVD_Project::v0_RevJac_SVD"),
         createAlgorithmInfoEntry<SVD_Project::NaiveMRRR_SVD>(
             "SVD_Project::NaiveMRRR_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::NaiveBidiagSVD>(
-            "SVD_Project::NaiveBidiagSVD"),
+        // createAlgorithmInfoEntry<SVD_Project::NaiveBidiagSVD>(
+        //     "SVD_Project::NaiveBidiagSVD"),
         createAlgorithmInfoEntry<Eigen::JacobiSVD>("Eigen::JacobiSVD")};
 
 }  // namespace SVD_Project
