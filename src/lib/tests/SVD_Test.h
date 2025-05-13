@@ -156,7 +156,7 @@ class SVD_Test {
   template <template <typename> class svd_cl>
   static const AlgorithmInfo createAlgorithmInfoEntry(std::string name);
 
-  // IMPORTANT! Для тестирования алгоритма он должен быть описан в этом векторе!
+  // IMPORTANT! Для тестирования алгоритма должен быть описан в этом векторе!
   static const std::vector<AlgorithmInfo> algorithmsInfo;
 
   static MatrixDynamic convertVectorToDiagonalMatrix(
