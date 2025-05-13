@@ -17,7 +17,7 @@ int main() {
   namespace fs = std::filesystem;
 
   // SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, std::cout);
-  SVDT::compareMatrices("SVD_Project::RevJac_SVD", 5, 5, std::cout);
+  SVDT::compareMatrices("SVD_Project::RevJac_SVD", 5, 5);
 
   // auto names = SVDT::getAlgorithmNames();
   // std::cout << "Available SVD algorithms:\n";
