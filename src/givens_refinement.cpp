@@ -2,12 +2,24 @@
 #include <Eigen/Householder>
 #include <iostream>
 
+#include "lib/SVD_project.h"
+
 int main() {
   using namespace Eigen;
   using namespace std;
 
-  MatrixXd A(3, 3);
-  A << 1, 3, 3, 10, 5, 6, 7, 8, 9;
+  // MatrixXd A(3, 3);
+  // A << 1, 3, 3, 10, 5, 6, 7, 8, 9;
+
+  int n_ = 10;
+
+  std::default_random_engine RNG(rand());
+  std::uniform_real_distribution<double> dist(-1000., 1000.);
+  SVDGenerator<double> SVD(n_, n_, RNG, dist, true);
+  SVD.generate(n_);
+
+  MatrixXd A = SVD.getInitialMatrix();
+
   std::cout << "Original matrix A:\n" << A << std::endl;
 
   // init for Householder bidiag
@@ -72,6 +84,8 @@ int main() {
   std::cout << "\nSingular values: ";
   for (int i = 0; i < minDim; ++i) std::cout << std::abs(S(i)) << " ";
   std::cout << std::endl;
+
+  std::cout << "\nTRUE Singular values: \n" << SVD.getMatrixS() << std::endl;
 
   return 0;
 }
