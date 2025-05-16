@@ -30,6 +30,7 @@
 #define TESTING_BUNDLE_NAME "TestBundle-" << std::put_time(ptm, "%d-%m-%Y-%H%M")
 
 namespace SVD_Project {
+
 std::string genNameForBundleFolder() {
   auto now = std::chrono::system_clock::now();
   std::time_t now_time = std::chrono::system_clock::to_time_t(now);
@@ -637,6 +638,20 @@ SVD_Test<FloatingPoint, MatrixType>::convertSquareMatrixDiagonalToVector(
 }
 
 template <typename FloatingPoint, typename MatrixType>
+typename SVD_Test<FloatingPoint, MatrixType>::VectorDynamic
+SVD_Test<FloatingPoint, MatrixType>::processSingularValues(
+    const VectorDynamic &sv) {
+  VectorDynamic result = sv;
+
+  result = result.cwiseAbs();
+  std::sort(
+      result.data(), result.data() + result.size(),
+      [](const FloatingPoint &a, const FloatingPoint &b) { return a > b; });
+
+  return result;
+}
+
+template <typename FloatingPoint, typename MatrixType>
 void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
     const std::string &algoName, int rows, int cols,
     unsigned int computationOptions, std::ostream &out) {
@@ -646,7 +661,7 @@ void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
     std::uniform_real_distribution<FloatingPoint> distr(-100, 100);
     SVDGenerator<FloatingPoint> svd_gen(rows, cols, gen, distr, true);
     int minNM = std::min(rows, cols);
-    MatrixDynamic A(svd_gen.getInitialMatrix());
+    MatrixDynamic A(svd_gen.getInitialMatrix());  // create random matrix A
 
     VectorDynamic S_true_vec_ref = svd_gen.getMatrixS().diagonal().eval();
     std::sort(S_true_vec_ref.data(),
@@ -685,18 +700,27 @@ void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
       }
     }
 
-    FloatingPoint percent = (total > 0)
-                                ? (100.0 * static_cast<FloatingPoint>(count) /
-                                   static_cast<FloatingPoint>(total))
-                                : 0.0;
+    FloatingPoint signs_percent =
+        (total > 0) ? (100.0 * static_cast<FloatingPoint>(count) /
+                       static_cast<FloatingPoint>(total))
+                    : 0.0;
+    FloatingPoint frob_norm = Lp_norm(
+        processSingularValues(S_true_vec_ref) - processSingularValues(S_calc),
+        2);
 
-    std::cout << "Algorithm: " << algoName << "\n";
+    std::cout << "\n=======================================\n";
+
+    std::cout << "Algorithm: " << algoName << "\n\n";
     std::cout << "Original Matrix (" << rows << "x" << cols << "):\n"
               << A << "\n\n";
     std::cout << "Reconstructed Matrix:\n" << A_rec << "\n\n";
-    std::cout << "Percentage of matching signs: " << std::fixed
-              << std::setprecision(2) << percent << "%\n";
-    std::cout << "--------------------\n";
+    std::cout << "Percentage of matching signs (based on all elements): "
+              << std::fixed << std::setprecision(2) << signs_percent << "%\n";
+    std::cout << "Frobenius norm of difference between initial and calculated "
+                 "singular values: "
+              << std::fixed << std::setprecision(3) << frob_norm << "\n";
+
+    std::cout << "=======================================\n";
 
   } catch (const std::invalid_argument &e) {
     std::cerr << "Invalid argument: " << e.what() << std::endl;
