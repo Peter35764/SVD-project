@@ -1,74 +1,56 @@
-\documentclass[12pt, a4paper]{report}
+% Кодировка и язык
+\usepackage[T2A]{fontenc} % поддержка кириллицы
+\usepackage[utf8]{inputenc} % кодировка исходного текста
+\usepackage[english,russian]{babel} % переключение языков
 
-\usepackage{listings}
-\usepackage{xcolor}
-\usepackage{ragged2e}
-\usepackage{xurl}
+% Геометрия страницы и графика
+\usepackage[left=3cm, right=1cm, top=2cm, bottom=2cm]{geometry} % поля страницы
+\usepackage{graphicx} % подключение графики
+\usepackage{pdfpages} % вставка pdf-страниц
 
-\usepackage[a4paper, top=2cm, bottom=2cm, left=3cm, right=3cm]{geometry}
+% Таблицы
+\usepackage{array} % расширенные возможности для работы с таблицами
+\usepackage{tabularx} % автоматический подбор ширины столбцов
+\usepackage{dcolumn} % выравнивание чисел по разделителю
 
-\usepackage[T2A]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage[russian]{babel}
+% Математика
+\usepackage{bm} % полужирное начертание для математических символов
+\usepackage{amsmath} % дополнительные математические возможности
+\usepackage{amssymb} % дополнительные математические символы
+\usepackage{amsthm}       % основной пакет для работы с теоремами
+\usepackage{amsfonts}     % математические шрифты (для \mathbb)
 
-\usepackage[backend=biber, style=numeric]{biblatex}
-\addbibresource{references.bib}
-% plain — default.
-% alphabetic — буквенные метки [Gol96].
-% ieee — стиль IEEE (требует пакет biblatex-ieee).
+% Библиография и ссылки
+\usepackage{cite} % поддержка цитирования
+\usepackage{hyperref} % создание гиперссылок
 
-% \usepackage{glossaries}
-% \newglossaryentry{svd}{name=SVD, description={Сингулярное разложение матрицы}}
-% \printglossaries
+% Прочее
+\usepackage{color} % работа с цветом
+\usepackage{epstopdf} % конвертация eps в pdf
+\usepackage{multirow} % объединение ячеек таблиц по вертикали
+\usepackage{afterpage} % вставка материала после текущей страницы
+\usepackage[font={normal}]{caption} % настройка подписей к рисункам и таблицам
+\usepackage[onehalfspacing]{setspace} % полуторный интервал
+\usepackage{fancyhdr} % установка колонтитулов
+\usepackage{listings} % поддержка вставки исходного кода
 
-\usepackage{hyperref}
-\usepackage{amsmath}
-\usepackage{cleveref}
-\usepackage{csquotes}
-\usepackage{amsmath}
-\usepackage{amsfonts}
-\usepackage{amsthm}
+% Создание нового типа столбца для выравнивания содержимого по центру
+\newcommand{\PreserveBackslash}[1]{\let\temp=\\#1\let\\=\temp}
+\newcolumntype{C}[1]{>{\PreserveBackslash\centering}p{#1}}
 
-\usepackage[nonumberlist, acronym]{glossaries}
+% Настройка стиля страницы
+\pagestyle{fancy}      % Использование стиля "fancy" для оформления страниц
+\fancyhf{}              % Очистка текущих значений колонтитулов
+\fancyfoot[C]{\thepage} % Установка номера страницы в нижнем колонтитуле по центру
+\renewcommand{\headrulewidth}{0pt} % Удаление разделительной линии в верхнем колонтитуле
 
-\usepackage{tcolorbox}
+% Настройка подписей к изображениям и таблицам
+\captionsetup{format=hang,labelsep=period}
 
-\setcounter{tocdepth}{4}
+% Использование полужирного начертания для векторов
+\let\vec=\mathbf
 
-\tcbuselibrary{listings, breakable}
-
-\newtcblisting{mytcblisting}[2][]{%
-  listing only,
-  breakable,
-  colframe=black,
-  colback=white,
-  boxsep=5pt,
-  title={#2},
-  listing options={
-    basicstyle=\ttfamily\small,
-    breaklines=true,
-    breakatwhitespace=true,
-    postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
-    columns=fullflexible,
-    keepspaces=true,
-    language=C,
-    numbers=left,
-    numbersep=10pt,
-    stepnumber=1,
-    firstnumber=1,
-    numberstyle=\tiny\color{gray}
-  },
-  #1
-}
-
-\hypersetup{
-    colorlinks=true,
-    linkcolor=black,
-    citecolor=black,
-    filecolor=black,
-    urlcolor=black
-}
-
+% Настройка отображения теорем из amsthm amsmath
 \newtheoremstyle{note}
     {3pt}
     {3pt}
@@ -79,10 +61,62 @@
     { }
     {}
 
-% Несколько полезных блоков для выделения важных частей текста. Пример:
+% ========================================================
+% НАСТРОЙКА ОГЛАВЛЕНИЯ (TOC)
+% ========================================================
+
+% Установка глубины оглавления
+\setcounter{tocdepth}{4}
+
+\usepackage{tocloft}
+
+% Вертикальные отступы между пунктами
+\setlength{\cftbeforechapskip}{4pt}      % Перед главами
+\setlength{\cftbeforesecskip}{2pt}       % Перед секциями
+\setlength{\cftbeforesubsecskip}{1pt}    % Перед подсекциями
+\setlength{\cftbeforeparaskip}{1pt}      % Перед параграфами
+\setlength{\cftbeforesubparaskip}{1pt}   % Перед subsubsubsection
+
+% Горизонтальные отступы для уровней
+\renewcommand{\cftchapindent}{0em}       % Главы без отступа
+\renewcommand{\cftsecindent}{1.5em}      % Секции (уровень 1)
+\renewcommand{\cftsubsecindent}{3.2em}   % Подсекции (уровень 2)
+\renewcommand{\cftsubsubsecindent}{5.5em} % Уровень 3 (если используется)
+\renewcommand{\cftparaindent}{7.5em}     % Параграфы (уровень 4)
+
+% Ширина полей для номеров страниц
+\setlength{\cftchapnumwidth}{2em}        % Для глав
+\setlength{\cftsecnumwidth}{2.5em}       % Для секций
+\setlength{\cftsubsecnumwidth}{3em}      % Для подсекций
+\setlength{\cftsubsubsecnumwidth}{3.5em} % Для уровня 3
+\setlength{\cftparanumwidth}{4em}        % Для уровня 4
+
+% Настройка для subsubsubsection (4-й уровень)
+\makeatletter
+\newcommand{\l@subsubsubsection}{\@dottedtocline{4}{7.5em}{4.5em}}
+\makeatother
+
+% ========================================================
+% Новые команды
+% ========================================================
+
+% Несколько полезных блоков для выделения значимых частей текста. Пример:
 % \begin{theorem}
-%   Если $a$ и $b$ — положительные числа, то $a + b \geq 2\sqrt{ab}$.
-% \end{theorem}
+%     Если $a$ и $b$ — положительные числа, то $a + b \geq 2\sqrt{ab}$.
+%   \end{theorem}
+  
+%   \begin{lemma}
+%     Текст леммы...
+%   \end{lemma}
+  
+%   \begin{corollary}
+%     Текст следствия...
+%   \end{corollary}
+  
+%   \begin{note}
+%     Важное замечание без номера
+%   \end{note}
+
 \theoremstyle{note}
 \newtheorem{example}{Пример}
 \newtheorem{claim}{Утверждение} 
@@ -90,14 +124,16 @@
 \newtheorem{theorem}{Теорема}
 \newtheorem{lemma}{Лемма}
 \newtheorem{corollary}{Следствие}
-\newcommand{\R}[2]{\mathbb{R}^{#1 \times #2}}
-\newcommand{\Rn}{\mathbb{R}^n}
 
 % Дополнительный уровень иерархии. Не попадает в оглавление
 \newcommand{\subsubsubsection}[1]{%
-  \paragraph*{\bfseries #1}             % Жирный заголовок
-  \addcontentsline{toc}{paragraph}{#1}  % Добавляем в оглавление
-  \mbox{}%                              % Пустая строка для переноса
-  \par%                                 % Принудительный перенос строки
-  \noindent%                            % Убирает отступ у следующего абзаца
+  \paragraph{#1}%            % Жирный заголовок
+  \mbox{}%                   % Пустая строка для переноса
+  \par%                      % Принудительный перенос строки
+  \noindent%                 % Убирает отступ у следующего абзаца
 }
+
+
+% Пространства
+\newcommand{\R}[2]{\mathbb{R}^{#1 \times #2}}  % для матричных пространств
+\newcommand{\Rn}{\mathbb{R}^n}                  % для векторных пространств

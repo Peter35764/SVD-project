@@ -1,11 +1,56 @@
+\documentclass[12pt, a4paper]{report}
+
 \include{settings}
 
 \begin{document}
 
+\begin{titlepage}
+  \centering
+  \vspace*{1cm}
+  
+  {\LARGE\bfseries Теоретический обзор новых алгоритмов уточнения сингулярных векторов\par}
+  \vspace{2cm}
+
+  \begin{minipage}{0.9\textwidth}
+    \centering
+    \begin{tabular}{p{10cm}l}
+      \textbf{1. Соловьев Петр} (lead) & КМБО-04-21 \\
+      \textbf{2. Букин Владислав} (programmer, tests) & КМБО-04-21 \\
+      \textbf{3. Зинченко Олег} (researcher, 1.3) & КМБО-01-21 \\
+      \textbf{4. Горшков Николай} (programmer, 1.3) & КМБО-04-21 \\
+      \textbf{5. Алексей} (programmer, 1.2) & КМБО-03-23 \\
+      \textbf{6. Константин} (researcher, 1.2) & КМБО-03-23 \\
+      \textbf{7. Борис} (programmer, 1.1) & КМБО-03-23 \\
+      \textbf{8. Михаил} (researcher, 1.1) & КМБО-03-23 \\
+    \end{tabular}
+  \end{minipage}
+  
+  \vspace{1cm} % Добавляем отступ перед контактами
+  
+  % Контактная информация
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \textit{По всем возникающим вопросам обращайтесь на почту:} \\
+    \texttt{peter.solovyev.moscow@gmail.com}
+  \end{minipage}
+  
+  \vfill % Гибкий отступ перед годом
+
+  {\large РТУ МИРЭА, Кафедра высшей математики\par}
+  {\large Москва, 2025\par}
+\end{titlepage}
+
+
+
+
 \tableofcontents
 
 \newpage
-\section{Глоссарий}
+\begin{center}
+  \textbf{\large Глоссарий}
+\end{center}
+\refstepcounter{section}
+\addcontentsline{toc}{section}{Глоссарий}
 
 \input{glossary}
 
@@ -14,10 +59,12 @@
 
 \input{ideas}
 
-\newpage
-\chapter{Скрученные преобразования}
+% \newpage
+% \chapter{Скрученные преобразования}
 
-\newpage
-\printbibliography
+\renewcommand{\bibname}{Использованные источники}
+\addcontentsline{toc}{chapter}{Использованные источники} 
+\bibliographystyle{plain}
+\bibliography{references}
 
 \end{document}
