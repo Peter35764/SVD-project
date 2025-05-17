@@ -46,6 +46,7 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
   for (size_t iter = 0; iter < MAX_ITERATIONS; ++iter) {
     for (Index i = 0; i < initial.rows(); ++i) {
       for (Index j = 0; j < initial.cols(); ++j) {
+        if(i == j) continue;
         traversalOrder.push_back(
             {{i, j}, std::abs(currentApproximation(i, j) - initial(i, j))});
       }
@@ -66,9 +67,10 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
         // parametrized by cosign value:
         // ||^A * J_ij(c) - A|| -> min and ||J_ij^T(C) * ^A - A|| -> min
         auto minimizedFunction = [currentApproximation, initial, i, j,
-                                  rotType](Scalar c) {
+                                  rotType](Scalar angle) {
           MatrixType tempApproximation = currentApproximation;
-          Scalar s = std::sqrt(1 - c * c);
+          Scalar c = cos(angle);
+          Scalar s = sin(angle);
           Eigen::JacobiRotation<Scalar> rotation =
               Eigen::JacobiRotation<Scalar>(c, s);
 
@@ -83,10 +85,11 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
 
         // Minimize the function and get the result cosign value
         auto result = boost::math::tools::brent_find_minima(
-            minimizedFunction, 0.0, 1.0, std::numeric_limits<Scalar>::digits);
+            minimizedFunction, -M_PI, M_PI, std::numeric_limits<Scalar>::digits);
 
-        Scalar c = result.first;
-        Scalar s = std::sqrt(1 - c * c);
+        Scalar angle = result.first;
+        Scalar c = cos(angle);
+        Scalar s = sin(angle);
         auto rotation = Eigen::JacobiRotation<Scalar>(c, s);
 
         // Apply the corresponding rotation on the left/right
