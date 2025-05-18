@@ -45,7 +45,8 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
   // and their corresponding indices
   for (size_t iter = 0; iter < MAX_ITERATIONS; ++iter) {
     for (Index i = 0; i < initial.rows(); ++i) {
-      for (Index j = 0; j < initial.cols(); ++j) {
+      for (Index j = 0; j < initial.cols(); ++j){
+        // without skipping we get a local minimum
         if(i == j) continue;
         traversalOrder.push_back(
             {{i, j}, std::abs(currentApproximation(i, j) - initial(i, j))});
@@ -64,7 +65,7 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
       // Calculate first the left and then the right rotation.
       for (auto rotType : {RotationType::Left, RotationType::Right}) {
         // Here we create a lambda representing the functions being minimized,
-        // parametrized by cosign value:
+        // parametrized by angle value:
         // ||^A * J_ij(c) - A|| -> min and ||J_ij^T(C) * ^A - A|| -> min
         auto minimizedFunction = [currentApproximation, initial, i, j,
                                   rotType](Scalar angle) {
@@ -83,9 +84,9 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
           return (tempApproximation - initial).norm();
         };
 
-        // Minimize the function and get the result cosign value
+        // Minimize the function and get the result angle value in [-PI/4, PI/4]
         auto result = boost::math::tools::brent_find_minima(
-            minimizedFunction, -M_PI, M_PI, std::numeric_limits<Scalar>::digits);
+            minimizedFunction, -M_PI/4, M_PI/4, std::numeric_limits<Scalar>::digits);
 
         Scalar angle = result.first;
         Scalar c = cos(angle);
