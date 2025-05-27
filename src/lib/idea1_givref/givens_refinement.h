@@ -86,7 +86,9 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
 
   void preparation_phase(const MatrixType& A, unsigned int computationOptions);
   void qr_iterations_phase();
-  void placeholder_phase();  // Placeholder
+
+  void coordinate_descent_refinement(
+      const MatrixType& B_target, const Eigen::VectorXd& true_singular_values);
   void finalizing_output_phase();
 
   MatrixType left_J;   // Left Jacobi rotation matrix

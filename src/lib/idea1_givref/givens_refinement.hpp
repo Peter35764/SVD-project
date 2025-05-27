@@ -56,8 +56,151 @@ void GivRef_SVD<_MatrixType>::qr_iterations_phase() {
 }
 
 template <typename _MatrixType>
-void GivRef_SVD<_MatrixType>::placeholder_phase() {
-  // TODO: placeholder
+void GivRef_SVD<_MatrixType>::coordinate_descent_refinement(
+    const MatrixType& B_target, const Eigen::VectorXd& true_singular_values) {
+  using Scalar = typename MatrixType::Scalar;
+  using RealScalar = typename MatrixType::RealScalar;
+
+  const RealScalar eta_base = 0.1;
+  const RealScalar epsilon = 1e-8;
+  const int max_iterations = 200;
+  const RealScalar convergence_tol = 1e-7;
+
+  std::vector<RealScalar> theta_left(m - 1, 0.0);
+  std::vector<RealScalar> theta_right(n - 1, 0.0);
+
+  Index min_dim = std::min(m, n);
+
+  // insert sing vals
+  MatrixType Sigma_true = MatrixType::Zero(m, n);
+  for (Index i = 0; i < std::min(min_dim, true_singular_values.size()); ++i) {
+    Sigma_true(i, i) = true_singular_values(i);
+  }
+
+  for (int iter = 0; iter < max_iterations; ++iter) {
+    RealScalar max_change = 0.0;
+
+    // left rotations
+    for (Index k = 0; k < m - 1; ++k) {
+      // B_tilde
+      MatrixType U_current = MatrixType::Identity(m, m);
+      MatrixType V_current = MatrixType::Identity(n, n);
+
+      // Apply rotations
+      for (Index i = 0; i < m - 1; ++i) {
+        Eigen::JacobiRotation<Scalar> rot;
+        rot.makeGivens(std::cos(theta_left[i]), std::sin(theta_left[i]));
+        U_current.applyOnTheRight(i, i + 1, rot);
+      }
+
+      for (Index i = 0; i < n - 1; ++i) {
+        Eigen::JacobiRotation<Scalar> rot;
+        rot.makeGivens(std::cos(theta_right[i]), std::sin(theta_right[i]));
+        V_current.applyOnTheRight(i, i + 1, rot);
+      }
+
+      MatrixType B_tilde = U_current * Sigma_true * V_current.transpose();
+      MatrixType Error = B_tilde - B_target;
+
+      // Compute grad
+      MatrixType dU_dtheta = MatrixType::Zero(m, m);
+      dU_dtheta(k, k) = -std::sin(theta_left[k]);
+      dU_dtheta(k, k + 1) = -std::cos(theta_left[k]);
+      dU_dtheta(k + 1, k) = std::cos(theta_left[k]);
+      dU_dtheta(k + 1, k + 1) = -std::sin(theta_left[k]);
+
+      // Apply rotations
+      for (Index i = 0; i < m - 1; ++i) {
+        if (i != k) {
+          Eigen::JacobiRotation<Scalar> rot;
+          rot.makeGivens(std::cos(theta_left[i]), std::sin(theta_left[i]));
+          if (i < k) {
+            dU_dtheta.applyOnTheLeft(i, i + 1, rot);
+          } else {
+            dU_dtheta.applyOnTheRight(i, i + 1, rot);
+          }
+        }
+      }
+
+      MatrixType gradient_term = dU_dtheta * Sigma_true * V_current.transpose();
+      RealScalar gradient = (Error.cwiseProduct(gradient_term)).sum();
+
+      // Update step
+      RealScalar eta = eta_base / (std::abs(gradient) + epsilon);
+
+      // Update angle
+      RealScalar old_theta = theta_left[k];
+      theta_left[k] -= eta * gradient;
+      max_change = std::max(max_change, std::abs(theta_left[k] - old_theta));
+    }
+
+    // Update right rot
+    for (Index k = 0; k < n - 1; ++k) {
+      MatrixType U_current = MatrixType::Identity(m, m);
+      MatrixType V_current = MatrixType::Identity(n, n);
+
+      for (Index i = 0; i < m - 1; ++i) {
+        Eigen::JacobiRotation<Scalar> rot;
+        rot.makeGivens(std::cos(theta_left[i]), std::sin(theta_left[i]));
+        U_current.applyOnTheRight(i, i + 1, rot);
+      }
+
+      for (Index i = 0; i < n - 1; ++i) {
+        Eigen::JacobiRotation<Scalar> rot;
+        rot.makeGivens(std::cos(theta_right[i]), std::sin(theta_right[i]));
+        V_current.applyOnTheRight(i, i + 1, rot);
+      }
+
+      MatrixType B_tilde = U_current * Sigma_true * V_current.transpose();
+      MatrixType Error = B_tilde - B_target;
+
+      // Compute grad
+      MatrixType dV_dtheta = MatrixType::Zero(n, n);
+      dV_dtheta(k, k) = -std::sin(theta_right[k]);
+      dV_dtheta(k, k + 1) = -std::cos(theta_right[k]);
+      dV_dtheta(k + 1, k) = std::cos(theta_right[k]);
+      dV_dtheta(k + 1, k + 1) = -std::sin(theta_right[k]);
+
+      for (Index i = 0; i < n - 1; ++i) {
+        if (i != k) {
+          Eigen::JacobiRotation<Scalar> rot;
+          rot.makeGivens(std::cos(theta_right[i]), std::sin(theta_right[i]));
+          if (i < k) {
+            dV_dtheta.applyOnTheLeft(i, i + 1, rot);
+          } else {
+            dV_dtheta.applyOnTheRight(i, i + 1, rot);
+          }
+        }
+      }
+
+      MatrixType gradient_term = U_current * Sigma_true * dV_dtheta.transpose();
+      RealScalar gradient = (Error.cwiseProduct(gradient_term)).sum();
+
+      RealScalar eta = eta_base / (std::abs(gradient) + epsilon);
+      RealScalar old_theta = theta_right[k];
+      theta_right[k] -= eta * gradient;
+      max_change = std::max(max_change, std::abs(theta_right[k] - old_theta));
+    }
+
+    // converged?
+    if (max_change < convergence_tol) break;
+  }
+
+  // Apply final rotations to get refined U and V
+  left_J = MatrixType::Identity(m, m);
+  right_J = MatrixType::Identity(n, n);
+
+  for (Index i = 0; i < m - 1; ++i) {
+    Eigen::JacobiRotation<Scalar> rot;
+    rot.makeGivens(std::cos(theta_left[i]), std::sin(theta_left[i]));
+    left_J.applyOnTheRight(i, i + 1, rot);
+  }
+
+  for (Index i = 0; i < n - 1; ++i) {
+    Eigen::JacobiRotation<Scalar> rot;
+    rot.makeGivens(std::cos(theta_right[i]), std::sin(theta_right[i]));
+    right_J.applyOnTheRight(i, i + 1, rot);
+  }
 }
 
 template <typename _MatrixType>
@@ -91,7 +234,9 @@ GivRef_SVD<_MatrixType>& GivRef_SVD<_MatrixType>::compute(
     const MatrixType& A, unsigned int computationOptions) {
   preparation_phase(A, computationOptions);
   qr_iterations_phase();
-  placeholder_phase();
+  Eigen::VectorXd computed_sv =
+      sigm_B.diagonal().head(std::min(m, n)).cwiseAbs();
+  coordinate_descent_refinement(sigm_B, computed_sv);
   finalizing_output_phase();
   return *this;
 }
