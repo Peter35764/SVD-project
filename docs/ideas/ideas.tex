@@ -191,10 +191,10 @@ $B(x)=\begin{pmatrix}
 
 Для того, чтобы получить точные левые сингулярные векторы нужно решить следующую оптимизацинную задачу: \(min\| \widehat{B} - B \|\). Этого можно добиться путем изменения углов \( \theta \) поворотов Гивенса \( J_k \):
 
-\begin{equation}
-\tilde{B} = J(\theta_1) J(\theta_2) \cdots J(\theta_N) \Sigma J(\theta_{N+1}) J(\theta_{N+2}) \cdots J(\theta_{2N}).
+\begin{equation} \label{b_hat}
+\tilde{B} = J(\theta_1) J(\theta_2) \cdots J(\theta_n) \Sigma J(\theta_{n+1}) J(\theta_{n+2}) \cdots J(\theta_{2n}).
 \end{equation}
-Для этого применяется алгоритм координатного спуска: пусть $\theta = (\theta_1, \theta_2, ..., \theta_{2N})$ — вектор углов поворотов Гивенса. 
+Для этого применяется алгоритм координатного спуска: пусть $\theta = (\theta_1, \theta_2, ..., \theta_{2n})$ — вектор углов поворотов Гивенса. 
 Целевая функция минимизации имеет вид:
 \begin{equation}
 f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
@@ -202,26 +202,70 @@ f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
 где: 
 
 \begin{itemize}
-\item $\tilde{B}(\theta) = \left( \prod_{k=1}^N J_L^{(k)}(\theta_k) \right) \Sigma \left( \prod_{m=1}^N J_R^{(m)}(\theta_{N+m}) \right)^T$, 
+\item $\tilde{B}(\theta) = \left( \prod_{k=1}^n J_L^{(k)}(\theta_k) \right) \Sigma \left( \prod_{m=1}^n J_R^{(m)}(\theta_{n+m}) \right)^T$, 
 \item $J_L^{(k)}$ — левые повороты Гивенса (действуют на строки), 
 \item $J_R^{(m)}$ — правые повороты Гивенса (действуют на столбцы)
 \end{itemize}
 
+\begin{note}
+\begin{equation}
+    \|A\|_F^2 = \langle A, A\rangle = \text{tr}\left(A^TA\right)
+\end{equation}
+\end{note}
+\begin{note}
+\begin{equation} \label{j_diff}
+    \frac{\partial [J(\theta_1) J(\theta_2) \cdots J(\theta_n)]}{\partial \theta_k} =
+    J(\theta_1) J(\theta_2) \cdots  J(\theta_{k-1})\frac{\partial J(\theta_k)}{\partial \theta_k}J(\theta_{k+1}) \cdots J(\theta_n)
+\end{equation}
+\end{note}
+
+Пусть $A = \tilde{B}(\theta) - B$, тогда частная производная для левого поворота принимает вид:
+\begin{equation*}
+    \frac{\partial f}{\partial \theta_k} =
+    \frac{1}{2}\frac{\partial (\|A\|_F^2)}{\partial \theta_k} =
+    \frac{1}{2}\frac{\partial (\langle A, A\rangle)}{\partial \theta_k} =
+    \frac{1}{2} \left[ \langle\frac{\partial A}{\partial \theta_k}, A\rangle + \langle A, \frac{\partial A}{\partial \theta_k}\rangle \right]= \langle A, \frac{\partial A}{\partial \theta_k}\rangle = \text{tr}(A^T\cdot\frac{\partial A}{\partial \theta_k})
+\end{equation*}
+
+Учитывая \eqref{b_hat} и \eqref{j_diff}:
+\begin{equation}
+\begin{split}
+    \frac{\partial f}{\partial \theta_k} = 
+    \text{tr}\left((\tilde{B}(\theta) - B)^T\cdot\frac{\partial [\tilde{B}(\theta) - B]}{\partial \theta_k}\right)=
+    \text{tr}\left((\tilde{B}(\theta) - B)^T\cdot\frac{\partial \tilde{B}(\theta)}{\partial \theta_k}\right)
+    =\\[6pt] =
+    \text{tr}\left((U\Sigma V^T - B)^T\cdot\frac{\partial U}{\partial \theta_k}\Sigma V^T\right) 
+    =\\[6pt] =
+    \text{tr}\left((U\Sigma V^T - B)^TJ(\theta_1) \cdots  J(\theta_{k-1})\frac{\partial J(\theta_k)}{\partial \theta_k}J(\theta_{k+1}) \cdots J(\theta_n)\Sigma V^T\right)
+\end{split}
+\end{equation}
+
+\begin{note}
+Частная производная для правых поворотов получается аналогичным способом, только под дифференцирование попадает матрица $V^T$:
+\begin{equation*}
+    \frac{\partial V^T}{\partial \theta_{n+k}} = \left(\frac{\partial V}{\partial \theta_{n+k}}\right)^T = \left(J(\theta_{n+1}) \cdots  J(\theta_{n+k-1})\frac{\partial J(\theta_{n+k})}{\partial \theta_{n+k}}J(\theta_{n+k+1}) \cdots J(\theta_{2n})\right)^T
+\end{equation*}
+\end{note}
+
+Полный алгоритм для уточнения поворотов Гивенса представлен ниже.
 
 Для $t = 0,1,...,T_{\text{max}}$:
 \begin{enumerate}
- \item Обновить левые повороты (строки 1 до $N$):
+ \item Обновить левые повороты (строки 1 до $n$):
  \begin{align*}
- \text{Для } k &= 1 \text{ до } N: \\
- \frac{\partial f}{\partial \theta_k} &= \text{tr}\left( (U\Sigma V^T - B)^T \cdot \frac{\partial J_L^{(k)}}{\partial \theta_k} \Sigma V^T \right) \\
- \theta_k^{(t+1)} &= \theta_k^{(t)} - \eta_L^{(k)} \cdot \frac{\partial f}{\partial \theta_k}
+ \text{Для } k &= 1 \text{ до } n: \\
+    \frac{\partial f}{\partial \theta_k} &= 
+ \text{tr}\left((U\Sigma V^T - B)^TJ(\theta_1) \cdots  J(\theta_{k-1})\frac{\partial J(\theta_k)}{\partial \theta_k}J(\theta_{k+1}) \cdots J(\theta_n)\Sigma V^T\right) \\
+ \theta_k^{(t+1)} &= \theta_k^{(t)} - \eta_L^{(k)} \cdot \frac{\partial f}{\partial \theta_k} \\
+ U &= J(\theta_1)J(\theta_2)\cdots J(\theta_n)
  \end{align*}
 
- \item Обновить правые повороты (столбцы $N+1$ до $2N$):
+ \item Обновить правые повороты (столбцы $n+1$ до $2n$):
  \begin{align*}
- \text{Для } m &= 1 \text{ до } N: \\
- \frac{\partial f}{\partial \theta_{N+m}} &= \text{tr}\left( (U\Sigma V^T - B)^T \cdot U \Sigma \frac{\partial J_R^{(m)}}{\partial \theta_{N+m}} \right) \\
- \theta_{N+m}^{(t+1)} &= \theta_{N+m}^{(t)} - \eta_R^{(m)} \cdot \frac{\partial f}{\partial \theta_{N+m}}
+ \text{Для } m &= 1 \text{ до } n: \\
+ \frac{\partial f}{\partial \theta_{n+m}} &= \text{tr}\left((U\Sigma V^T - B)^TU\Sigma \left[J(\theta_{n+1}) \cdots  J(\theta_{n+k-1})\frac{\partial J(\theta_{n+k})}{\partial \theta_{n+k}}J(\theta_{n+k+1}) \cdots J(\theta_{2n})\right]^T\right) \\ \\
+ \theta_{n+m}^{(t+1)} &= \theta_{n+m}^{(t)} - \eta_R^{(m)} \cdot \frac{\partial f}{\partial \theta_{n+m}}\\
+ V &= J(\theta_{n+1})J(\theta_{n+2})\cdots J(\theta_{2n})
  \end{align*}
 
  \item Проверить сходимость:
@@ -232,7 +276,7 @@ f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
 
 \textbf{Адаптация шага}:
 \begin{equation}
-\eta_L^{(k)} = \frac{0.1}{\|\frac{\partial f}{\partial \theta_k}\| + 10^{-8}}, \quad \eta_R^{(m)} = \frac{0.1}{\|\frac{\partial f}{\partial \theta_{N+m}}\| + 10^{-8}}
+\eta_L^{(k)} = \frac{0.1}{\|\frac{\partial f}{\partial \theta_k}\| + 10^{-8}}, \quad \eta_R^{(m)} = \frac{0.1}{\|\frac{\partial f}{\partial \theta_{n+m}}\| + 10^{-8}}
 \end{equation}
 
 Данный эвристический метод является менее вычислительно затратным способом установки скорости обучения, по сравнению с альтернативными методами (Adam, RMSProp), при этом устойчив и позволяет регулировать шаг в обратной зависимости от величины градиента.
