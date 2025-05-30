@@ -44,6 +44,9 @@ template <typename SVDClass>
 struct requires_sigma : std::false_type {};
 
 template <typename Matrix>
+struct requires_sigma<PseudoRevJac_SVD<Matrix>> : std::true_type {};
+
+template <typename Matrix>
 struct requires_sigma<RevJac_SVD<Matrix>> : std::true_type {};
 
 template <typename Matrix>
@@ -159,6 +162,8 @@ const std::vector<typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
             "SVD_Project::GivRef_SVD"),
         createAlgorithmInfoEntry<SVD_Project::v0_GivRef_SVD>(
             "SVD_Project::v0_GivRef_SVD"),
+        createAlgorithmInfoEntry<SVD_Project::PseudoRevJac_SVD>(
+            "SVD_Project::PseudoRevJac_SVD"),
         createAlgorithmInfoEntry<SVD_Project::RevJac_SVD>(
             "SVD_Project::RevJac_SVD"),
         createAlgorithmInfoEntry<SVD_Project::v0_RevJac_SVD>(

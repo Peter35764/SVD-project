@@ -1,4 +1,5 @@
 #include "idea1_givref/givens_refinement.h"
+#include "idea2_revjac/pseudo_reverse_jacobi.h"
 #include "idea2_revjac/reverse_jacobi.h"
 #include "idea3_naive/naive_bidiag_svd/naive_bidiag_svd.h"
 #include "idea3_naive/naive_mrrr/naive_mrrr.h"

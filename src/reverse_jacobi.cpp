@@ -1,6 +1,7 @@
 #include <Eigen/Core>
 #include <iostream>
 #include <random>
+#include <vector>
 
 #include "lib/SVD_project.h"
 
@@ -18,16 +19,55 @@ double randomUniform(double lower, double upper,
   return unif(re);
 }
 
-void test_RevJac_SVD() {
-  size_t n = 10;
+void test_PseudoRevJac_SVD() {
+  size_t n = 3;
 
   Eigen::MatrixXd U = randomOrthogonalMatrix(n);
   Eigen::MatrixXd V = randomOrthogonalMatrix(n);
 
   std::default_random_engine re;
+  std::vector<double> singularVaules;
+  for (size_t i = 0; i < n; i++) {
+    singularVaules.push_back(randomUniform(0.0, 3.0, re));
+  }
+  std::sort(singularVaules.begin(), singularVaules.end(),
+            std::greater<double>());
   Eigen::VectorXd S = Eigen::VectorXd::Zero(n);
   for (size_t i = 0; i < n; i++) {
-    S(i) = randomUniform(0.0, 3.0, re);
+    S(i) = singularVaules[i];
+  }
+
+  Eigen::MatrixXd A = U * S.asDiagonal() * V.adjoint();
+  SVD_Project::PseudoRevJac_SVD<Eigen::MatrixXd> svd(A, S, &std::cout);
+  Eigen::MatrixXd A_reconstucted = svd.matrixU() *
+                                   svd.singularValues().asDiagonal() *
+                                   svd.matrixV().adjoint();
+
+  std::cout << '\n';
+  std::cout << "Singular Values\n\n" << S << "\n\n";
+  std::cout << "Initial matrix A\n\n"
+            << A << "\n\n"
+            << "Recontructed matrix U * S * V^T\n\n"
+            << A_reconstucted << "\n\n";
+  std::cout << "|| A_rec - A ||_l2 = " << (A_reconstucted - A).norm() << "\n";
+}
+
+void test_RevJac_SVD() {
+  size_t n = 3;
+
+  Eigen::MatrixXd U = randomOrthogonalMatrix(n);
+  Eigen::MatrixXd V = randomOrthogonalMatrix(n);
+
+  std::default_random_engine re;
+  std::vector<double> singularVaules;
+  for (size_t i = 0; i < n; i++) {
+    singularVaules.push_back(randomUniform(0.0, 3.0, re));
+  }
+  std::sort(singularVaules.begin(), singularVaules.end(),
+            std::greater<double>());
+  Eigen::VectorXd S = Eigen::VectorXd::Zero(n);
+  for (size_t i = 0; i < n; i++) {
+    S(i) = singularVaules[i];
   }
 
   Eigen::MatrixXd A = U * S.asDiagonal() * V.adjoint();
@@ -83,7 +123,7 @@ int main() {
  */
 
 void test_norms() {
-  size_t n = 10;
+  size_t n = 3;
   double small_singular_value = 1e-5;
 
   Eigen::MatrixXd U = randomOrthogonalMatrix(n);
