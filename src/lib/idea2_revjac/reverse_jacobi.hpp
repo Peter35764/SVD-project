@@ -5,6 +5,7 @@
 #include <boost/math/tools/minima.hpp>
 #include <cassert>
 #include <cmath>
+#include <iostream>
 #include <limits>
 #include <numbers>
 
@@ -52,19 +53,26 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
         z = currentApproximation(j, j);
         this->USVD(w, x, y, z, c1, s1);
 
+        std::cout << "cos: " << c1 << ", sin: " << s1 << '\n';
+
         auto leftRotation = Eigen::JacobiRotation<Scalar>(c1, s1);
 
         this->m_matrixU.applyOnTheLeft(i, j, leftRotation.adjoint());
         currentApproximation.applyOnTheLeft(i, j, leftRotation.adjoint());
+
+        std::cout << "[ " << currentApproximation(i, i) << ", "
+                  << currentApproximation(i, j) << ";\n"
+                  << currentApproximation(j, i) << ", "
+                  << currentApproximation(j, j) << " ]\n";
 
         auto minimizedFunction = [currentApproximation, initial, i,
                                   j](Scalar phi) {
           MatrixType tempApproximation = currentApproximation;
           Scalar c = std::cos(phi);
           Scalar s = std::sin(phi);
-          Eigen::JacobiRotation<Scalar> rotation =
+          Eigen::JacobiRotation<Scalar> rightRotation =
               Eigen::JacobiRotation<Scalar>(c, s);
-          tempApproximation.applyOnTheRight(i, j, rotation);
+          tempApproximation.applyOnTheRight(i, j, rightRotation);
           return (tempApproximation - initial).norm();
         };
 
@@ -99,6 +107,7 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
 
   this->m_matrixV = transposedMatrixV.transpose();
   this->m_isInitialized = true;
+
   return *this;
 }
 
@@ -110,11 +119,11 @@ template <typename _MatrixType>
 void RevJac_SVD<_MatrixType>::USVD(Scalar w, Scalar x, Scalar y, Scalar z,
                                    Scalar& c1, Scalar& s1) {
   const double EPS = 1e-30;
-  bool flag = false;
+
   if (y == 0 && z == 0) {
-    y = x;
-    x = 0;
-    flag = true;
+    c1 = 1;
+    s1 = 0;
+    return;
   }
 
   Scalar mu1 = w + z;
@@ -148,15 +157,6 @@ void RevJac_SVD<_MatrixType>::USVD(Scalar w, Scalar x, Scalar y, Scalar z,
 
   c1 = c2 * c - s2 * s;
   s1 = s2 * c + c2 * s;
-  Scalar d1 = c1 * (w * c1 - x * s2) - s1 * (y * c2 - z * s2);
-  Scalar d2 = s1 * (w * s2 + x * c2) + c1 * (y * s2 + z * c2);
-
-  if (flag) {
-    // Used in original implementation but not here because we don't need
-    // these values c2 = c1; s2 = s1;
-    c1 = 1;
-    s1 = 0;
-  }
 }
 
 }  // namespace SVD_Project
