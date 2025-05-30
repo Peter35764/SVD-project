@@ -2,6 +2,7 @@
 #define GIVENS_REFINEMENT_H
 
 #include <Eigen/Dense>
+#include <vector>
 // #include <Eigen/Eigenvalues>
 // #include <algorithm>
 // #include <cmath>
@@ -95,7 +96,9 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
   MatrixType right_J;  // Right Jacobi rotation matrix
   MatrixType sigm_B;   // Working copy of the bidiagonal matrix
   Index m;             // Number of rows
-  Index n;             // Number of columns
+  std::vector<RealScalar> m_qr_theta_left;
+  std::vector<RealScalar> m_qr_theta_right;
+  Index n;  // Number of columns
 };
 
 }  // namespace SVD_Project

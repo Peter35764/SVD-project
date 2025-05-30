@@ -30,6 +30,9 @@ void GivRef_SVD<_MatrixType>::preparation_phase(
 
   m = B.rows();
   n = B.cols();
+  // Initialize vectors for storing QR rotation angles
+  this->m_qr_theta_left.assign(this->m > 1 ? this->m - 1 : 0, 0.0);
+  this->m_qr_theta_right.assign(this->n > 1 ? this->n - 1 : 0, 0.0);
 
   // Initialize the Jacobi rotation matrices and working matrix
   left_J = MatrixType::Identity(m, m);
@@ -66,8 +69,9 @@ void GivRef_SVD<_MatrixType>::coordinate_descent_refinement(
   const int max_iterations = 200;
   const RealScalar convergence_tol = 1e-7;
 
-  std::vector<RealScalar> theta_left(m - 1, 0.0);
-  std::vector<RealScalar> theta_right(n - 1, 0.0);
+  // Get back thetas from QR phase.
+  std::vector<RealScalar> theta_left = this->m_qr_theta_left;
+  std::vector<RealScalar> theta_right = this->m_qr_theta_right;
 
   Index min_dim = std::min(m, n);
 
@@ -246,19 +250,31 @@ void GivRef_SVD<_MatrixType>::performQRIteration() {
   using Scalar = typename MatrixType::Scalar;
 
   // Apply Givens rotations to zero out off-diagonal elements
-  for (Index i = 0; i < n - 1; ++i) {
+  for (Index i = 0; i < this->n - 1; ++i) {
     // Right rotation to zero sigm_B(i, i+1)
     Eigen::JacobiRotation<Scalar> rotRight;
-    rotRight.makeGivens(sigm_B(i, i), sigm_B(i, i + 1));
-    sigm_B.applyOnTheRight(i, i + 1, rotRight);
-    right_J.applyOnTheRight(i, i + 1, rotRight);
+    rotRight.makeGivens(this->sigm_B(i, i), this->sigm_B(i, i + 1));
+
+    // Store appr rotation angle
+    if (!this->m_qr_theta_right.empty() && i < this->m_qr_theta_right.size()) {
+      this->m_qr_theta_right[i] = std::atan2(rotRight.s(), rotRight.c());
+    }
+
+    this->sigm_B.applyOnTheRight(i, i + 1, rotRight);
+    this->right_J.applyOnTheRight(i, i + 1, rotRight);
 
     // Left rotation to zero sigm_B(i+1, i)
-    if (i < m - 1) {
+    if (i < this->m - 1) {
       Eigen::JacobiRotation<Scalar> rotLeft;
-      rotLeft.makeGivens(sigm_B(i, i), sigm_B(i + 1, i));
-      sigm_B.applyOnTheLeft(i, i + 1, rotLeft.transpose());
-      left_J.applyOnTheLeft(i, i + 1, rotLeft.transpose());
+      rotLeft.makeGivens(this->sigm_B(i, i), this->sigm_B(i + 1, i));
+
+      // Store appr rotation angle
+      if (!this->m_qr_theta_left.empty() && i < this->m_qr_theta_left.size()) {
+        this->m_qr_theta_left[i] = std::atan2(rotLeft.s(), rotLeft.c());
+      }
+
+      this->sigm_B.applyOnTheLeft(i, i + 1, rotLeft.transpose());
+      this->left_J.applyOnTheLeft(i, i + 1, rotLeft.transpose());
     }
   }
 }
