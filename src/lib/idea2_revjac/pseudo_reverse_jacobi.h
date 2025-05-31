@@ -32,47 +32,18 @@ class PseudoRevJac_SVD : public Eigen::SVDBase<PseudoRevJac_SVD<_MatrixType>> {
 
   PseudoRevJac_SVD(const MatrixType& initial,
                    const VectorDynamic& singularValues,
-                   unsigned int computationOptions = 0) {
-    Index m = initial.rows();
-    Index n = initial.cols();
-    this->m_matrixU = MatrixDynamic::Identity(m, m);
-    this->m_matrixV = MatrixDynamic::Identity(n, n);
-    this->m_singularValues = singularValues;
-    Compute(initial, computationOptions);
-  }
-
+                   unsigned int computationOptions = 0);
   PseudoRevJac_SVD(const MatrixType& initial,
                    const VectorDynamic& singularValues, std::ostream* os,
-                   unsigned int computationOptions = 0) {
-    Index m = initial.rows();
-    Index n = initial.cols();
-    this->m_matrixU = MatrixDynamic::Identity(m, m);
-    this->m_matrixV = MatrixDynamic::Identity(n, n);
-    this->m_singularValues = singularValues;
-    this->m_divOstream = os;
-    Compute(initial, computationOptions);
-  };
-
+                   unsigned int computationOptions = 0);
   PseudoRevJac_SVD(const MatrixType& initial,
                    const VectorDynamic& singularValues,
                    const MatrixDynamic& matrixU, const MatrixDynamic& matrixV,
-                   unsigned int computationOptions = 0) {
-    this->m_singularValues = singularValues;
-    this->m_matrixU = matrixU;
-    this->m_matrixV = matrixV;
-    Compute(initial, computationOptions);
-  };
-
+                   unsigned int computationOptions = 0);
   PseudoRevJac_SVD(const MatrixType& initial,
                    const VectorDynamic& singularValues,
                    const MatrixDynamic& matrixU, const MatrixDynamic& matrixV,
-                   std::ostream* os, unsigned int computationOptions = 0) {
-    this->m_singularValues = singularValues;
-    this->m_matrixU = matrixU;
-    this->m_matrixV = matrixV;
-    this->m_divOstream = os;
-    Compute(initial, computationOptions);
-  };
+                   std::ostream* os, unsigned int computationOptions = 0);
 
   PseudoRevJac_SVD& Compute(const MatrixType& initial,
                             unsigned int computationOptions = 0);

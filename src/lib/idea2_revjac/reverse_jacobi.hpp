@@ -5,13 +5,64 @@
 #include <boost/math/tools/minima.hpp>
 #include <cassert>
 #include <cmath>
-#include <iostream>
 #include <limits>
 #include <numbers>
 
 #include "reverse_jacobi.h"
 
 namespace SVD_Project {
+
+template <typename _MatrixType>
+RevJac_SVD<_MatrixType>::RevJac_SVD(const MatrixType& initial,
+                                    const VectorDynamic& singularValues,
+                                    unsigned int computationOptions) {
+  Index m = initial.rows();
+  Index n = initial.cols();
+  this->m_matrixU = MatrixDynamic::Identity(m, m);
+  this->m_matrixV = MatrixDynamic::Identity(n, n);
+  this->m_singularValues = singularValues;
+  Compute(initial, computationOptions);
+}
+
+template <typename _MatrixType>
+RevJac_SVD<_MatrixType>::RevJac_SVD(const MatrixType& initial,
+                                    const VectorDynamic& singularValues,
+                                    std::ostream* os,
+                                    unsigned int computationOptions) {
+  Index m = initial.rows();
+  Index n = initial.cols();
+  this->m_matrixU = MatrixDynamic::Identity(m, m);
+  this->m_matrixV = MatrixDynamic::Identity(n, n);
+  this->m_singularValues = singularValues;
+  this->m_divOstream = os;
+  Compute(initial, computationOptions);
+};
+
+template <typename _MatrixType>
+RevJac_SVD<_MatrixType>::RevJac_SVD(const MatrixType& initial,
+                                    const VectorDynamic& singularValues,
+                                    const MatrixDynamic& matrixU,
+                                    const MatrixDynamic& matrixV,
+                                    unsigned int computationOptions) {
+  this->m_singularValues = singularValues;
+  this->m_matrixU = matrixU;
+  this->m_matrixV = matrixV;
+  Compute(initial, computationOptions);
+};
+
+template <typename _MatrixType>
+RevJac_SVD<_MatrixType>::RevJac_SVD(const MatrixType& initial,
+                                    const VectorDynamic& singularValues,
+                                    const MatrixDynamic& matrixU,
+                                    const MatrixDynamic& matrixV,
+                                    std::ostream* os,
+                                    unsigned int computationOptions) {
+  this->m_singularValues = singularValues;
+  this->m_matrixU = matrixU;
+  this->m_matrixV = matrixV;
+  this->m_divOstream = os;
+  Compute(initial, computationOptions);
+};
 
 template <typename _MatrixType>
 RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
@@ -51,19 +102,15 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
         x = currentApproximation(i, j);
         y = currentApproximation(j, i);
         z = currentApproximation(j, j);
-        this->USVD(w, x, y, z, c1, s1);
 
-        std::cout << "cos: " << c1 << ", sin: " << s1 << '\n';
+        // Calculate such sin and cos values that J^T * A simmetrizes the
+        // desired 2 by 2
+        this->calculateSymmetrizingRotation(w, x, y, z, c1, s1);
 
         auto leftRotation = Eigen::JacobiRotation<Scalar>(c1, s1);
 
         this->m_matrixU.applyOnTheLeft(i, j, leftRotation.adjoint());
         currentApproximation.applyOnTheLeft(i, j, leftRotation.adjoint());
-
-        std::cout << "[ " << currentApproximation(i, i) << ", "
-                  << currentApproximation(i, j) << ";\n"
-                  << currentApproximation(j, i) << ", "
-                  << currentApproximation(j, j) << " ]\n";
 
         auto minimizedFunction = [currentApproximation, initial, i,
                                   j](Scalar phi) {
@@ -76,6 +123,7 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
           return (tempApproximation - initial).norm();
         };
 
+        // Minimize the function and get the resulting angle value
         auto result = boost::math::tools::brent_find_minima(
             minimizedFunction, -std::numbers::pi / 4, std::numbers::pi / 4,
             std::numeric_limits<Scalar>::digits);
@@ -85,6 +133,7 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
         Scalar s2 = std::sin(phi);
         auto rightRotation = Eigen::JacobiRotation<Scalar>(c2, s2);
 
+        // Apply the corresponding rotation on the right
         transposedMatrixV.applyOnTheRight(i, j, rightRotation);
         currentApproximation.applyOnTheRight(i, j, rightRotation);
       }
@@ -111,25 +160,20 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
   return *this;
 }
 
-// USVD algorithm implementation used to calculate cos and sin for left jacobi
-// rotation symmertizing the 2x2 matrix
-// Article: R. P. Brent, F. T. Luk, and C. Van Loan, Computation of the
-// singular value decomposition using mesh-connected processors
+// The original USVD algorithm implementation is used here to calculate cos and
+// sin for left jacobi rotation symmertizing the 2x2 matrix
+// Article: R. P. Brent, F. T. Luk, and C. Van Loan, Computation of the singular
+// value decomposition using mesh-connected processors
 template <typename _MatrixType>
-void RevJac_SVD<_MatrixType>::USVD(Scalar w, Scalar x, Scalar y, Scalar z,
-                                   Scalar& c1, Scalar& s1) {
+void RevJac_SVD<_MatrixType>::calculateSymmetrizingRotation(Scalar w, Scalar x,
+                                                            Scalar y, Scalar z,
+                                                            Scalar& c,
+                                                            Scalar& s) {
   const double EPS = 1e-30;
-
-  if (y == 0 && z == 0) {
-    c1 = 1;
-    s1 = 0;
-    return;
-  }
 
   Scalar mu1 = w + z;
   Scalar mu2 = x - y;
 
-  Scalar c, s;
   if (std::abs(mu2) <= EPS * std::abs(mu1)) {
     c = 1;
     s = 0;
@@ -139,24 +183,6 @@ void RevJac_SVD<_MatrixType>::USVD(Scalar w, Scalar x, Scalar y, Scalar z,
     s = sgnRho / std::sqrt(1 + rho * rho);
     c = s * rho;
   }
-
-  mu1 = s * (x + y) + c * (z - w);
-  mu2 = 2 * (c * x - s * z);
-
-  Scalar c2, s2;
-  if (std::abs(mu2) <= EPS * std::abs(mu1)) {
-    c2 = 1;
-    s2 = 0;
-  } else {
-    Scalar rho2 = mu1 / mu2;
-    Scalar sgnRho2 = (rho2 > 0) - (rho2 < 0);
-    Scalar t2 = sgnRho2 / (std::abs(rho2) + std::sqrt(1 + rho2 * rho2));
-    c2 = 1 / std::sqrt(1 + t2 * t2);
-    s2 = c2 * t2;
-  }
-
-  c1 = c2 * c - s2 * s;
-  s1 = s2 * c + c2 * s;
 }
 
 }  // namespace SVD_Project

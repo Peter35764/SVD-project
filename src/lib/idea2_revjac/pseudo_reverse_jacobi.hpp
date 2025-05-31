@@ -11,6 +11,54 @@
 namespace SVD_Project {
 
 template <typename _MatrixType>
+PseudoRevJac_SVD<_MatrixType>::PseudoRevJac_SVD(
+    const MatrixType& initial, const VectorDynamic& singularValues,
+    unsigned int computationOptions) {
+  Index m = initial.rows();
+  Index n = initial.cols();
+  this->m_matrixU = MatrixDynamic::Identity(m, m);
+  this->m_matrixV = MatrixDynamic::Identity(n, n);
+  this->m_singularValues = singularValues;
+  Compute(initial, computationOptions);
+}
+
+template <typename _MatrixType>
+PseudoRevJac_SVD<_MatrixType>::PseudoRevJac_SVD(
+    const MatrixType& initial, const VectorDynamic& singularValues,
+    std::ostream* os, unsigned int computationOptions) {
+  Index m = initial.rows();
+  Index n = initial.cols();
+  this->m_matrixU = MatrixDynamic::Identity(m, m);
+  this->m_matrixV = MatrixDynamic::Identity(n, n);
+  this->m_singularValues = singularValues;
+  this->m_divOstream = os;
+  Compute(initial, computationOptions);
+};
+
+template <typename _MatrixType>
+PseudoRevJac_SVD<_MatrixType>::PseudoRevJac_SVD(
+    const MatrixType& initial, const VectorDynamic& singularValues,
+    const MatrixDynamic& matrixU, const MatrixDynamic& matrixV,
+    unsigned int computationOptions) {
+  this->m_singularValues = singularValues;
+  this->m_matrixU = matrixU;
+  this->m_matrixV = matrixV;
+  Compute(initial, computationOptions);
+};
+
+template <typename _MatrixType>
+PseudoRevJac_SVD<_MatrixType>::PseudoRevJac_SVD(
+    const MatrixType& initial, const VectorDynamic& singularValues,
+    const MatrixDynamic& matrixU, const MatrixDynamic& matrixV,
+    std::ostream* os, unsigned int computationOptions) {
+  this->m_singularValues = singularValues;
+  this->m_matrixU = matrixU;
+  this->m_matrixV = matrixV;
+  this->m_divOstream = os;
+  Compute(initial, computationOptions);
+};
+
+template <typename _MatrixType>
 PseudoRevJac_SVD<_MatrixType>& PseudoRevJac_SVD<_MatrixType>::Compute(
     const MatrixType& initial, unsigned int computationOptions) {
   const size_t MAX_ITERATIONS = 5000;
