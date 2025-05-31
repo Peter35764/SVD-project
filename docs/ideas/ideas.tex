@@ -361,7 +361,8 @@ f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
 % Вынести определение поворота Якоби/Гивенса в Глоссарий
 В отличие от первой идеи, метод Якоби предполагает работу с изначальной матрицей $A\in \mathbb{C}^{m\times n}$ при помощи поворотов Якоби. Есть два варианта работы алгоритма:\textit{ двусторонний метод Якоби, односторонний метод Якоби} ~\cite{Dongarra2018}.
 \subsubsubsection{Двусторонний метод Якоби}
-Этот метод предполагает домножение изначальной матрицы $A$ размера $n\times n \ $ слева на $J(i,j,\theta)$, справа на $K(i,j,\phi)$ таким образом, чтобы обнулить недиагональные элементы, пока $\left\| A - diag(A) \right\|_F > tol$, где $tol$ - заданный допуск. 
+
+Этот метод предполагает домножение изначальной матрицы $A$ размера $n\times n \ $ слева на $J(i,j,\theta)$, справа на $K(i,j,\phi)$, где $J(i,j,\theta), K(i, j,\phi)$ - повороты Якоби на угол $\theta\text{ и } \phi$ соответственно. Использование поворотов направлено на обнуление недиагональных элементов, пока $\left\| A - diag(A) \right\|_F > tol$, где $tol$ - заданный допуск.
 Отсюда следует рекуррентная последовательность, позволяющая получить сингулярные значения $\Sigma$:
 \begin{center}
     $A_{(k+1)} = J^T_{(k)}A_{(k)}K_{(k)}, \ A_{(0)}= A, \ A_{(k)}\longrightarrow\Sigma \text{ при } k\to\infty$.
@@ -369,8 +370,8 @@ f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
 
 Левые повороты при перемножении дают левый сингулярный вектор, $U=J_{(0)}J_{(1)}...$, аналогично, правые повороты - правый сингулярный вектор $V=K_{(0)}K_{(1)}...$
 
-Чтобы определить матрицы $J(i,j,\theta), K(i,j,\phi)$, требуется рассмотреть уравнение:
-\begin{equation}
+Чтобы определить матрицы $J(i,j,\theta), K(i,j,\phi)$ требуется рассмотреть уравнение:
+\begin{equation} \label{two-sided Jacobi}
     \hat{J}_{(k)}^T\hat{A}_{(k)}\hat{K}_{(k)} = \begin{bmatrix}
         c_J&s_J\\
         -s_J&c_J
@@ -383,16 +384,47 @@ f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
         c_K&s_K\\
         -s_K&c_K
     \end{bmatrix} = \begin{bmatrix}
-        d_{ii} &\\
-        &d_{jj}
+        d_{ii} & 0\\
+        0 & d_{jj}
     \end{bmatrix} = \hat{A}_{(k+1)},
 \end{equation}
 где $d_{ii}, d_{jj} -\text{сингулярные числа } \hat{A}_{(k)}$.
 
-Однако углы для $J, K$ находятся неоднозначно.
-
+Углы, которые удовлетворяют уравнению \eqref{two-sided Jacobi}, находятся неоднозначным образом~\cite{Dongarra2018}. Например, Брент, Лак, Ван Лоан предложили алгоритм USVD~\cite{10.5555/867597}: первый поворот применяется для симметризации:
+\begin{equation}
+\begin{bmatrix}
+    c_1&s_1\\
+    -s_1&c_1
+\end{bmatrix}^T
+\begin{bmatrix}
+    a_{ii}&a_{ij}\\
+    a_{ji}&a_{jj}
+\end{bmatrix} = 
+\begin{bmatrix}
+    \tilde{a}_{ii}&\tilde{a}_{ij}\\
+    \tilde{a}_{ji}&\tilde{a}_{jj}
+\end{bmatrix}, \text{ где } \tilde{a}_{ij} = \tilde{a}_{ji},
+\end{equation}
+второй поворот диагонализирует полученную матрицу следующим образом: \begin{center}
+$\begin{bmatrix}
+    c_2&s_2\\
+    -s_2&c_2
+\end{bmatrix}^T
+\begin{bmatrix}
+     \tilde{a}_{ii}&\tilde{a}_{ij}\\
+    \tilde{a}_{ji}&\tilde{a}_{jj}
+\end{bmatrix}
+\begin{bmatrix}
+    c_2&s_2\\
+    -s_2&c_2
+\end{bmatrix} = 
+\begin{bmatrix}
+    d_{ii}&0\\
+    0&d_{jj}
+\end{bmatrix}.$
+\end{center}
 % DONE - ищу материалы с развернутым содержанием, добавить еще в глоссарий.
-В случае матрицы размера $m \times n, \ m>n$ используется предобработка с использованием QR-разложения ~\cite{10.5555/867597}: 
+В случае матрицы размера $m \times n, \ m>n$ используется предобработка с использованием QR-разложения~\cite{10.5555/867597}: 
 \begin{center}
     $A = Q_{m\times m}R_{m\times n} = Q\begin{bmatrix}
         R_1\\0
@@ -404,7 +436,7 @@ f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
     \end{bmatrix},
     $
 \end{center}
-где $R_1 \in \mathbb{R}^{n\times n}, Q_1 \in \mathbb{R}^{m\times n}, Q_2\in \mathbb{R}^{m\times (m-n)}$ ~\cite{Golub2013}. После этого метод Якоби применяется для матрицы $R_1$:
+где $R_1 \in \mathbb{R}^{n\times n}, Q_1 \in \mathbb{R}^{m\times n}, Q_2\in \mathbb{R}^{m\times (m-n)}$~\cite{Golub2013}. После этого метод Якоби применяется для матрицы $R_1$:
 \begin{center}
     $W^TR_1V=\Sigma = \mathrm{diag(\sigma_1,...,\sigma_n)}$.
 \end{center}
