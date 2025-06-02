@@ -184,7 +184,7 @@ D = (\eta^4+2)^2-4\eta^4 = 4+\eta^8 \\
 
 Рассмотрим другие критерии: пусть $\sigma_{min}$ обозначет нижнюю границу для наименьшего сингулярного значения, $tol$ \--- критерий допуска, который зависит от желаемой относительной точности сингулярных значений. Значение $tol$ должно быть меньше 1, но больше машинной точности $\epsilon$. Самый простой допустимый вариант будет установка $e_i$ равными 0, если значение меньше, чем $tol\cdot\sigma_{min}$. При таком методе, числа на побочной диагонали будут обнуляться очень долго. Гораздо лучшие критерии можно получить следующими способами.
 
-Пусть $\lambda_j$ и $\mu_j$ вычисляются с помощью рекуррентных соотношений из Леммы \ref{min_sigma_bound}. Тогда будет получена оценка на нижний порог сингулярного значения для соответствующего элемента на побочной диагонали и можно применить следующие критерии оптимизации\cite{Demmel1990}:
+Пусть $\lambda_j$ и $\mu_j$ вычисляются с помощью реккурентных соотношений из Леммы \ref{min_sigma_bound}. Тогда будет получена оценка на нижний порог сингулярного значения для соответствующего элемента на побочной диагонали и можно применить следующие критерии оптимизации\cite{Demmel1990}:
 
 \noindent\textit{Критерий оптимизации 1a (обнуление $e_j$)}. Если $|\frac{e_j}{\mu_j}|\leq tol$, то будет обнулен элемент $e_j$.\vspace{1em}
 \\\textit{Критерий оптимизации 1b (обнуление $e_j$)}. Если $|\frac{e_j}{\lambda_{j+1}}|\leq tol$, то будет обнулен элемент $e_j$.\vspace{1em}
@@ -234,12 +234,15 @@ D = (\eta^4+2)^2-4\eta^4 = 4+\eta^8 \\
 
 \subsubsection{Уточнение поворотов Гивенса}
 
-Для того, чтобы получить точные левые сингулярные векторы нужно решить следующую оптимизационную задачу: \(min\| \widehat{B} - B \|\). Этого можно добиться путем изменения углов \( \theta \) поворотов Гивенса \( J_k \):
+Для того, чтобы получить точные левые сингулярные векторы нужно решить следующую оптимизационную задачу: \(min\| \tilde{B} - B \|\). Этого можно добиться путем изменения углов \( \theta \) поворотов Гивенса \( J_k \):
 
 \begin{equation} \label{b_hat}
-\tilde{B} = J(\theta_1) J(\theta_2) \cdots J(\theta_n) \Sigma J(\theta_{n+1}) J(\theta_{n+2}) \cdots J(\theta_{2n}).
+\tilde{B} = J(\theta_1) J(\theta_2) \cdots J(\theta_N) \Sigma J(\theta_{N+1}) J(\theta_{N+2}) \cdots J(\theta_{2N}).
 \end{equation}
-Для этого применяется алгоритм координатного спуска: пусть $\theta = (\theta_1, \theta_2, ..., \theta_{2n})$ — вектор углов поворотов Гивенса. 
+\begin{note}
+    $N$ — количество поворотов в неявном разложении слева (справа) от матрицы $\Sigma$ после первого этапа алгоритма. Данное число будет соответствовать количеству углов. Общее количество углов $2N$. Минимальное $N$ будет равно $n-1$, где $n$ — количество диагональных элементов.
+\end{note}
+Для этого применяется алгоритм координатного спуска: пусть $\theta = (\theta_1, \theta_2, ..., \theta_{2N})$ — вектор углов поворотов Гивенса. 
 Целевая функция минимизации имеет вид:
 \begin{equation}
 f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
@@ -247,7 +250,7 @@ f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
 где: 
 
 \begin{itemize}
-\item $\tilde{B}(\theta) = \left( \prod_{k=1}^n J_L^{(k)}(\theta_k) \right) \Sigma \left( \prod_{m=1}^n J_R^{(m)}(\theta_{n+m}) \right)^T$, 
+\item $\tilde{B}(\theta) = \left( \prod_{k=1}^N J_L^{(k)}(\theta_k) \right) \Sigma \left( \prod_{m=1}^N J_R^{(m)}(\theta_{N+m}) \right)^T$, 
 \item $J_L^{(k)}$ — левые повороты Гивенса (действуют на строки), 
 \item $J_R^{(m)}$ — правые повороты Гивенса (действуют на столбцы)
 \end{itemize}
@@ -259,8 +262,8 @@ f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
 \end{note}
 \begin{note}
 \begin{equation} \label{j_diff}
-    \frac{\partial [J(\theta_1) J(\theta_2) \cdots J(\theta_n)]}{\partial \theta_k} =
-    J(\theta_1) J(\theta_2) \cdots  J(\theta_{k-1})\frac{\partial J(\theta_k)}{\partial \theta_k}J(\theta_{k+1}) \cdots J(\theta_n)
+    \frac{\partial [J(\theta_1) J(\theta_2) \cdots J(\theta_N)]}{\partial \theta_k} =
+    J(\theta_1) J(\theta_2) \cdots  J(\theta_{k-1})\frac{\partial J(\theta_k)}{\partial \theta_k}J(\theta_{k+1}) \cdots J(\theta_N)
 \end{equation}
 \end{note}
 
@@ -281,36 +284,35 @@ f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
     =\\[6pt] =
     \text{tr}\left((U\Sigma V^T - B)^T\cdot\frac{\partial U}{\partial \theta_k}\Sigma V^T\right) 
     =\\[6pt] =
-    \text{tr}\left((U\Sigma V^T - B)^TJ(\theta_1) \cdots  J(\theta_{k-1})\frac{\partial J(\theta_k)}{\partial \theta_k}J(\theta_{k+1}) \cdots J(\theta_n)\Sigma V^T\right)
+    \text{tr}\left((U\Sigma V^T - B)^TJ(\theta_1) \cdots  J(\theta_{k-1})\frac{\partial J(\theta_k)}{\partial \theta_k}J(\theta_{k+1}) \cdots J(\theta_N)\Sigma V^T\right)
 \end{split}
 \end{equation}
 
 \begin{note}
 Частная производная для правых поворотов получается аналогичным способом, только под дифференцирование попадает матрица $V^T$:
 \begin{equation*}
-    \frac{\partial V^T}{\partial \theta_{n+k}} = \left(\frac{\partial V}{\partial \theta_{n+k}}\right)^T = \left(J(\theta_{n+1}) \cdots  J(\theta_{n+k-1})\frac{\partial J(\theta_{n+k})}{\partial \theta_{n+k}}J(\theta_{n+k+1}) \cdots J(\theta_{2n})\right)^T
+    \frac{\partial V^T}{\partial \theta_{N+k}} = \left(\frac{\partial V}{\partial \theta_{N+k}}\right)^T = \left(J(\theta_{N+1}) \cdots  J(\theta_{N+k-1})\frac{\partial J(\theta_{N+k})}{\partial \theta_{N+k}}J(\theta_{N+k+1}) \cdots J(\theta_{2N})\right)^T
 \end{equation*}
 \end{note}
 
 Полный алгоритм для уточнения поворотов Гивенса представлен ниже.
 
-Для $t = 0,1,...,T_{\text{max}}$:
+Для $t = 0,1,...,T_{\text{max}}$ ($T_{\text{max}}$ — количество общих итераций) и $\delta, \epsilon>0$ (параметры, влияющие на сходимость алгоритма):
 \begin{enumerate}
- \item Обновить левые повороты (строки 1 до $n$):
+ \item Обновить повороты:
  \begin{align*}
- \text{Для } k &= 1 \text{ до } n: \\
+ \text{Для } k &= 1 \text{ до } N: \\
+ D &= U\Sigma V^T - B \\
+ &\text{Проверить сходимость } \|D\|_F < \delta\\
     \frac{\partial f}{\partial \theta_k} &= 
- \text{tr}\left((U\Sigma V^T - B)^TJ(\theta_1) \cdots  J(\theta_{k-1})\frac{\partial J(\theta_k)}{\partial \theta_k}J(\theta_{k+1}) \cdots J(\theta_n)\Sigma V^T\right) \\
+ \text{tr}\left(D^TJ(\theta_1) \cdots  J(\theta_{k-1})\frac{\partial J(\theta_k)}{\partial \theta_k}J(\theta_{k+1}) \cdots J(\theta_N)\Sigma V^T\right) \\
  \theta_k^{(t+1)} &= \theta_k^{(t)} - \eta_L^{(k)} \cdot \frac{\partial f}{\partial \theta_k} \\
- U &= J(\theta_1)J(\theta_2)\cdots J(\theta_n)
- \end{align*}
-
- \item Обновить правые повороты (столбцы $n+1$ до $2n$):
- \begin{align*}
- \text{Для } m &= 1 \text{ до } n: \\
- \frac{\partial f}{\partial \theta_{n+m}} &= \text{tr}\left((U\Sigma V^T - B)^TU\Sigma \left[J(\theta_{n+1}) \cdots  J(\theta_{n+k-1})\frac{\partial J(\theta_{n+k})}{\partial \theta_{n+k}}J(\theta_{n+k+1}) \cdots J(\theta_{2n})\right]^T\right) \\ \\
- \theta_{n+m}^{(t+1)} &= \theta_{n+m}^{(t)} - \eta_R^{(m)} \cdot \frac{\partial f}{\partial \theta_{n+m}}\\
- V &= J(\theta_{n+1})J(\theta_{n+2})\cdots J(\theta_{2n})
+ U &= J(\theta_1)J(\theta_2)\cdots J(\theta_{k-1}^{(t+1)})J(\theta_{k}^{(t+1)}) J(\theta_{k+1}^{(t)})\cdots J(\theta_N^{(t)}) \\
+ D &= U\Sigma V^T - B \\
+ &\text{Проверить сходимость } \|D\|_F < \delta\\
+ \frac{\partial f}{\partial \theta_{N+k}} &= \text{tr}\left(D^TU\Sigma \left[J(\theta_{N+1}) \cdots  J(\theta_{N+k-1})\frac{\partial J(\theta_{N+k})}{\partial \theta_{N+k}}J(\theta_{N+k+1}) \cdots J(\theta_{2N})\right]^T\right) \\
+ \theta_{N+k}^{(t+1)} &= \theta_{N+k}^{(t)} - \eta_R^{(k)} \cdot \frac{\partial f}{\partial \theta_{N+k}}\\
+ V &= J(\theta_{N+1}^{(t+1)})J(\theta_{N+2}^{(t+1)})\cdots J(\theta_{N+k-1}^{(t+1)})J(\theta_{N+k}^{(t+1)}) J(\theta_{N+k+1}^{(t)})\cdots J(\theta_{2N}^{(t)})
  \end{align*}
 
  \item Проверить сходимость:
@@ -321,7 +323,7 @@ f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
 
 \textbf{Адаптация шага}:
 \begin{equation}
-\eta_L^{(k)} = \frac{0.1}{\|\frac{\partial f}{\partial \theta_k}\| + 10^{-8}}, \quad \eta_R^{(m)} = \frac{0.1}{\|\frac{\partial f}{\partial \theta_{n+m}}\| + 10^{-8}}
+\eta_L^{(k)} = \frac{0.1}{\|\frac{\partial f}{\partial \theta_k}\| + 10^{-8}}, \quad \eta_R^{(m)} = \frac{0.1}{\|\frac{\partial f}{\partial \theta_{N+m}}\| + 10^{-8}}
 \end{equation}
 
 Данный эвристический метод является менее вычислительно затратным способом установки скорости обучения, по сравнению с альтернативными методами (Adam, RMSProp), при этом устойчив и позволяет регулировать шаг в обратной зависимости от величины градиента.
@@ -336,7 +338,7 @@ f(\theta) = \frac{1}{2} \| \tilde{B}(\theta) - B \|_F^2
 
 % Edit 17 (DONE)
 % Описать алгоритм подкруток.
-% Второй метод основан на поочередном уточнении углов. На каждой итерации несильно изменяется один параметр $\theta_i$ --- его подбирают так, чтобы уменьшить норму разности матриц $\widehat{B}$ и $B$. Если удается найти угол, уменьшающий норму, его значение сохраняется вместо изначального. В противном случае подбор продолжается. Иначе происходит переход к следующему параметру.
+% Второй метод основан на поочередном уточнении углов. На каждой итерации несильно изменяется один параметр $\theta_i$ --- его подбирают так, чтобы уменьшить норму разности матриц $\tilde{B}$ и $B$. Если удается найти угол, уменьшающий норму, его значение сохраняется вместо изначального. В противном случае подбор продолжается. Иначе происходит переход к следующему параметру.
 %Поскольку на каждой итерации корректируется только один угол, метод работает неэффективно. (насчет неэффективной работы не проверено, но как будто очевидно)
 
 
