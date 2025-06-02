@@ -36,79 +36,59 @@ RevJac_SVD<_MatrixType>& RevJac_SVD<_MatrixType>::Compute(
     *m_divOstream << "Divergence: " << std::to_string(divergence) << "\n";
   }
 
-  // This vector represents the order in which the algorithm traverses elements
-  // of reconstructed matrix
-  std::vector<std::pair<std::pair<Index, Index>, Scalar>> traversalOrder;
-  traversalOrder.reserve(initial.rows() * initial.cols());
 
-  // Populate the vector with current per-element-divergence (^A_ij - A_ij)
-  // and their corresponding indices
   for (size_t iter = 0; iter < MAX_ITERATIONS; ++iter) {
     for (Index i = 0; i < initial.rows(); ++i) {
-      for (Index j = 0; j < initial.cols(); ++j){
-        // without skipping we get a local minimum
-        if(i == j) continue;
-        traversalOrder.push_back(
-            {{i, j}, std::abs(currentApproximation(i, j) - initial(i, j))});
-      }
-    }
+        for (Index j = 0; j < initial.cols(); ++j) {
+            // Make left and right rotation
+            for (const auto& rotType : {RotationType::Left, RotationType::Right}) {
+                Scalar angle = 0.0;
+                Scalar A = 0.0;
+                Scalar B = 0.0;
 
-    // Sort the vector from biggest divergence to smallest
-    std::sort(traversalOrder.begin(), traversalOrder.end(),
-              [](auto a, auto b) { return a.second > b.second; });
+                // Consider Jacobi rotation on plane (i, j)
+                // and find optimal angle to minimize divergence
+                for (const auto& t_I : {i, j})
+                    for (Index t_J = 0; t_J < initial.cols(); ++t_J)
+                        A += currentApproximation(t_I, t_J) * initial(t_I, t_J);
 
-    // Perform the main loop
-    for (auto [indices, _] : traversalOrder) {
-      Index i = indices.first;
-      Index j = indices.second;
+                // Formula for finding stationary points
+                // look at ReverseJacobi in ideas.tex
 
-      // Calculate first the left and then the right rotation.
-      for (auto rotType : {RotationType::Left, RotationType::Right}) {
-        // Here we create a lambda representing the functions being minimized,
-        // parametrized by angle value:
-        // ||^A * J_ij(c) - A|| -> min and ||J_ij^T(C) * ^A - A|| -> min
-        auto minimizedFunction = [currentApproximation, initial, i, j,
-                                  rotType](Scalar angle) {
-          MatrixType tempApproximation = currentApproximation;
-          Scalar c = cos(angle);
-          Scalar s = sin(angle);
-          Eigen::JacobiRotation<Scalar> rotation =
-              Eigen::JacobiRotation<Scalar>(c, s);
+                if (rotType == RotationType::Left) {
+                    for (Index t_j = 0; t_j < initial.cols(); ++t_j) {
+                        B += currentApproximation(i, t_j) * initial(j, t_j);
+                    }
+                    for (Index t_j = 0; t_j < initial.cols(); ++t_j) {
+                        B -= currentApproximation(j, t_j) * initial(i, t_j);
+                    }
+                    // in case of B / A = inf atan(inf) will return PI/2
+                    angle = atan(B / A);
 
-          if (rotType == RotationType::Left) {
-            tempApproximation.applyOnTheLeft(i, j, rotation.adjoint());
-          } else {
-            tempApproximation.applyOnTheRight(i, j, rotation);
+                    Eigen::JacobiRotation<Scalar> rotation
+                        = Eigen::JacobiRotation<Scalar>(cos(angle), sin(angle));
+                    this->m_matrixU.applyOnTheLeft(i, j, rotation.adjoint());
+                    currentApproximation.applyOnTheLeft(i, j, rotation.adjoint());
+                }
+                else {
+                    for (Index t_i = 0; t_i < initial.rows(); ++t_i) {
+                        B += currentApproximation(t_i, i) * initial(t_i, j);
+                    }
+                    for (Index t_i = 0; t_i < initial.rows(); ++t_i) {
+                        B -= currentApproximation(t_i, j) * initial(t_i, i);
+                    }
+                    angle = atan(B / A);
+
+                    Eigen::JacobiRotation<Scalar> rotation
+                        = Eigen::JacobiRotation<Scalar>(cos(angle), sin(angle));
+                    this->m_matrixV.adjointInPlace();
+                    this->m_matrixV.applyOnTheRight(i, j, rotation);
+                    this->m_matrixV.adjointInPlace();
+                    currentApproximation.applyOnTheRight(i, j, rotation);
+                }
           }
-
-          return (tempApproximation - initial).norm();
-        };
-
-        // Minimize the function and get the result angle value in [-PI/4, PI/4]
-        auto result = boost::math::tools::brent_find_minima(
-            minimizedFunction, -M_PI/4, M_PI/4, std::numeric_limits<Scalar>::digits);
-
-        Scalar angle = result.first;
-        Scalar c = cos(angle);
-        Scalar s = sin(angle);
-        auto rotation = Eigen::JacobiRotation<Scalar>(c, s);
-
-        // Apply the corresponding rotation on the left/right
-        if (rotType == RotationType::Left) {
-          this->m_matrixU.applyOnTheLeft(i, j, rotation.adjoint());
-          currentApproximation.applyOnTheLeft(i, j, rotation.adjoint());
-        } else {
-          this->m_matrixV.adjointInPlace();
-          this->m_matrixV.applyOnTheRight(i, j, rotation);
-          this->m_matrixV.adjointInPlace();
-          currentApproximation.applyOnTheRight(i, j, rotation);
-        }
       }
     }
-
-    // Clear the ordering vector, preserving the capacity
-    traversalOrder.clear();
-
     // Recalculate divergence for debugging purposes and to check if convergence
     // has been reached
     Scalar divergence = (currentApproximation - initial).norm();
