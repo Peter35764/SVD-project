@@ -643,34 +643,136 @@ $\begin{bmatrix}
 Все шаги повторяются тем же образом, что в случае с единичными сингулярными векторами.
 
 
-Решение путем минимизации гарантированно сходится, но в случае, когда полученное значение, является локальным минимум, замедляет работу алгоритма. Тогда же стоит аналитически найти подходящие параметры, формирующие повороты Якоби, чтобы минимизировать норму. В этом случае рассмотрим действие правого поворота: \begin{center}
-    $\left[\begin{matrix}\tilde{a}_{ii} & \tilde{a}_{ij}\\\tilde{a}_{ji} & \tilde{a}_{jj}\end{matrix}\right]$
-    $\left[\begin{matrix}\cos{\left(x \right)} & \sin{\left(x \right)}\\- \sin{\left(x \right)} & \cos{\left(x \right)}\end{matrix}\right]$
-    =
-    $\left[\begin{matrix}\tilde{a}_{ii} \cos{\left(x \right)} - \tilde{a}_{ij} \sin{\left(x \right)} & \tilde{a}_{ii} \sin{\left(x \right)} + \tilde{a}_{ij} \cos{\left(x \right)}\\ \tilde{a}_{ji} \cos{\left(x \right)} - \tilde{a}_{jj} \sin{\left(x \right)} & \tilde{a}_{ji} \sin{\left(x \right)} + \tilde{a}_{jj} \cos{\left(x \right)}\end{matrix}\right]$
-\end{center}.
+\newpage
+\subsubsubsection{Аналитическое решение}
 
-Наша цель свести блок $\begin{bmatrix}
+Метод, основанный на минимизации Брента, сходится, однако требует дополнительные ресурсы для вычислений и замедляет скорость выполнения алгоритма. Тогда же стоит аналитически найти подходящие параметры, формирующие повороты Якоби, чтобы минимизировать невязку. 
+Следующий способ получения аналитического решения: \begin{center}
+$J^T(i, j, \theta)\begin{bmatrix}
     \tilde{a}_{ii}&\tilde{a}_{ij}\\
     \tilde{a}_{ji}&\tilde{a}_{jj}
-\end{bmatrix}$ $\to $
+\end{bmatrix}K(i,j,\phi)$ $\to $
 $\begin{bmatrix}
     a_{ii}&a_{ij}\\
     a_{ji}&a_{jj}
-\end{bmatrix}$ путем нахождения точки минимума Фробениусовой нормы матрицы $\left[\begin{matrix}\tilde{a}_{ii} \cos{\left(x \right)} - \tilde{a}_{ij} \sin{\left(x \right)} - a_{ii} & \tilde{a}_{ii} \sin{\left(x \right)} + \tilde{a}_{ij} \cos{\left(x \right)} - a_{ij}\\ \tilde{a}_{ji} \cos{\left(x \right)} - \tilde{a}_{jj} \sin{\left(x \right)} - a_{ji} & \tilde{a}_{ji} \sin{\left(x \right)} + \tilde{a}_{jj} \cos{\left(x \right)} - a_{jj}\end{matrix}\right]$. Применяя Фробениусову норму на полученную матрицу, продифференцируем и сгруппируем относительно $\mathrm{cos}(x), \mathrm{sin}(x)$ коэффициенты и получим уравнение, корнем которого являются стационарные точки:
-\begin{equation}
-    \left(- \tilde{a}_{ii} a_{ii} - \tilde{a}_{ij} a_{ij} - \tilde{a}_{ji} a_{ji} - \tilde{a}_{jj} a_{jj}\right) \sin{\left(x \right)} + \left(\tilde{a}_{ii} a_{ij} - \tilde{a}_{ij} a_{ii} + \tilde{a}_{ji} a_{jj} - \tilde{a}_{jj} a_{ji}\right) \cos{\left(x \right)} = 0,
-\end{equation}
-выразив $x$ получаем формулу для стационарных точек:
-\begin{equation}
-    x = \mathrm{arctg(\frac{\tilde{a}_{ii} a_{ij} - \tilde{a}_{ij} a_{ii} + \tilde{a}_{ji} a_{jj} - \tilde{a}_{jj} a_{ji}}{\tilde{a}_{ii} a_{ii} + \tilde{a}_{ij} a_{ij} + \tilde{a}_{ji} a_{ji} + \tilde{a}_{jj} a_{jj}})}.
-\end{equation}
-Точки $x +\pi k, k\in \mathbb{Z}$, образуют множество стационарных точек. Таким образом, стоит отобрать среди данного множества точки минимума. 
-Рассуждения в случае левого поворота повторяются, проделывая те же самые шаги.
-
+\end{bmatrix},$ 
+\end{center}
+проходя по элементам матрицы циклическим образом или по невязке, в общем случае не является сходящимся. Потому что блок матрицы, который преобразуется к изначальному блоку, и изначальный блок могут иметь разные определители. 
+Тогда в определенный момент не найдутся такие повороты, что преобразованная подматрица $2\times 2$ матрицы $\tilde{A}_{(k)}$ и изначальная подматрица $2\times2$ матрицы $A$ будут близки по норме Фробениуса. Таким образом, стоит рассматривать данную задачу как применение матрицы поворота не для блока $2\times2$ матрицы $\tilde{A}_{(k)}$, а для всей матрицы $\tilde{A}_{(k)}$
+Так как применение поворотов никак не влияет на определитель матрицы сингулярных значений. 
 \begin{note}
-    Данную идею можно расширить до поиска точки минимума всей невязки. Так как Фробениусова норма $\|\tilde{A}K(x) - A\|_F$ (в случае правого поворота) будет так же содержать сумму квадратов, где часть зависит от параметра $x$, а оставшееся часть является константой. Тогда при дифференцировании полученного выражения константы обнулятся, после всех преобразований выражение будет вида $A\mathrm{sin}(x)+B\mathrm{cos}(x) = 0$.
+Если изначальная матрица имеет отрицательный определитель, то матрица сингулярных значений никогда не приведется к изначальной поворотами Якоби. Потому что определитель матрицы сингулярных значений - это абсолютное значение определителя изначальной матрицы, матрица поворота Якоби имеет определитель равный~1.
 \end{note}
+
+
+Следующие рассуждения будут верны в случае матрицы $A \in \mathbb{R}^{m \times m}: \mathrm{det}A \ge0$.
+
+Рассмотрим матрицу $\tilde{A}_{(k)}$ и подействуем на нее левым поворотом: $J(i, j,\theta)^T\tilde{A}$, где изменяются только $i, j$ строки. Подействовав левым поворотом, требуется минимизировать норму $\|J^T\tilde{A} - A\|_F$, т.е. найти точку глобального минимума функции $\|N_{L}(\theta) \|_F$. Пример левого поворота Якоби, примененный для 1 и 2 строки матрицы $3\times 3$: 
+\begin{center}
+    $N_{L}(\theta) = J^T(0,1,\theta)\tilde{A}_{(k)} - A = \left[\begin{matrix}\tilde{a}_{11} \cos{\left(\theta \right)} - \tilde{a}_{21} \sin{\left(\theta \right)} - {a}_{11} & \tilde{a}_{12} \cos{\left(\theta \right)} - \tilde{a}_{22} \sin{\left(\theta \right)} - {a}_{12} & \tilde{a}_{13} \cos{\left(\theta \right)} - \tilde{a}_{23} \sin{\left(\theta \right)} - {a}_{13}\\\tilde{a}_{11} \sin{\left(\theta \right)} + \tilde{a}_{21} \cos{\left(\theta \right)} - {a}_{21} & \tilde{a}_{12} \sin{\left(\theta \right)} + \tilde{a}_{22} \cos{\left(\theta \right)} - {a}_{22} & \tilde{a}_{13} \sin{\left(\theta \right)} + \tilde{a}_{23} \cos{\left(\theta \right)} - {a}_{23}\\\tilde{a}_{31} - {a}_{31} & \tilde{a}_{32} - {a}_{32} & \tilde{a}_{33} - {a}_{33} \\ \end{matrix}\right].$ 
+\end{center}
+Посчитав норму Фробениуса $N_{L}(\theta)$, заметим:
+\begin{center}
+$\|N_{L}(\theta)\|_F = \left( \sum_{i = 1}^m\sum_{j = 1}^m n_{ij}^2\right)^{\frac{1}{2}} \longrightarrow 0,$ когда подкоренное выражение стремиться к 0.
+\end{center} 
+Тогда стоит рассмотреть 
+\begin{center}
+    $\|N_{L}(\theta)\|_F^2 = \sum_{i = 1}^m\sum_{j = 1}^m n_{ij}^2$.
+\end{center} 
+Точки минимума данной функции будут так же являться точками минимума $\|N_{L}(\theta)\|_F$. 
+\begin{claim}
+    $\frac{d\|N_L(\theta) \|^2_F}{d\theta} = 2(G\mathrm{sin}(\theta) + Hcos(\theta))$, где $G = \sum_{k = 1}^m\tilde{a}_{ik}a_{ik} + \sum_{k=1}\tilde{a}_{jk}a_{jk}$, $H = -\sum_{k = 1}^m\tilde{a}_{ik}a_{jk} + \sum_{k = 1}^m\tilde{a}_{jk}a_{ik}$. Числа $i,j$ - это номера строк, которые были изменены поворотом Якоби.
+\end{claim}
+\begin{proof}
+    По индукции: \begin{itemize}
+        \item База индукции: $m = 2$,
+        так как меняются только 1, 2 строка, тогда \begin{center}
+        $N_{L}(\theta) =\left[\begin{matrix}\tilde{a}_{11} \cos{\left(\theta \right)} - \tilde{a}_{21} \sin{\left(\theta \right)} - {a}_{11} & \tilde{a}_{12} \cos{\left(\theta \right)} - \tilde{a}_{22} \sin{\left(\theta \right)} - {a}_{12}\\\tilde{a}_{11} \sin{\left(\theta \right)} + \tilde{a}_{21} \cos{\left(\theta \right)} - {a}_{21} & \tilde{a}_{12} \sin{\left(\theta \right)} + \tilde{a}_{22} \cos{\left(\theta \right)} - {a}_{22}\end{matrix}\right]$. 
+        \end{center}
+        \begin{center}
+        $\| N_{L}(\theta)\|^2_F = \left(\tilde{a}_{11} \sin{\left(\theta \right)} + \tilde{a}_{21} \cos{\left(\theta \right)} - {a}_{21}\right)^{2} + \left(- \tilde{a}_{11} \cos{\left(\theta \right)} \tilde{a}_{21} \sin{\left(\theta \right)} + {a}_{11}\right)^{2}$ + $\left(\tilde{a}_{12} \sin{\left(\theta \right)} + \tilde{a}_{22} \cos{\left(\theta \right)} - {a}_{22}\right)^{2} + \left(- \tilde{a}_{12} \cos{\left(\theta \right)} + \tilde{a}_{22} \sin{\left(\theta \right)} + {a}_{12}\right)^{2}$
+        \end{center}
+        \begin{center}
+        $\frac{d\|N_L(\theta) \|^2_F}{d\theta} = \left(2 \tilde{a}_{11} \sin{\left(\theta \right)} + 2 \tilde{a}_{21} \cos{\left(\theta \right)}\right) \left(- \tilde{a}_{11} \cos{\left(\theta \right)} + \tilde{a}_{21} \sin{\left(\theta \right)} + {a}_{11}\right) + \left(2 \tilde{a}_{11} \cos{\left(\theta \right)} - 2 \tilde{a}_{21} \sin{\left(\theta \right)}\right) \left(\tilde{a}_{11} \sin{\left(\theta \right)} + \tilde{a}_{21} \cos{\left(\theta \right)} - {a}_{21}\right) + \left(2 \tilde{a}_{12} \sin{\left(\theta \right)} + 2 \tilde{a}_{22} \cos{\left(\theta \right)}\right) \left(- \tilde{a}_{12} \cos{\left(\theta \right)} + \tilde{a}_{22} \sin{\left(\theta \right)} + {a}_{12}\right) + \left(2 \tilde{a}_{12} \cos{\left(\theta \right)} - 2 \tilde{a}_{22} \sin{\left(\theta \right)}\right) \left(\tilde{a}_{12} \sin{\left(\theta \right)} + \tilde{a}_{22} \cos{\left(\theta \right)} - {a}_{22}\right)$ =
+        $ 2 \tilde{a}_{11} {a}_{11} \sin{\left(\theta \right)} - 2 \tilde{a}_{11} {a}_{21} \cos{\left(\theta \right)} +\newline+ 2 \tilde{a}_{12} {a}_{12} \sin{\left(\theta \right)} - 2 \tilde{a}_{12} {a}_{22} \cos{\left(\theta \right)} +\newline+ 2 \tilde{a}_{21} {a}_{11} \cos{\left(\theta \right)} + 2 \tilde{a}_{21} {a}_{21} \sin{\left(\theta \right)} +\newline+ 2 \tilde{a}_{22} {a}_{12} \cos{\left(\theta \right)} + 2 \tilde{a}_{22} {a}_{22} \sin{\left(\theta \right)}$ = 
+        $2(\left(\tilde{a}_{11} {a}_{11} + \tilde{a}_{12} {a}_{12} + \tilde{a}_{21} {a}_{21} + \tilde{a}_{22} {a}_{22}\right) \sin{\left(\theta \right)} + \left(-\tilde{a}_{11} {a}_{21} - \tilde{a}_{12} {a}_{22} + \tilde{a}_{21} {a}_{11} +\tilde{a}_{22} {a}_{12}\right) \cos{\left(\theta \right))}$.
+            \end{center}
+        \item Шаг индукции: пусть верно для $m = k -1$, проверим для $m = k$. Под действием левого поворота преобразуются $i,j$ строка. 
+        \begin{center}
+         $\| N_{L}(\theta)\|^2_F = \left(\tilde{a}_{i1} \sin{\left(\theta \right)} + \tilde{a}_{j1} \cos{\left(\theta \right)} - {a}_{j1}\right)^{2} + \left(- \tilde{a}_{i1} \cos{\left(\theta \right)} \tilde{a}_{j1} \sin{\left(\theta \right)} + {a}_{i1}\right)^{2}$ + $\left(\tilde{a}_{i2} \sin{\left(\theta \right)} + \tilde{a}_{j2} \cos{\left(\theta \right)} - {a}_{j2}\right)^{2} + \left(- \tilde{a}_{i2} \cos{\left(\theta \right)} + \tilde{a}_{j2} \sin{\left(\theta \right)} + {a}_{i2}\right)^{2} +\ ...\ +$\newline
+         $+\left(\tilde{a}_{ik} \sin{\left(\theta \right)} + \tilde{a}_{jk} \cos{\left(\theta \right)} - {a}_{jk}\right)^{2} + \left(- \tilde{a}_{ik} \cos{\left(\theta \right)} + \tilde{a}_{jk} \sin{\left(\theta \right)} + {a}_{ik}\right)^{2} + \mathrm{const}$
+        \end{center}
+        \begin{center}
+          $\frac{d\|N_L(\theta) \|^2_F}{d\theta} = \left(2 \tilde{a}_{i1} \sin{\left(\theta \right)} + 2 \tilde{a}_{j1} \cos{\left(\theta \right)}\right) \left(- \tilde{a}_{i1} \cos{\left(\theta \right)} + \tilde{a}_{j1} \sin{\left(\theta \right)} + {a}_{i1}\right) + \left(2 \tilde{a}_{i1} \cos{\left(\theta \right)} - 2 \tilde{a}_{j1} \sin{\left(\theta \right)}\right) \left(\tilde{a}_{i1} \sin{\left(\theta \right)} + \tilde{a}_{j1} \cos{\left(\theta \right)} - {a}_{j1}\right) + \left(2 \tilde{a}_{i2} \sin{\left(\theta \right)} + 2 \tilde{a}_{j2} \cos{\left(\theta \right)}\right) \left(- \tilde{a}_{i2} \cos{\left(\theta \right)} + \tilde{a}_{j2} \sin{\left(\theta \right)} + {a}_{i2}\right) + \left(2 \tilde{a}_{i2} \cos{\left(\theta \right)} - 2 \tilde{a}_{j2} \sin{\left(\theta \right)}\right) \left(\tilde{a}_{i2} \sin{\left(\theta \right)} + \tilde{a}_{j2} \cos{\left(\theta \right)} - {a}_{j2}\right) +\ ...\ + \newline \ + (2\tilde{a}_{ik} \cos(\theta)-2\tilde{a}_{jk}\sin(\theta)) \left(\tilde{a}_{ik} \sin{\left(\theta \right)} + \tilde{a}_{jk} \cos{\left(\theta \right)} - {a}_{jk}\right) + (2\tilde{a}_{ik} \sin(\theta)+2\tilde{a}_{jk}\cos(\theta))\left(- \tilde{a}_{ik} \cos{\left(\theta \right)} + \tilde{a}_{jk} \sin{\left(\theta \right)} + {a}_{ik}\right)$ = 
+          $2(\left(\tilde{a}_{i1} {a}_{i1} + \tilde{a}_{i2} {a}_{i2} + \tilde{a}_{j1} {a}_{j1} + \tilde{a}_{j2} {a}_{j2} + ... +\ \tilde{a}_{ik}a_{ik} + \tilde{a}_{jk}a_{jk}\right) \sin{\left(\theta \right)} + \left(-\tilde{a}_{i1} {a}_{j1} - \tilde{a}_{i2} {a}_{j2} - ... - \tilde{a}_{ik}a_{jk} + \tilde{a}_{j1} {a}_{i1} +\tilde{a}_{j2} {a}_{i2} + ... + \tilde{a}_{jk}a_{ik}\right) \cos{\left(\theta \right))}$
+        \end{center}
+    \end{itemize}
+\end{proof}
+
+Таким образом, уравнение для стационарных точек: \begin{equation} \label{Analytic solution for angle, left rotation}
+\frac{d\|N_L(\theta) \|^2_F}{d\theta} = 2(G\mathrm{sin}(\theta) + H\cos(\theta)) = 0 \Rightarrow \theta_{st} = \mathrm{arctg}(\frac{-H}{G}) = \mathrm{arctg}{\frac{\sum_{k = 1}^m\tilde{a}_{ik}a_{jk} - \sum_{k = 1}^m\tilde{a}_{jk}a_{ik}}{\sum_{k = 1}^m\tilde{a}_{ik}a_{ik} + \sum^m_{k=1}\tilde{a}_{jk}a_{jk}}}
+\end{equation}
+\begin{claim} \label{proof stationary points}
+    Точки $\theta_{st} +\pi k, k\in \mathbb{Z}$, образуют множество стационарных точек.
+\end{claim}
+\begin{proof}
+
+    Выражение вида $G\sin(\theta) + H\cos(\theta) =$ 
+    \begin{center}
+    $\sqrt{G^2+H^2}(\frac{G}{\sqrt{G^2+H^2}}\sin(\theta)+\frac{H}{\sqrt{G^2+H^2}}\cos(\theta)) = \sqrt{G^2+H^2}(\cos(\alpha)\sin(\theta) + \sin(\alpha)\cos(\theta)) = \sqrt{G^2+H^2}\sin(\theta+\alpha),$ 
+    \end{center}
+    где $\cos(\alpha) =\frac{G}{\sqrt{G^2+H^2}},\ \sin(\alpha) = \frac{H}{\sqrt{G^2+H^2}},$ $\alpha = \begin{cases}
+        \mathrm{arctg}(\frac{H}{G}), G \ge 0,\\
+        \mathrm{arctg}(\frac{H}{G}) + \pi, G < 0.
+    \end{cases}$
+    \begin{center}
+        $\sin(\theta_{st} + \alpha) = 0 \Leftrightarrow \theta_{st} + \alpha = \pi k \Rightarrow \theta_{st} = -\alpha + \pi k = -\mathrm{arctg}{(\frac{H}{G})} + \pi k = \mathrm{arctg}(\frac{-H}{G}) + \pi k.$
+    \end{center}
+\end{proof}
+Таким образом, стоит отобрать среди данного множества точки глобального минимума. В дальнейшем cформировать поворот Якоби на основе полученного угла.
+
+Проведем аналогичные рассуждения в случае правого поворота.
+Пример применения правого поворота Якоби для матрицы $3 \times 3$ с дальнейшим вычитанием изначальной матрицы:
+\begin{center}
+    $N_{R}(\phi) = \tilde{A}_{(k)}K(0,1,\phi) - A =\left[\begin{matrix}\tilde{a}_{11} \cos{\left(\phi \right)} - \tilde{a}_{12} \sin{\left(\phi \right)} - {a}_{11} & \tilde{a}_{11} \sin{\left(\phi \right)} + \tilde{a}_{12} \cos{\left(\phi \right)} - {a}_{12} & \tilde{a}_{13} - {a}_{13}\\\tilde{a}_{21} \cos{\left(\phi \right)} - \tilde{a}_{22} \sin{\left(\phi \right)} - {a}_{21} & \tilde{a}_{21} \sin{\left(\phi \right)} + \tilde{a}_{22} \cos{\left(\phi \right)} - {a}_{22} & \tilde{a}_{23} - {a}_{23}\\\tilde{a}_{31} \cos{\left(\phi \right)} - \tilde{a}_{32} \sin{\left(\phi \right)} - {a}_{31} & \tilde{a}_{31} \sin{\left(\phi \right)} + \tilde{a}_{32} \cos{\left(\phi \right)} - {a}_{32} & \tilde{a}_{33} - {a}_{33}\end{matrix}\right]$
+\end{center}
+
+\begin{claim}
+    $\|N_R(\phi) \|_F^2 = 2(G\sin(\phi) + H\cos(\phi)),$ где $G = \sum_{k = 1}^m \tilde{a}_{ki}a_{ki} + \sum_{k = 1}^m\tilde{a}_{kj}a_{kj}$, $ H = -\sum_{k = 1}^m\tilde{a}_{ki}a_{kj} + \sum_{k = 1}^m\tilde{a}_{kj}a_{ki}$. Числа $i,j$ - это номера столбцы, которые были изменены поворотом Якоби. 
+\end{claim}
+\begin{proof} По индукции:
+\begin{itemize}
+    \item База индукции: $m = 2$, так как меняются только 1 и 2 столбцы, тогда
+    \begin{center}
+        $N_{R}(\phi) = \left[\begin{matrix}\tilde{a}_{11} \cos{\left(\phi \right)} - \tilde{a}_{12} \sin{\left(\phi \right)} - {a}_{11} & \tilde{a}_{11} \sin{\left(\phi \right)} + \tilde{a}_{12} \cos{\left(\phi \right)} - {a}_{12}\\\tilde{a}_{21} \cos{\left(\phi \right)} - \tilde{a}_{22} \sin{\left(\phi \right)} - {a}_{21} & \tilde{a}_{21} \sin{\left(\phi \right)} + \tilde{a}_{22} \cos{\left(\phi \right)} - {a}_{22}\end{matrix}\right]$
+    \end{center}
+    \begin{center}
+        $\|N_R(\phi) \|_F^2 = \left(\tilde{a}_{11} \sin{\left(\phi \right)} + \tilde{a}_{12} \cos{\left(\phi \right)} - {a}_{12}\right)^{2} + \left(- \tilde{a}_{11} \cos{\left(\phi \right)} + \tilde{a}_{12} \sin{\left(\phi \right)} + {a}_{11}\right)^{2}$+ \newline$+ \left(\tilde{a}_{21} \sin{\left(\phi \right)} + \tilde{a}_{22} \cos{\left(\phi \right)} - {a}_{22}\right)^{2} + \left(- \tilde{a}_{21} \cos{\left(\phi \right)} + \tilde{a}_{22} \sin{\left(\phi \right)} + {a}_{21}\right)^{2}$
+    \end{center}
+    \begin{center}
+        $\frac{d\|N_R(\phi) \|_F^2}{d\phi} = \left(2 \tilde{a}_{11} \sin{\left(\phi \right)} + 2 \tilde{a}_{12} \cos{\left(\phi \right)}\right) \left(- \tilde{a}_{11} \cos{\left(\phi \right)} + \tilde{a}_{12} \sin{\left(\phi \right)} + {a}_{11}\right) + \left(2 \tilde{a}_{11} \cos{\left(\phi \right)} - 2 \tilde{a}_{12} \sin{\left(\phi \right)}\right) \left(\tilde{a}_{11} \sin{\left(\phi \right)} + \tilde{a}_{12} \cos{\left(\phi \right)} - {a}_{12}\right) + \left(2 \tilde{a}_{21} \sin{\left(\phi \right)} + 2 \tilde{a}_{22} \cos{\left(\phi \right)}\right) \left(- \tilde{a}_{21} \cos{\left(\phi \right)} + \tilde{a}_{22} \sin{\left(\phi \right)} + {a}_{21}\right) + \left(2 \tilde{a}_{21} \cos{\left(\phi \right)} - 2 \tilde{a}_{22} \sin{\left(\phi \right)}\right) \left(\tilde{a}_{21} \sin{\left(\phi \right)} + \tilde{a}_{22} \cos{\left(\phi \right)} - {a}_{22}\right) = $
+        $2(\left(\tilde{a}_{11} {a}_{11} + \tilde{a}_{12} {a}_{12} + \tilde{a}_{21} {a}_{21} + \tilde{a}_{22} {a}_{22}\right) \sin{\left(\phi \right)} + \left(-\tilde{a}_{11} {a}_{12} - \tilde{a}_{21} {a}_{22} + \tilde{a}_{12} {a}_{11} +  \tilde{a}_{22} {a}_{21}\right) \cos{\left(\phi \right))}$
+    \end{center}
+    
+    \item Шаг индукции: пусть верно для $m = k-1$, проверим для $m = k$. Под действием правого поворота преобразуется $i, j$ столбец.
+    \begin{center}
+        $\|N_R(\phi) \|_F^2 = \left(\tilde{a}_{1i} \sin{\left(\phi \right)} + \tilde{a}_{1j} \cos{\left(\phi \right)} - {a}_{1j}\right)^{2} + \left(- \tilde{a}_{1i} \cos{\left(\phi \right)} + \tilde{a}_{1j} \sin{\left(\phi \right)} + {a}_{1i}\right)^{2}$+ \newline$+ \left(\tilde{a}_{2i} \sin{\left(\phi \right)} + \tilde{a}_{2j} \cos{\left(\phi \right)} - {a}_{2j}\right)^{2} + \left(- \tilde{a}_{2i} \cos{\left(\phi \right)} + \tilde{a}_{2j} \sin{\left(\phi \right)} + {a}_{2i}\right)^{2} +... + \  
+        \left(\tilde{a}_{(k-1)i} \sin{\left(\phi \right)} + \tilde{a}_{(k-1)j} \cos{\left(\phi \right)} - {a}_{(k-1)j}\right)^{2} + \left(- \tilde{a}_{(k-1)i} \cos{\left(\phi \right)} + \tilde{a}_{(k-1)j} \sin{\left(\phi \right)} + {a}_{(k-1)i}\right)^{2} +
+        \left(\tilde{a}_{ki} \sin{\left(\phi \right)} + \tilde{a}_{kj} \cos{\left(\phi \right)} - {a}_{kj}\right)^{2} + \left(- \tilde{a}_{ki} \cos{\left(\phi \right)} + \tilde{a}_{ki} \sin{\left(\phi \right)} + {a}_{ki}\right)^{2}
+        $
+    \end{center}
+    \begin{center}
+        $\frac{d\|N_R(\phi) \|_F^2}{d\phi} = \left(2 \tilde{a}_{1i} \sin{\left(\phi \right)} + 2 \tilde{a}_{1j} \cos{\left(\phi \right)}\right) \left(- \tilde{a}_{1i} \cos{\left(\phi \right)} + \tilde{a}_{1j} \sin{\left(\phi \right)} + {a}_{1i}\right) + \left(2 \tilde{a}_{1i} \cos{\left(\phi \right)} - 2 \tilde{a}_{1j} \sin{\left(\phi \right)}\right) \left(\tilde{a}_{1i} \sin{\left(\phi \right)} + \tilde{a}_{1j} \cos{\left(\phi \right)} - {a}_{1j}\right) + \left(2 \tilde{a}_{2i} \sin{\left(\phi \right)} + 2 \tilde{a}_{2j} \cos{\left(\phi \right)}\right) \left(- \tilde{a}_{2i} \cos{\left(\phi \right)} + \tilde{a}_{2j} \sin{\left(\phi \right)} + {a}_{2i}\right) + \left(2 \tilde{a}_{2i} \cos{\left(\phi \right)} - 2 \tilde{a}_{2j} \sin{\left(\phi \right)}\right) \left(\tilde{a}_{2i} \sin{\left(\phi \right)} + \tilde{a}_{2j} \cos{\left(\phi \right)} - {a}_{2j}\right) + ... + $ \newline
+        $ \left(2 \tilde{a}_{(k-1)i} \cos{\left(\phi \right)} - 2 \tilde{a}_{(k-1)j} \sin{\left(\phi \right)}\right) \left(\tilde{a}_{(k-1)i} \sin{\left(\phi \right)} + \tilde{a}_{(k-1)j} \cos{\left(\phi \right)} - {a}_{(k-1)j}\right) + \left(2 \tilde{a}_{(k-1)i} \sin{\left(\phi \right)} + 2 \tilde{a}_{(k-1)j} \cos{\left(\phi \right)}\right) \left(-\tilde{a}_{(k-1)i} \cos{\left(\phi \right)} + \tilde{a}_{(k-1)j} \sin{\left(\phi \right)} - {a}_{(k-1)i}\right) + \left(2 \tilde{a}_{ki} \cos{\left(\phi \right)} - 2 \tilde{a}_{kj} \sin{\left(\phi \right)}\right) \left(\tilde{a}_{ki} \sin{\left(\phi \right)} + \tilde{a}_{kj} \cos{\left(\phi \right)} - {a}_{kj}\right) + \left(2 \tilde{a}_{ki} \sin{\left(\phi \right)} + 2 \tilde{a}_{kj} \cos{\left(\phi \right)}\right) \left(-\tilde{a}_{ki} \cos{\left(\phi \right)} + \tilde{a}_{kj} \sin{\left(\phi \right)} - {a}_{ki}\right) =$ \newline
+        $=~2((\tilde{a}_{1i} {a}_{1i} + \tilde{a}_{1j} {a}_{1j} + \tilde{a}_{2i} {a}_{2i} + \tilde{a}_{2j} {a}_{2j} + ... + $ \newline$ + \tilde{a}_{(k-1)i}{a}_{(k-1)i} + \tilde{a}_{(k-1)j}{a}_{(k-1)j} + \tilde{a}_{ki}{a}_{ki} + \tilde{a}_{kj}{a}_{kj}) \sin{\left(\phi \right)} + (-\tilde{a}_{1i} {a}_{1j} - \tilde{a}_{2i} {a}_{2j} -... -$\newline$  -\tilde{a}_{(k-1)i} {a}_{(k-1)j} - \tilde{a}_{ki} {a}_{kj} + \tilde{a}_{1j} {a}_{1i} +  \tilde{a}_{2j} {a}_{2i} + ... + \tilde{a}_{(k-1)j} {a}_{(k-1)i} + \tilde{a}_{kj} {a}_{ki}) \cos{\left(\phi \right))}$
+    \end{center}
+\end{itemize}
+\end{proof}
+
+Таким образом, уравнение для стационарных точек:
+\begin{equation} \label{Analytic solution for angle, right rotation}
+\frac{d\|N_R(\phi) \|^2_F}{d\phi} = 2(G\mathrm{sin}(\phi) + H\cos(\phi)) = 0 \Rightarrow \phi_{st} = \mathrm{arctg}(\frac{-H}{G}) = \mathrm{arctg}{\frac{\sum_{k = 1}^m\tilde{a}_{ki}a_{kj} - \sum_{k = 1}^m\tilde{a}_{kj}a_{ki}}{\sum_{k = 1}^m\tilde{a}_{ki}a_{ki} + \sum^m_{k=1}\tilde{a}_{kj}a_{kj}}}
+\end{equation}
 %\subsubsubsection{Двусторонний обратный метод Якоби}
 
 %Один из вариантов двустороннего метода Якоби является USVD ~\cite{10.5555/867597}. Первый поворот может быть так же применен 
