@@ -25,6 +25,7 @@ void GivRef_SVD<_MatrixType>::preparation_phase(
 
   Eigen::internal::UpperBidiagonalization<_MatrixType> bidiag(A);
   MatrixType B = bidiag.bidiagonal().toDenseMatrix();
+  this->m_original_B = B;
 
   // std::cout << "\bidiag\n" << B;
 
@@ -108,22 +109,29 @@ void GivRef_SVD<_MatrixType>::coordinate_descent_refinement(
 
       // Compute grad
       MatrixType dU_dtheta = MatrixType::Zero(m, m);
+      // Elemental derivative dJ_k/d(theta_k)
+      // J_k = [ c  s ]
+      //       [-s  c ]
+      // dJ_k/d(theta_k) = [ -s  c ]
+      //                   [ -c -s ]
       dU_dtheta(k, k) = -std::sin(theta_left[k]);
-      dU_dtheta(k, k + 1) = -std::cos(theta_left[k]);
-      dU_dtheta(k + 1, k) = std::cos(theta_left[k]);
+      dU_dtheta(k, k + 1) = std::cos(theta_left[k]);
+      dU_dtheta(k + 1, k) = -std::cos(theta_left[k]);
       dU_dtheta(k + 1, k + 1) = -std::sin(theta_left[k]);
 
-      // Apply rotations
-      for (Index i = 0; i < m - 1; ++i) {
-        if (i != k) {
-          Eigen::JacobiRotation<Scalar> rot;
-          rot.makeGivens(std::cos(theta_left[i]), std::sin(theta_left[i]));
-          if (i < k) {
-            dU_dtheta.applyOnTheLeft(i, i + 1, rot);
-          } else {
-            dU_dtheta.applyOnTheRight(i, i + 1, rot);
-          }
-        }
+      // Accumulating rotations: (J_0...J_{k-1}) * (dJk/dθ_k) *
+      // (J_{k+1}...J_{M-1}), then we apply suffix rotations J_{k+1}...J_{M-1}
+      // to the right of dJk/dθ_k
+      for (Index i = k + 1; i < m - 1; ++i) {
+        Eigen::JacobiRotation<Scalar> rot;
+        rot.makeGivens(std::cos(theta_left[i]), std::sin(theta_left[i]));
+        dU_dtheta.applyOnTheRight(i, i + 1, rot);
+      }
+      // similarly, prefix rotations to the left (see comment above)
+      for (Index i = k - 1; i >= 0; --i) {
+        Eigen::JacobiRotation<Scalar> rot;
+        rot.makeGivens(std::cos(theta_left[i]), std::sin(theta_left[i]));
+        dU_dtheta.applyOnTheLeft(i, i + 1, rot);
       }
 
       MatrixType gradient_term = dU_dtheta * Sigma_true * V_current.transpose();
@@ -160,21 +168,22 @@ void GivRef_SVD<_MatrixType>::coordinate_descent_refinement(
 
       // Compute grad
       MatrixType dV_dtheta = MatrixType::Zero(n, n);
+      // Elemental derivative dJ_k/d(theta_k)
       dV_dtheta(k, k) = -std::sin(theta_right[k]);
-      dV_dtheta(k, k + 1) = -std::cos(theta_right[k]);
-      dV_dtheta(k + 1, k) = std::cos(theta_right[k]);
+      dV_dtheta(k, k + 1) = std::cos(theta_right[k]);
+      dV_dtheta(k + 1, k) = -std::cos(theta_right[k]);
       dV_dtheta(k + 1, k + 1) = -std::sin(theta_right[k]);
 
-      for (Index i = 0; i < n - 1; ++i) {
-        if (i != k) {
-          Eigen::JacobiRotation<Scalar> rot;
-          rot.makeGivens(std::cos(theta_right[i]), std::sin(theta_right[i]));
-          if (i < k) {
-            dV_dtheta.applyOnTheLeft(i, i + 1, rot);
-          } else {
-            dV_dtheta.applyOnTheRight(i, i + 1, rot);
-          }
-        }
+      // explained before, suffix/prefix rotations
+      for (Index i = k + 1; i < n - 1; ++i) {
+        Eigen::JacobiRotation<Scalar> rot;
+        rot.makeGivens(std::cos(theta_right[i]), std::sin(theta_right[i]));
+        dV_dtheta.applyOnTheRight(i, i + 1, rot);
+      }
+      for (Index i = k - 1; i >= 0; --i) {
+        Eigen::JacobiRotation<Scalar> rot;
+        rot.makeGivens(std::cos(theta_right[i]), std::sin(theta_right[i]));
+        dV_dtheta.applyOnTheLeft(i, i + 1, rot);
       }
 
       MatrixType gradient_term = U_current * Sigma_true * dV_dtheta.transpose();
@@ -240,7 +249,7 @@ GivRef_SVD<_MatrixType>& GivRef_SVD<_MatrixType>::compute(
   qr_iterations_phase();
   Eigen::VectorXd computed_sv =
       sigm_B.diagonal().head(std::min(m, n)).cwiseAbs();
-  coordinate_descent_refinement(sigm_B, computed_sv);
+  coordinate_descent_refinement(this->m_original_B, computed_sv);
   finalizing_output_phase();
   return *this;
 }

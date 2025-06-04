@@ -92,10 +92,11 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
       const MatrixType& B_target, const Eigen::VectorXd& true_singular_values);
   void finalizing_output_phase();
 
-  MatrixType left_J;   // Left Jacobi rotation matrix
-  MatrixType right_J;  // Right Jacobi rotation matrix
-  MatrixType sigm_B;   // Working copy of the bidiagonal matrix
-  Index m;             // Number of rows
+  MatrixType left_J;        // Left Jacobi rotation matrix
+  MatrixType right_J;       // Right Jacobi rotation matrix
+  MatrixType sigm_B;        // Working copy of the bidiagonal matrix
+  MatrixType m_original_B;  // refinement target
+  Index m;                  // Number of rows
   std::vector<RealScalar> m_qr_theta_left;
   std::vector<RealScalar> m_qr_theta_right;
   Index n;  // Number of columns
