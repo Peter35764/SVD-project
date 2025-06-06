@@ -2,6 +2,7 @@
 #define GIVENS_REFINEMENT_H
 
 #include <Eigen/Dense>
+#include <vector>
 // #include <Eigen/Eigenvalues>
 // #include <algorithm>
 // #include <cmath>
@@ -86,14 +87,19 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
 
   void preparation_phase(const MatrixType& A, unsigned int computationOptions);
   void qr_iterations_phase();
-  void placeholder_phase();  // Placeholder
+
+  void coordinate_descent_refinement(
+      const MatrixType& B_target, const Eigen::VectorXd& true_singular_values);
   void finalizing_output_phase();
 
-  MatrixType left_J;   // Left Jacobi rotation matrix
-  MatrixType right_J;  // Right Jacobi rotation matrix
-  MatrixType sigm_B;   // Working copy of the bidiagonal matrix
-  Index m;             // Number of rows
-  Index n;             // Number of columns
+  MatrixType left_J;        // Left Jacobi rotation matrix
+  MatrixType right_J;       // Right Jacobi rotation matrix
+  MatrixType sigm_B;        // Working copy of the bidiagonal matrix
+  MatrixType m_original_B;  // refinement target
+  Index m;                  // Number of rows
+  std::vector<RealScalar> m_qr_theta_left;
+  std::vector<RealScalar> m_qr_theta_right;
+  Index n;  // Number of columns
 };
 
 }  // namespace SVD_Project
