@@ -23,8 +23,9 @@ class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
  protected:
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatrixDynamic;
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VectorDynamic;
-  std::ostream* m_divOstream;
-  enum RotationType { Left, Right };
+  std::ostream* m_divOstream = nullptr;
+  void calculateSymmetrizingRotation(Scalar w, Scalar x, Scalar y, Scalar z,
+                                     Scalar& c, Scalar& s);
 
  public:
   RevJac_SVD() = default;
@@ -32,46 +33,15 @@ class RevJac_SVD : public Eigen::SVDBase<RevJac_SVD<_MatrixType>> {
   ~RevJac_SVD() = default;
 
   RevJac_SVD(const MatrixType& initial, const VectorDynamic& singularValues,
-             unsigned int computationOptions = 0) {
-    this->m_divOstream = &std::cout;
-    Index m = initial.rows();
-    Index n = initial.cols();
-    this->m_matrixU = MatrixDynamic::Identity(m, m);
-    this->m_matrixV = MatrixDynamic::Identity(n, n);
-    this->m_singularValues = singularValues;
-    Compute(initial, computationOptions);
-  }
-
+             unsigned int computationOptions = 0);
   RevJac_SVD(const MatrixType& initial, const VectorDynamic& singularValues,
-             std::ostream* os, unsigned int computationOptions = 0) {
-    Index m = initial.rows();
-    Index n = initial.cols();
-    this->m_matrixU = MatrixDynamic::Identity(m, m);
-    this->m_matrixV = MatrixDynamic::Identity(n, n);
-    this->m_singularValues = singularValues;
-    this->m_divOstream = os;
-    Compute(initial, computationOptions);
-  };
-
+             std::ostream* os, unsigned int computationOptions = 0);
   RevJac_SVD(const MatrixType& initial, const VectorDynamic& singularValues,
              const MatrixDynamic& matrixU, const MatrixDynamic& matrixV,
-             unsigned int computationOptions = 0) {
-    this->m_divOstream = &std::cout;
-    this->m_singularValues = singularValues;
-    this->m_matrixU = matrixU;
-    this->m_matrixV = matrixV;
-    Compute(initial, computationOptions);
-  };
-
+             unsigned int computationOptions = 0);
   RevJac_SVD(const MatrixType& initial, const VectorDynamic& singularValues,
              const MatrixDynamic& matrixU, const MatrixDynamic& matrixV,
-             std::ostream* os, unsigned int computationOptions = 0) {
-    this->m_singularValues = singularValues;
-    this->m_matrixU = matrixU;
-    this->m_matrixV = matrixV;
-    this->m_divOstream = os;
-    Compute(initial, computationOptions);
-  };
+             std::ostream* os, unsigned int computationOptions = 0);
 
   RevJac_SVD& Compute(const MatrixType& initial,
                       unsigned int computationOptions = 0);

@@ -44,6 +44,14 @@ template <typename Matrix>
 struct requires_sigma<RevJac_SVD<Matrix>> : std::true_type {};
 
 /**
+ * @brief Специализация для PseudoRevJac_SVD, указывающая, что конструктор этого
+ * алгоритма может требовать спектр.
+ * @tparam Matrix Тип матрицы.
+ */
+template <typename Matrix>
+struct requires_sigma<PseudoRevJac_SVD<Matrix>> : std::true_type {};
+
+/**
  * @brief Специализация для v0_RevJac_SVD, указывающая, что конструктор этого
  * алгоритма может требовать спектр.
  * @tparam Matrix Тип матрицы.
