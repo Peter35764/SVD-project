@@ -1,5 +1,5 @@
-#ifndef V0_GENERATE_SVD_H
-#define V0_GENERATE_SVD_H
+#ifndef V0_GIVENS_REFINEMENT_HPP
+#define V0_GIVENS_REFINEMENT_HPP
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/SVD>
@@ -483,4 +483,5 @@ class v0_GivRef_SVD {
 };
 
 }  // namespace SVD_Project
-#endif  // V0_GENERATE_SVD_H
+
+#endif  // V0_GIVENS_REFINEMENT_HPP

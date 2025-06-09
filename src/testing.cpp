@@ -1,6 +1,7 @@
 #include <chrono>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -15,14 +16,19 @@ int main() {
   using SVDT = SVD_Project::SVDT;
   namespace fs = std::filesystem;
 
-  SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, std::cout);
-  SVDT::compareMatrices("SVD_Project::v0_RevJac_SVD", 5, 5, std::cout);
+  SVDT::compareMatrices("SVD_Project::GivRef_SVD", 5, 5,
+                        Eigen::ComputeFullU | Eigen::ComputeFullV, std::cout);
+  SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5,
+                        Eigen::ComputeFullU | Eigen::ComputeFullV, std::cout);
 
-  auto names = SVDT::getAlgorithmNames();
-  std::cout << "Available SVD algorithms:\n";
+  // SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, std::cout);
+  // SVDT::compareMatrices("SVD_Project::RevJac_SVD", 5, 5);
 
-  SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5, std::cout);
-  SVDT::compareMatrices("SVD_Project::NaiveBidiagSVD", 5, 5, std::cout);
+  // auto names = SVDT::getAlgorithmNames();
+  // std::cout << "Available SVD algorithms:\n";
+
+  // SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5, std::cout);
+  // SVDT::compareMatrices("SVD_Project::NaiveBidiagSVD", 5, 5, std::cout);
 
   return 0;
 
@@ -105,9 +111,6 @@ int main() {
                     // settingsRevJac};
 
   SVDT tester(allSettings);
-
-  // Пример использования статического метода compareMatrices с выбранным
-  // алгоритмом.
 
   std::cout << "\nResults have been saved in folder: " << folderName << "\n";
 

@@ -47,6 +47,7 @@ SET(HEADER_FILES
   src/lib/tests/generate_svd.h
   src/lib/tests/SVD_Test.h
   src/lib/tests/SVD_Test.hpp
+  src/lib/tests/SVD_Test_config.h
 
   # Parf&Drozdov
   src/lib/idea1_givref/givens_refinement.h
@@ -63,6 +64,8 @@ SET(HEADER_FILES
   src/lib/idea1_givref/legacy/v0_givens_refinement.hpp
   src/lib/idea2_revjac/legacy/v0_reverse_jacobi.h
   src/lib/idea2_revjac/legacy/v0_reverse_jacobi.hpp
+  src/lib/idea1_givref/legacy/v1_givens_refinement.h
+  src/lib/idea1_givref/legacy/v1_givens_refinement.hpp
 
   # Umbrella header
   src/lib/SVD_project.h

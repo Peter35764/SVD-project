@@ -1,140 +1,91 @@
-#include "lib/idea1_givref/givens_refinement.h"
+#include <Eigen/Dense>
+#include <Eigen/Householder>
+#include <iostream>
 
-#include <Eigen/Jacobi>
-#include <cmath>     // abs, sqrt
-#include <iomanip>   // setprecision
-#include <iostream>  // cout
-
-// Проверка кода
-// ROTResult :: { cs :: Float, sn :: Float, r :: Float }
-struct ROTdeps {
-  float cs, sn, r;
-};
-// after test should be optimized or replaced with Eigen if it would prove
-// itself sufficient naiveImplementation :: Float -> Float -> ROTdeps, based on
-// lawn03.pdf, JUST for comparison with Eigen's impl
-ROTdeps naiveImplementation(float f, float g) {
-  ROTdeps result;
-  if (f == 0.0f) {
-    result.cs = 0.0f;
-    result.sn = 1.0f;
-    result.r = g;
-  } else if (std::abs(f) >= std::abs(g)) {
-    float t = g / f;
-    float u = std::sqrt(1.0f + t * t);
-    result.cs = 1.0f / u;
-    result.sn = t * result.cs;
-    result.r = f * u;
-  } else {
-    float t = f / g;
-    float u = std::sqrt(1.0f + t * t);
-    result.sn = 1.0f / u;
-    result.cs = t * result.sn;
-    result.r = g * u;
-  }
-  return result;
-}
-// testROTImplementations :: Float -> Float -> Float -> Bool, epsilon to compare
-// floats
-bool testROTImplementations(float f, float g, float epsilon = 1e-6f) {
-  using namespace std;
-  using namespace Eigen;
-  ROTdeps paper = naiveImplementation(f, g);
-  JacobiRotation<float> eigen;
-  float r;
-  eigen.makeGivens(f, g, &r);
-  bool cs_match = std::abs(paper.cs - eigen.c()) <= epsilon;
-  bool sn_match = std::abs(std::abs(paper.sn) - std::abs(eigen.s())) <= epsilon;
-  bool r_match = std::abs(paper.r - r) <= epsilon;
-  float result1 = eigen.c() * f - eigen.s() * g;
-  float result2 = eigen.s() * f + eigen.c() * g;
-  cout << "Eigen: {cs=" << eigen.c() << ", sn=" << eigen.s() << ", r=" << r
-       << "}\n";  // In the end we shall prefer Eigen implementations, so
-                  // comparing from it
-  cout << "Matched with naive implementation? "
-       << (cs_match && sn_match && r_match ? "YES" : "NO")
-       << "\n";  // comparing up to epsilon beacuse of float
-  cout << "Verify ROT: [" << result1 << "; " << result2
-       << "] should be [r, ~0]\n";  //  [cs -sn; sn cs][f; g] = [r; 0]
-  return cs_match && sn_match && r_match;
-}
-
-// Test our GivRef_SVD implementation
-void testGivRefSVD() {
-  using namespace std;
-  using namespace Eigen;
-
-  // Create a test matrix
-  MatrixXf testMatrix(3, 3);
-  testMatrix << 1, 2, 3, 4, 5, 6, 7, 8, 9;
-
-  // Create singular values
-  VectorXf sValues(3);
-  sValues << 10, 5, 1;
-
-  // Test with stream output
-  cout << "\n\nTesting GivRef_SVD with divergence stream:\n";
-  SVD_Project::GivRef_SVD<MatrixXf> svd(testMatrix);
-  svd.setDivergenceOstream(&cout);
-  svd.compute(testMatrix);
-
-  cout << "\nComputed singular values: " << svd.singularValues().transpose()
-       << endl;
-
-  // Test with constructor taking singular values
-  cout << "\nTesting GivRef_SVD with provided singular values:\n";
-  SVD_Project::GivRef_SVD<MatrixXf> svd2(testMatrix, sValues);
-  svd2.setDivergenceOstream(&cout);
-  svd2.compute(testMatrix);
-
-  cout << "\nComputed singular values: " << svd2.singularValues().transpose()
-       << endl;
-}
+#include "lib/SVD_project.h"
 
 int main() {
-  // using namespace std;
-  // using namespace Eigen;
-  // Matrix<float, Dynamic, Dynamic> A(10, 9);
-  // A << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-  //     21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-  //     39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
-  //     57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 68, 70, 71, 72, 73, 74,
-  //     75, 76, 77, 78, 79, 80, 81, 3, 9, (float)4.98942, (float)0.324235,
-  //     443534, 345, (float)56.543853, (float)450.435234, (float)43.34353221;
-  // cout << A << endl
-  //      << endl
-  //      << endl
-  //      << endl
-  //      << endl
-  //      << endl
-  //      << endl
-  //      << endl
-  //      << endl;
-  // //
-  // //
-  // // Testing ROT
-  // //
-  // //
-  // cout << fixed << setprecision(10);
-  // cout << "Testcase 1: f = 0\n";
-  // testROTImplementations(0.0f, 1.0f);
-  // cout << "\n";
-  // cout << "Testcase 2: |f| > |g|\n";
-  // testROTImplementations(2.0f, 1.0f);
-  // cout << "\n";
-  // cout << "Testcase 3: |f| < |g|\n";
-  // testROTImplementations(1.0f, 2.0f);
-  // cout << "\n";
-  // cout << "Testcase 4: Large numbers\n";
-  // testROTImplementations(1e5f, 2e5f);
-  // cout << "\n";
-  // cout << "Testcase 5: Small numbers\n";
-  // testROTImplementations(1e-5f, 2e-5f);
-  // cout << "\n";
-  // cout << "Testcase 6: Matrix values\n";
-  // testROTImplementations(A(0, 0), A(1, 0));
+  using namespace Eigen;
+  using namespace std;
 
-  testGivRefSVD();
+  // MatrixXd A(3, 3);
+  // A << 1, 3, 3, 10, 5, 6, 7, 8, 9;
+
+  int n_ = 10;
+
+  std::default_random_engine RNG(rand());
+  std::uniform_real_distribution<double> dist(-1000., 1000.);
+  SVDGenerator<double> SVD(n_, n_, RNG, dist, true);
+  SVD.generate(n_);
+
+  MatrixXd A = SVD.getInitialMatrix();
+
+  std::cout << "Original matrix A:\n" << A << std::endl;
+
+  // init for Householder bidiag
+  int m = A.rows();
+  int n = A.cols();
+  int minDim = std::min(m, n);
+
+  auto bidiag = internal::UpperBidiagonalization<MatrixXd>(A);
+  MatrixXd B = bidiag.bidiagonal();
+  MatrixXd U = MatrixXd::Identity(m, m);
+  MatrixXd V = MatrixXd::Identity(n, n);
+  U.applyOnTheLeft(bidiag.householderU());
+  V.applyOnTheLeft(bidiag.householderV());
+  MatrixXd B_clean = MatrixXd::Zero(m, n);
+  for (int i = 0; i < minDim; ++i) {
+    B_clean(i, i) = B(i, i);
+    if (i < minDim - 1) B_clean(i, i + 1) = B(i, i + 1);
+  }
+
+  std::cout << "\nBidiagonal matrix B:\n" << B_clean << std::endl;
+
+  MatrixXd reconstructed_A = U * B_clean * V.transpose();
+  std::cout << "\nReconstruction control sample (components of bidiag must yield orig, duh):\n"
+            << reconstructed_A << std::endl;
+
+  std::cout << "\nReconstruction error: " << (A - reconstructed_A).norm()
+            << std::endl;
+
+  MatrixXd work_B = B_clean;
+  MatrixXd left_givens = MatrixXd::Identity(m, m);
+  MatrixXd right_givens = MatrixXd::Identity(n, n);
+  for (int iter = 0; iter < 5; ++iter) {
+    for (int i = 0; i < minDim - 1; ++i) {
+      // Right Givens rotation
+      JacobiRotation<double> rotRight;
+      rotRight.makeGivens(work_B(i, i), work_B(i, i + 1));
+      work_B.applyOnTheRight(i, i + 1, rotRight);
+      right_givens.applyOnTheRight(i, i + 1, rotRight);
+
+      // Left Givens rotation
+      if (i < minDim - 1) {
+        JacobiRotation<double> rotLeft;
+        rotLeft.makeGivens(work_B(i, i), work_B(i + 1, i));
+        work_B.applyOnTheLeft(i, i + 1, rotLeft.transpose());
+        left_givens.applyOnTheLeft(i, i + 1, rotLeft.transpose());
+      }
+    }
+  }
+
+  VectorXd S = work_B.diagonal();
+  MatrixXd U_givens = left_givens.transpose();
+  MatrixXd V_givens = right_givens;
+  MatrixXd U_full = U * U_givens;
+  MatrixXd V_full = V * V_givens;
+  MatrixXd final_reconstructed_A = U_full * S.asDiagonal() * V_full.transpose();
+
+  std::cout << "\nReconstruction by Givens rotations:\n"
+            << final_reconstructed_A << std::endl;
+  std::cout << "\nGivens reconstruction error: "
+            << (A - final_reconstructed_A).norm() << std::endl;
+
+  std::cout << "\nSingular values: ";
+  for (int i = 0; i < minDim; ++i) std::cout << std::abs(S(i)) << " ";
+  std::cout << std::endl;
+
+  std::cout << "\nTRUE Singular values: \n" << SVD.getMatrixS() << std::endl;
 
   return 0;
 }

@@ -86,7 +86,7 @@ void test_RevJac_SVD() {
 }
 
 int main() {
-  test_RevJac_SVD();
+  test_PseudoRevJac_SVD();
   return 0;
 }
 

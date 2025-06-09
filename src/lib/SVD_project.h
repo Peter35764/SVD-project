@@ -8,4 +8,5 @@
 
 // Legacy
 #include "idea1_givref/legacy/v0_givens_refinement.h"
+#include "idea1_givref/legacy/v1_givens_refinement.h"
 #include "idea2_revjac/legacy/v0_reverse_jacobi.h"

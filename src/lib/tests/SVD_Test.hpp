@@ -21,13 +21,16 @@
 #include <thread>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "../SVD_project.h"
+#include "SVD_Test_config.h"
 #include "config.h"
 
 #define TESTING_BUNDLE_NAME "TestBundle-" << std::put_time(ptm, "%d-%m-%Y-%H%M")
 
 namespace SVD_Project {
+
 std::string genNameForBundleFolder() {
   auto now = std::chrono::system_clock::now();
   std::time_t now_time = std::chrono::system_clock::to_time_t(now);
@@ -38,46 +41,74 @@ std::string genNameForBundleFolder() {
   return folderName;
 }
 
-// Traits для определения, требует ли алгоритм передачи спектра.
-// По умолчанию алгоритм не требует передачи спектра.
-template <typename SVDClass>
-struct requires_sigma : std::false_type {};
-
-template <typename Matrix>
-struct requires_sigma<PseudoRevJac_SVD<Matrix>> : std::true_type {};
-
-template <typename Matrix>
-struct requires_sigma<RevJac_SVD<Matrix>> : std::true_type {};
-
-template <typename Matrix>
-struct requires_sigma<v0_RevJac_SVD<Matrix>> : std::true_type {};
-
 template <typename SVDClass, typename Matrix, typename Vector>
 SVDClass create_svd_impl(const Matrix &A, const Vector &sigma,
                          unsigned int options, bool solve_with_sigmas,
+                         std::ostream *os, const Vector *true_sigma_values,
                          std::true_type) {
-  if (solve_with_sigmas) {
-    return SVDClass(A, sigma, options);
+  const Vector *sigma_to_use =
+      (true_sigma_values != nullptr) ? true_sigma_values : &sigma;
+
+  if (solve_with_sigmas || (true_sigma_values != nullptr)) {
+    if constexpr (std::is_constructible_v<SVDClass, const Matrix &,
+                                          const Vector &, std::ostream *,
+                                          unsigned int>) {
+      if (os)
+        return SVDClass(A, *sigma_to_use, os, options);
+      else
+        return SVDClass(A, *sigma_to_use, options);
+    } else if constexpr (std::is_constructible_v<SVDClass, const Matrix &,
+                                                 const Vector &,
+                                                 unsigned int>) {
+      return SVDClass(A, *sigma_to_use, options);
+    } else {
+      throw std::runtime_error(
+          "ERROR: SVD class requires sigma but no suitable constructor found.");
+    }
   } else {
-    Eigen::JacobiSVD<Matrix> svd_ref(A,
-                                     Eigen::ComputeThinU | Eigen::ComputeThinV);
-    Vector computed_sigma = svd_ref.singularValues();
-    return SVDClass(A, computed_sigma, options);
+    if constexpr (std::is_constructible_v<SVDClass, const Matrix &,
+                                          std::ostream *, unsigned int>) {
+      if (os)
+        return SVDClass(A, os, options);
+      else
+        return SVDClass(A, options);
+    } else if constexpr (std::is_constructible_v<SVDClass, const Matrix &,
+                                                 unsigned int>) {
+      return SVDClass(A, options);
+    } else {
+      throw std::runtime_error(
+          "ERROR: SVD class requires sigma but no suitable constructor found "
+          "and sigma not provided.");
+    }
   }
 }
 
 template <typename SVDClass, typename Matrix, typename Vector>
 SVDClass create_svd_impl(const Matrix &A, const Vector &, unsigned int options,
-                         bool, std::false_type) {
-  return SVDClass(A, options);
+                         bool, std::ostream *os,
+                         const Vector *true_sigma_values,  // Added parameter
+                         std::false_type) {
+  if constexpr (std::is_constructible_v<SVDClass, const Matrix &,
+                                        std::ostream *, unsigned int>) {
+    if (os)
+      return SVDClass(A, os, options);
+    else
+      return SVDClass(A, options);
+  } else {
+    return SVDClass(A, options);
+  }
 }
 
 template <typename SVDClass, typename Matrix, typename Vector>
-SVDClass create_svd(const Matrix &A, const Vector &sigma, unsigned int options,
-                    bool solve_with_sigmas) {
-  return create_svd_impl<SVDClass>(A, sigma, options, solve_with_sigmas,
+SVDClass create_svd(
+    const Matrix &A, const Vector &sigma, unsigned int options,
+    bool solve_with_sigmas, std::ostream *os = nullptr,
+    const Vector *true_sigma_values = nullptr) {  // Added parameter
+  return create_svd_impl<SVDClass>(A, sigma, options, solve_with_sigmas, os,
+                                   true_sigma_values,
                                    requires_sigma<SVDClass>{});
 }
+// ==================================================================
 
 //-----------------------------------------------------------------------------
 // Исходный код тестирования SVD
@@ -139,16 +170,27 @@ SVD_Test<FloatingPoint, MatrixType>::createAlgorithmInfoEntry(
              const svd_test_funcSettings &s) {
             instance->template svd_test_func<SVDGenerator, svd_cl>(s);
           },
-          [](const MatrixDynamic &A, unsigned int options) -> SVDResult {
+          [](const MatrixDynamic &A, unsigned int options,
+             std::ostream *divergence_stream,
+             const VectorDynamic *true_singular_values) -> SVDResult {
             VectorDynamic sigma_to_pass;
-            bool needs_sigma = requires_sigma<svd_cl<MatrixDynamic>>::value;
-            if (needs_sigma) {
+            bool needs_sigma_trait =
+                requires_sigma<svd_cl<MatrixDynamic>>::value;
+            bool have_true_sigma_provided = (true_singular_values != nullptr &&
+                                             true_singular_values->size() > 0);
+
+            if (have_true_sigma_provided) {
+              sigma_to_pass = *true_singular_values;
+            } else if (needs_sigma_trait) {
               Eigen::JacobiSVD<MatrixDynamic> svd_ref(
                   A, Eigen::ComputeThinU | Eigen::ComputeThinV);
               sigma_to_pass = svd_ref.singularValues();
             }
-            auto svd = create_svd<svd_cl<MatrixDynamic>>(A, sigma_to_pass,
-                                                         options, needs_sigma);
+            auto svd = create_svd<svd_cl<MatrixDynamic>>(
+                A, sigma_to_pass, options,
+                have_true_sigma_provided || needs_sigma_trait,
+                divergence_stream, true_singular_values);
+
             return {svd.matrixU(), svd.singularValues(), svd.matrixV()};
           }
 
@@ -156,31 +198,12 @@ SVD_Test<FloatingPoint, MatrixType>::createAlgorithmInfoEntry(
 };
 
 template <typename FloatingPoint, typename MatrixType>
-const std::vector<typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
-    SVD_Test<FloatingPoint, MatrixType>::algorithmsInfo = {
-        createAlgorithmInfoEntry<SVD_Project::GivRef_SVD>(
-            "SVD_Project::GivRef_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::v0_GivRef_SVD>(
-            "SVD_Project::v0_GivRef_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::PseudoRevJac_SVD>(
-            "SVD_Project::PseudoRevJac_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::RevJac_SVD>(
-            "SVD_Project::RevJac_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::v0_RevJac_SVD>(
-            "SVD_Project::v0_RevJac_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::NaiveMRRR_SVD>(
-            "SVD_Project::NaiveMRRR_SVD"),
-        createAlgorithmInfoEntry<SVD_Project::NaiveBidiagSVD>(
-            "SVD_Project::NaiveBidiagSVD"),
-        createAlgorithmInfoEntry<Eigen::JacobiSVD>("Eigen::JacobiSVD")};
-
-template <typename FloatingPoint, typename MatrixType>
 std::map<std::string,
          typename SVD_Test<FloatingPoint, MatrixType>::SvdRunnerFunc>
 SVD_Test<FloatingPoint, MatrixType>::get_svd_runners() {
   std::map<std::string, SvdRunnerFunc> runners;
 
-  if (!runners.size()) {
+  if (runners.empty()) {
     for (const auto &algo : algorithmsInfo) {
       if (algo.runner) runners[algo.name] = algo.runner;
     }
@@ -197,7 +220,7 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
   size_t numAlgos = vec_settings.size();
   std::mutex dur_mutex;
   std::vector<std::pair<std::string, double>> test_times;
-  std::vector<std::thread> threads;
+  std::thread threads[THREADS];
 
   std::counting_semaphore<THREADS> sem(THREADS);
 
@@ -207,6 +230,7 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
            typename SVD_Test<FloatingPoint, MatrixType>::SvdRunnerFunc>
       svd_test_runners = get_svd_runners();
 
+  int thread_idx = 0;
   for (const auto &s : vec_settings) {
     std::filesystem::path p(s.fileName);
     auto dir = p.parent_path();
@@ -214,8 +238,8 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
       std::filesystem::create_directories(dir);
     }
     sem.acquire();
-    threads.emplace_back([this, s, &test_times, &dur_mutex, &sem,
-                          &overall_start, &svd_test_runners]() {
+    threads[thread_idx++] = std::thread([this, s, &test_times, &dur_mutex, &sem,
+                                         &overall_start, &svd_test_runners]() {
       auto t_start = std::chrono::high_resolution_clock::now();
       auto it = svd_test_runners.find(s.algorithmName);
       if (it != svd_test_runners.end()) {
@@ -237,8 +261,8 @@ void SVD_Test<FloatingPoint, MatrixType>::run_tests_parallel(
     });
   }
 
-  for (auto &t : threads) {
-    t.join();
+  for (int i = 0; i < thread_idx; ++i) {
+    threads[i].join();
   }
 
   auto overall_end = std::chrono::high_resolution_clock::now();
@@ -430,14 +454,16 @@ void SVD_Test<FloatingPoint, MatrixType>::svd_test_func(
 
           MatrixDynamic A = (U_true * S_true_mat * V_true.transpose()).eval();
 
-          VectorDynamic sigma_to_pass = S_true_vec;
-          auto svd_func = create_svd<svd_cl<MatrixDynamic>>(
-              A, sigma_to_pass, Eigen::ComputeFullU | Eigen::ComputeFullV,
-              solve_with_sigmas);
+          auto svd_func = execute_svd_algorithm(
+              algorithmName, A, Eigen::ComputeFullU | Eigen::ComputeFullV,
+              nullptr, &S_true_vec);
 
-          U_calc = svd_func.matrixU();
-          S_calc = svd_func.singularValues();
-          V_calc = svd_func.matrixV();
+          U_calc = svd_func.U;
+          S_calc = svd_func.S;
+          V_calc = svd_func.V;
+
+          std::sort(S_calc.data(), S_calc.data() + S_calc.size(),
+                    std::greater<FloatingPoint>());
 
           for (const auto &ms : metricsSettings) {
             if (ms.enabled) {
@@ -549,7 +575,7 @@ std::map<std::string,
 SVD_Test<FloatingPoint, MatrixType>::get_svd_executors() {
   std::map<std::string, SvdExecutorFunc> executors;
 
-  if (!executors.size()) {
+  if (executors.empty()) {
     for (const auto &algo : algorithmsInfo) {
       if (algo.executor) executors[algo.name] = algo.executor;
     }
@@ -561,11 +587,13 @@ SVD_Test<FloatingPoint, MatrixType>::get_svd_executors() {
 template <typename FloatingPoint, typename MatrixType>
 typename SVD_Test<FloatingPoint, MatrixType>::SVDResult
 SVD_Test<FloatingPoint, MatrixType>::execute_svd_algorithm(
-    const std::string &algoName, const MatrixDynamic &A, unsigned int options) {
+    const std::string &algoName, const MatrixDynamic &A, unsigned int options,
+    std::ostream *divergence_stream,
+    const VectorDynamic *true_singular_values) {
   static const auto &executors = get_svd_executors();
   auto it = executors.find(algoName);
   if (it != executors.end()) {
-    return it->second(A, options);
+    return it->second(A, options, divergence_stream, true_singular_values);
   } else {
     throw std::invalid_argument(
         "Unknown algorithm name in execute_svd_algorithm: " + algoName);
@@ -610,25 +638,48 @@ SVD_Test<FloatingPoint, MatrixType>::convertSquareMatrixDiagonalToVector(
 }
 
 template <typename FloatingPoint, typename MatrixType>
+typename SVD_Test<FloatingPoint, MatrixType>::VectorDynamic
+SVD_Test<FloatingPoint, MatrixType>::processSingularValues(
+    const VectorDynamic &sv) {
+  VectorDynamic result = sv;
+
+  result = result.cwiseAbs();
+  std::sort(
+      result.data(), result.data() + result.size(),
+      [](const FloatingPoint &a, const FloatingPoint &b) { return a > b; });
+
+  return result;
+}
+
+template <typename FloatingPoint, typename MatrixType>
 void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
-    const std::string &algoName, int rows, int cols, std::ostream &out) {
+    const std::string &algoName, int rows, int cols,
+    unsigned int computationOptions, std::ostream &out) {
   try {
     std::random_device rd;
     std::default_random_engine gen(rd());
     std::uniform_real_distribution<FloatingPoint> distr(-100, 100);
     SVDGenerator<FloatingPoint> svd_gen(rows, cols, gen, distr, true);
     int minNM = std::min(rows, cols);
-    MatrixDynamic A(svd_gen.getInitialMatrix());
+    MatrixDynamic A(svd_gen.getInitialMatrix());  // create random matrix A
 
-    SVDResult result = execute_svd_algorithm(
-        algoName, A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    VectorDynamic S_true_vec_ref = svd_gen.getMatrixS().diagonal().eval();
+    std::sort(S_true_vec_ref.data(),
+              S_true_vec_ref.data() + S_true_vec_ref.size(),
+              std::greater<FloatingPoint>());
+
+    SVDResult result = execute_svd_algorithm(algoName, A, computationOptions,
+                                             &out, &S_true_vec_ref);
+
     MatrixDynamic U_calc = result.U;
     VectorDynamic S_calc = result.S;
     MatrixDynamic V_calc = result.V;
 
+    std::sort(S_calc.data(), S_calc.data() + S_calc.size(),
+              std::greater<FloatingPoint>());
+
     MatrixDynamic S_calc_matrix = convertVectorToDiagonalMatrix(S_calc);
 
-    MatrixDynamic S_true = svd_gen.getMatrixS();
     MatrixDynamic A_rec = U_calc * S_calc_matrix * V_calc.transpose();
 
     auto sign = [](FloatingPoint val) -> int {
@@ -649,20 +700,48 @@ void SVD_Test<FloatingPoint, MatrixType>::compareMatrices(
       }
     }
 
-    FloatingPoint percent = (total > 0)
-                                ? (100.0 * static_cast<FloatingPoint>(count) /
-                                   static_cast<FloatingPoint>(total))
-                                : 0.0;
+    FloatingPoint signs_percent =
+        (total > 0) ? (100.0 * static_cast<FloatingPoint>(count) /
+                       static_cast<FloatingPoint>(total))
+                    : 0.0;
+    FloatingPoint frob_norm = Lp_norm(
+        processSingularValues(S_true_vec_ref) - processSingularValues(S_calc),
+        2);
 
-    out << "Algorithm: " << algoName << "\n";
-    out << "Original Matrix (" << rows << "x" << cols << "):\n" << A << "\n\n";
-    out << "Reconstructed Matrix:\n" << A_rec << "\n\n";
-    out << "Percentage of matching signs (based on all elements): "
-        << std::fixed << std::setprecision(2) << percent << "%\n";
+    std::cout << "\n=======================================\n";
+
+    std::cout << "Algorithm: " << algoName << "\n\n";
+    std::cout << "Original Matrix (" << rows << "x" << cols << "):\n"
+              << A << "\n\n";
+    std::cout << "Reconstructed Matrix:\n" << A_rec << "\n\n";
+    std::cout << "Percentage of matching signs (based on all elements): "
+              << std::fixed << std::setprecision(2) << signs_percent << "%\n";
+    std::cout << "Frobenius norm of difference between initial and calculated "
+                 "singular values: "
+              << std::fixed << std::setprecision(3) << frob_norm << "\n";
+
+    std::cout << "=======================================\n";
 
   } catch (const std::invalid_argument &e) {
     std::cerr << "Invalid argument: " << e.what() << std::endl;
-    std::quick_exit(EXIT_FAILURE);
+    if (&out != &std::cout &&
+        &out != &null_stream) {  // Записываем ошибку в файл
+      out << "Error: Invalid argument: " << e.what() << "\n";
+    }
+  } catch (const std::runtime_error &e) {
+    std::cerr << "Runtime error during SVD computation: " << e.what()
+              << std::endl;
+    if (&out != &std::cout && &out != &null_stream) {
+      out << "Error: Runtime error during SVD computation: " << e.what()
+          << "\n";
+    }
+  } catch (const std::exception &e) {
+    std::cerr << "An unexpected error occurred during SVD computation: "
+              << e.what() << std::endl;
+    if (&out != &std::cout && &out != &null_stream) {
+      out << "Error: An unexpected error occurred during SVD computation: "
+          << e.what() << "\n";
+    }
   }
 }
 

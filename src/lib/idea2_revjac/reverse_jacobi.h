@@ -2,6 +2,7 @@
 #define REVERSE_JACOBI_H
 
 #include <Eigen/SVD>
+#include <iostream>
 #include <ostream>
 
 namespace SVD_Project {
