@@ -60,6 +60,14 @@ template <typename Matrix>
 struct requires_sigma<v0_RevJac_SVD<Matrix>> : std::true_type {};
 
 /**
+ * @brief Специализация для GivRef_SVD, указывающая, что конструктор этого
+ * алгоритма может требовать спектр.
+ * @tparam Matrix Тип матрицы.
+ */
+template <typename Matrix>
+struct requires_sigma<GivRef_SVD<Matrix>> : std::true_type {};
+
+/**
  * @brief Примечание по добавлению новых алгоритмов с требованием спектра.
  *
  * Если новый алгоритм SVD требует передачи истинных сингулярных значений

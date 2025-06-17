@@ -42,9 +42,15 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
   using Scalar = typename MatrixType::Scalar;
   using RealScalar = typename Eigen::NumTraits<Scalar>::Real;
   using Index = Eigen::Index;
+  typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatrixDynamic;
+  typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VectorDynamic;
 
   GivRef_SVD();
 
+  // TODO
+  GivRef_SVD(const MatrixType& A,
+             unsigned int computationOptions = Eigen::ComputeThinU |
+                                               Eigen::ComputeThinV) {}
   /**
    * @brief A constructor that calculates the SVD immediately upon object
    * creation.
@@ -53,10 +59,19 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
    * @param computationOptions Calculation flags (example, Eigen::ComputeFullU |
    * Eigen::ComputeFullV).
    */
-  GivRef_SVD(const MatrixType& B,
+  GivRef_SVD(const MatrixType& A,
+             const VectorDynamic& singularValues = VectorDynamic(),
+             std::ostream* os = nullptr,
              unsigned int computationOptions = Eigen::ComputeThinU |
-                                               Eigen::ComputeThinV) {
-    compute(B, computationOptions);
+                                               Eigen::ComputeThinV)
+      : m_divOstream(os), singVals(singularValues) {
+    compute(A, computationOptions);
+  }
+
+  GivRef_SVD(const MatrixType& A, const VectorDynamic& singularValues,
+             unsigned int computationOptions)
+      : GivRef_SVD(A, singularValues, nullptr,
+                   computationOptions) {  // Делегирование
   }
 
   ~GivRef_SVD() = default;
@@ -88,9 +103,10 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
   void preparation_phase(const MatrixType& A, unsigned int computationOptions);
   void qr_iterations_phase();
 
-  void coordinate_descent_refinement(
-      const MatrixType& B_target, const Eigen::VectorXd& true_singular_values);
+  void coordinate_descent_refinement(const MatrixType& B_target);
   void finalizing_output_phase();
+
+  std::ostream* m_divOstream = nullptr;
 
   MatrixType left_J;        // Left Jacobi rotation matrix
   MatrixType right_J;       // Right Jacobi rotation matrix
@@ -100,6 +116,8 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
   std::vector<RealScalar> m_qr_theta_left;
   std::vector<RealScalar> m_qr_theta_right;
   Index n;  // Number of columns
+
+  const VectorDynamic singVals;
 };
 
 }  // namespace SVD_Project

@@ -18,8 +18,9 @@ int main() {
 
   SVDT::compareMatrices("SVD_Project::GivRef_SVD", 5, 5,
                         Eigen::ComputeFullU | Eigen::ComputeFullV, std::cout);
-  SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5,
-                        Eigen::ComputeFullU | Eigen::ComputeFullV, std::cout);
+  // SVDT::compareMatrices("Eigen::JacobiSVD", 5, 5,
+  //                       Eigen::ComputeFullU | Eigen::ComputeFullV,
+  //                       std::cout);
 
   // SVDT::compareMatrices("SVD_Project::v0_GivRef_SVD", 5, 5, std::cout);
   // SVDT::compareMatrices("SVD_Project::RevJac_SVD", 5, 5);

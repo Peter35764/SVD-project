@@ -1,7 +1,6 @@
 #ifndef GIVENS_REFINEMENT_HPP
 #define GIVENS_REFINEMENT_HPP
 
-#include <Eigen/Dense>
 #include <Eigen/Jacobi>
 #include <cmath>
 #include <iostream>
@@ -44,6 +43,10 @@ void GivRef_SVD<_MatrixType>::preparation_phase(
 
 template <typename _MatrixType>
 void GivRef_SVD<_MatrixType>::qr_iterations_phase() {
+  if (m_divOstream) {
+    *this->m_divOstream << "qr_iterations_phase" << "\n";
+  }
+
   using RealScalar = typename MatrixType::RealScalar;
   Index min_mn = std::min(m, n);
   RealScalar tol = RealScalar(1e-10) * sigm_B.norm();  // Convergence tolerance
@@ -55,13 +58,22 @@ void GivRef_SVD<_MatrixType>::qr_iterations_phase() {
     RealScalar off_diag_norm = 0;
     for (Index i = 0; i < min_mn - 1; ++i)
       off_diag_norm += std::abs(sigm_B(i, i + 1));
+
+    if (m_divOstream) {
+      *this->m_divOstream << std::to_string(off_diag_norm) << "\n";
+    }
+
     if (off_diag_norm < tol) break;
   }
 }
 
 template <typename _MatrixType>
 void GivRef_SVD<_MatrixType>::coordinate_descent_refinement(
-    const MatrixType& B_target, const Eigen::VectorXd& true_singular_values) {
+    const MatrixType& B_target) {
+  if (m_divOstream) {
+    *this->m_divOstream << "coordinate_descent_refinement" << "\n";
+  }
+
   using Scalar = typename MatrixType::Scalar;
   using RealScalar = typename MatrixType::RealScalar;
 
@@ -78,8 +90,8 @@ void GivRef_SVD<_MatrixType>::coordinate_descent_refinement(
 
   // insert sing vals
   MatrixType Sigma_true = MatrixType::Zero(m, n);
-  for (Index i = 0; i < std::min(min_dim, true_singular_values.size()); ++i) {
-    Sigma_true(i, i) = true_singular_values(i);
+  for (Index i = 0; i < std::min(min_dim, singVals.size()); ++i) {
+    Sigma_true(i, i) = singVals(i);
   }
 
   for (int iter = 0; iter < max_iterations; ++iter) {
@@ -195,6 +207,10 @@ void GivRef_SVD<_MatrixType>::coordinate_descent_refinement(
       max_change = std::max(max_change, std::abs(theta_right[k] - old_theta));
     }
 
+    if (m_divOstream) {
+      *this->m_divOstream << std::to_string(max_change) << "\n";
+    }
+
     // converged?
     if (max_change < convergence_tol) break;
   }
@@ -245,11 +261,13 @@ void GivRef_SVD<_MatrixType>::finalizing_output_phase() {
 template <typename _MatrixType>
 GivRef_SVD<_MatrixType>& GivRef_SVD<_MatrixType>::compute(
     const MatrixType& A, unsigned int computationOptions) {
-  preparation_phase(A, computationOptions);
+  // Bidiagonalize the input matrix
+  auto bid = Eigen::internal::UpperBidiagonalization<_MatrixType>(A);
+  MatrixType A_ = bid.bidiagonal();
+
+  preparation_phase(A_, computationOptions);
   qr_iterations_phase();
-  Eigen::VectorXd computed_sv =
-      sigm_B.diagonal().head(std::min(m, n)).cwiseAbs();
-  coordinate_descent_refinement(this->m_original_B, computed_sv);
+  coordinate_descent_refinement(this->m_original_B);
   finalizing_output_phase();
   return *this;
 }
