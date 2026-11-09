@@ -1,5 +1,4 @@
-#ifndef V1_GIVENS_REFINEMENT_HPP
-#define V1_GIVENS_REFINEMENT_HPP
+#pragma once
 
 #include <cassert>
 
@@ -333,4 +332,3 @@ void v1_GivRef_SVD<_MatrixType>::revert_negative_singular() {
   }
 }
 }  // namespace SVD_Project
-#endif  // V1_GIVENS_REFINEMENT_HPP

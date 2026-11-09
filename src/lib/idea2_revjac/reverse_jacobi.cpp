@@ -1,5 +1,4 @@
-#ifndef REVERSE_JACOBI_HPP
-#define REVERSE_JACOBI_HPP
+#pragma once
 
 #include <Eigen/Jacobi>
 #include <boost/math/tools/minima.hpp>
@@ -186,5 +185,3 @@ void RevJac_SVD<_MatrixType>::calculateSymmetrizingRotation(Scalar w, Scalar x,
 }
 
 }  // namespace SVD_Project
-
-#endif  // REVERSE_JACOBI_HPP

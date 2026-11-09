@@ -1,5 +1,4 @@
-#ifndef SVD_TEST_HPP
-#define SVD_TEST_HPP
+#pragma once
 
 #include <Eigen/SVD>
 #include <algorithm>
@@ -931,5 +930,3 @@ FloatingPoint SVD_Test<FloatingPoint, MatrixType>::count_metrics(
 }
 
 }  // namespace SVD_Project
-
-#endif  // SVD_TEST_HPP

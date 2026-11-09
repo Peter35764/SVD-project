@@ -1,5 +1,4 @@
-#ifndef NAIVE_BIDIAG_SVD_H
-#define NAIVE_BIDIAG_SVD_H
+#pragma once
 
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
@@ -111,6 +110,4 @@ class NaiveBidiagSVD : public Eigen::SVDBase< NaiveBidiagSVD<_MatrixType> > {
 
 }  // namespace SVD_Project
 
-#include "naive_bidiag_svd.hpp"
-
-#endif  // NAIVE_BIDIAG_SVD_H
+#include "naive_bidiag_svd.cpp"

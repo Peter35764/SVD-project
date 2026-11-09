@@ -1,3 +1,4 @@
+#pragma once
 /** @file SVD_Test_config.h
  * @brief Содержит конфигурационные настройки и регистрацию алгоритмов для
  * SVD_Test.
@@ -6,8 +7,6 @@
  * используемые для добавления новых SVD-алгоритмов в тестовый фреймворк
  * и управления их поведением (например, требуется ли передача спектра).
  */
-#ifndef SVD_TEST_CONFIG_H
-#define SVD_TEST_CONFIG_H
 
 #include <type_traits>
 
@@ -151,5 +150,3 @@ const std::vector<typename SVD_Test<FloatingPoint, MatrixType>::AlgorithmInfo>
         createAlgorithmInfoEntry<Eigen::JacobiSVD>("Eigen::JacobiSVD")};
 
 }  // namespace SVD_Project
-
-#endif  // SVD_TEST_CONFIG_H

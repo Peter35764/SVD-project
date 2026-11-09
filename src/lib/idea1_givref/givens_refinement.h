@@ -1,5 +1,4 @@
-#ifndef GIVENS_REFINEMENT_H
-#define GIVENS_REFINEMENT_H
+#pragma once
 
 #include <Eigen/Dense>
 #include <vector>
@@ -122,6 +121,4 @@ class GivRef_SVD : public Eigen::SVDBase<GivRef_SVD<_MatrixType>> {
 
 }  // namespace SVD_Project
 
-#include "givens_refinement.hpp"
-
-#endif  // GIVENS_REFINEMENT_H
+#include "givens_refinement.cpp"

@@ -1,5 +1,4 @@
-#ifndef GIVENS_REFINEMENT_HPP
-#define GIVENS_REFINEMENT_HPP
+#pragma once
 
 #include <Eigen/Jacobi>
 #include <cmath>
@@ -306,4 +305,3 @@ void GivRef_SVD<_MatrixType>::performQRIteration() {
   }
 }
 }  // namespace SVD_Project
-#endif  // GIVENS_REFINEMENT_HPP

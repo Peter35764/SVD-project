@@ -1,5 +1,4 @@
-#ifndef V0_NAIVE_MRRR_H
-#define V0_NAIVE_MRRR_H
+#pragma once
 
 #include <Eigen/SVD>
 
@@ -41,6 +40,4 @@ struct Eigen::internal::traits<SVD_Project::v0_NaiveMRRR_SVD<_MatrixType>>
   typedef _MatrixType MatrixType;
 };
 
-#include "v0_naive_mrrr.hpp"  // Подключаем реализацию
-
-#endif  // V0_NAIVE_MRRR_H
+#include "v0_naive_mrrr.cpp"  // Подключаем реализацию

@@ -77,70 +77,80 @@ endif()
 # ============ Framework Files =============
 
 set(HEADER_FILES
-    # Tests
-    src/lib/tests/generate_svd.h
-    src/lib/tests/SVD_Test.h
-    src/lib/tests/SVD_Test.hpp
-    src/lib/tests/SVD_Test_config.h
+    # Testing framework
+    src/lib/testing/generate_svd.h
+    src/lib/testing/SVD_Test.h
+    src/lib/testing/SVD_Test.cpp
+    src/lib/testing/SVD_Test_config.h
+
+    # Standard algorithms
+    src/lib/dqds/dqds.h
+    src/lib/dqds/dqds.cpp
+    src/lib/jacobi/jacobi.h
+    src/lib/jacobi/jacobi.cpp
+    src/lib/golub_kahan/golub_kahan.h
+    src/lib/golub_kahan/golub_kahan.cpp
+    src/lib/iterative_refinement/iterative_refinement.h
+    src/lib/iterative_refinement/iterative_refinement.cpp
 
     # Parfenov's & Drozdov's ideas
     src/lib/idea1_givref/givens_refinement.h
-    src/lib/idea1_givref/givens_refinement.hpp
+    src/lib/idea1_givref/givens_refinement.cpp
     src/lib/idea2_revjac/reverse_jacobi.h
-    src/lib/idea2_revjac/reverse_jacobi.hpp
+    src/lib/idea2_revjac/reverse_jacobi.cpp
     src/lib/idea2_revjac/pseudo_reverse_jacobi.h
-    src/lib/idea2_revjac/pseudo_reverse_jacobi.hpp
+    src/lib/idea2_revjac/pseudo_reverse_jacobi.cpp
     src/lib/idea3_naive/naive_mrrr/naive_mrrr.h
-    src/lib/idea3_naive/naive_mrrr/naive_mrrr.hpp
+    src/lib/idea3_naive/naive_mrrr/naive_mrrr.cpp
     src/lib/idea3_naive/naive_bidiag_svd/naive_bidiag_svd.h
-    src/lib/idea3_naive/naive_bidiag_svd/naive_bidiag_svd.hpp
+    src/lib/idea3_naive/naive_bidiag_svd/naive_bidiag_svd.cpp
 
     # Legacy
     src/lib/idea1_givref/legacy/v0_givens_refinement.h
-    src/lib/idea1_givref/legacy/v0_givens_refinement.hpp
+    src/lib/idea1_givref/legacy/v0_givens_refinement.cpp
     src/lib/idea1_givref/legacy/v1_givens_refinement.h
-    src/lib/idea1_givref/legacy/v1_givens_refinement.hpp
+    src/lib/idea1_givref/legacy/v1_givens_refinement.cpp
     src/lib/idea2_revjac/legacy/v0_reverse_jacobi.h
-    src/lib/idea2_revjac/legacy/v0_reverse_jacobi.hpp
+    src/lib/idea2_revjac/legacy/v0_reverse_jacobi.cpp
     src/lib/idea3_naive/naive_mrrr/legacy/v0_naive_mrrr.h
-    src/lib/idea3_naive/naive_mrrr/legacy/v0_naive_mrrr.hpp
+    src/lib/idea3_naive/naive_mrrr/legacy/v0_naive_mrrr.cpp
 
     # Umbrella header
     src/lib/SVD_project.h
 )
 
-# Stub translation unit in binary dir so the static library compiles
-set(SVD_LIB_STUB "${CMAKE_CURRENT_BINARY_DIR}/svd_stub.cpp")
-if(NOT EXISTS "${SVD_LIB_STUB}")
-    file(WRITE "${SVD_LIB_STUB}" "// SVD static library translation unit\n")
-endif()
-
 # ============= Build Targets ==============
 
-# Static library target: svd
-add_library(svd STATIC ${SVD_LIB_STUB} ${HEADER_FILES})
-target_include_directories(svd PUBLIC
+# Interface library target: svd
+add_library(svd INTERFACE)
+target_include_directories(svd INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 )
-target_link_libraries(svd PUBLIC
+target_link_libraries(svd INTERFACE
     Eigen3::Eigen
     Boost::boost
     ${LAPACKE_TARGET}
     Threads::Threads
 )
-target_compile_features(svd PUBLIC cxx_std_20)
+target_compile_features(svd INTERFACE cxx_std_20)
 
-# Wrapper function to configure test binaries
-function(svd_add_test_executable TARGET_NAME SOURCE_FILE)
+# Wrapper function to configure test binaries located in src/tests
+function(svd_add_test TARGET_NAME)
+    if(ARGC GREATER 1)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${ARGV1}")
+            set(SOURCE_FILE "${ARGV1}")
+        else()
+            set(SOURCE_FILE "src/tests/${ARGV1}")
+        endif()
+    else()
+        set(SOURCE_FILE "src/tests/${TARGET_NAME}.cpp")
+    endif()
     add_executable(${TARGET_NAME} ${SOURCE_FILE})
     target_link_libraries(${TARGET_NAME} PRIVATE svd)
-    set_target_properties(${TARGET_NAME} PROPERTIES
-        CXX_STANDARD 20
-        CXX_STANDARD_REQUIRED ON
-    )
 endfunction()
 
-svd_add_test_executable(svd_test src/testing.cpp)
-svd_add_test_executable(svd_test_givref src/givens_refinement.cpp)
-svd_add_test_executable(svd_test_revjac src/reverse_jacobi.cpp)
+svd_add_test(svd_test testing.cpp)
+svd_add_test(svd_test_givref givens_refinement.cpp)
+svd_add_test(svd_test_revjac reverse_jacobi.cpp)
+svd_add_test(svd_test_golub_kahan golub_kahan.cpp)

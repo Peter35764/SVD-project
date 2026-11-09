@@ -1,5 +1,4 @@
-#ifndef NAIVE_BIDIAG_SVD_HPP
-#define NAIVE_BIDIAG_SVD_HPP
+#pragma once
 
 #include "naive_bidiag_svd.h"
 
@@ -168,5 +167,3 @@ void NaiveBidiagSVD<_MatrixType>::CompleteBasisForV(const MatrixType& B) {
 }
 
 }  // namespace SVD_Project
-
-#endif  // NAIVE_BIDIAG_SVD_HPP

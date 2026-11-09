@@ -1,5 +1,4 @@
-#ifndef V0_REVERSE_JACOBI_HPP
-#define V0_REVERSE_JACOBI_HPP
+#pragma once
 
 #include <Eigen/Core>
 #include <Eigen/Jacobi>
@@ -86,5 +85,3 @@ v0_RevJac_SVD<_MatrixType>& v0_RevJac_SVD<_MatrixType>::compute() {
 }
 
 }  // namespace SVD_Project
-
-#endif  // V0_REVERSE_JACOBI_HPP

@@ -1,8 +1,6 @@
+#pragma once
 /** @file SVD_Test.h
  */
-
-#ifndef SVD_TEST_H
-#define SVD_TEST_H
 
 #include <Eigen/Dense>
 #include <algorithm>
@@ -417,6 +415,4 @@ using SVDT = SVD_Project::SVD_Test<
 
 }  // namespace SVD_Project
 
-#include "SVD_Test.hpp"
-
-#endif  // SVD_TEST_H
+#include "SVD_Test.cpp"

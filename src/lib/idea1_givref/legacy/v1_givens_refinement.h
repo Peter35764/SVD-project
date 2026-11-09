@@ -1,5 +1,4 @@
-#ifndef V1_GIVENS_REFINEMENT_H
-#define V1_GIVENS_REFINEMENT_H
+#pragma once
 
 #include <Eigen/SVD>
 #include <ostream>
@@ -84,6 +83,4 @@ struct Eigen::internal::traits<SVD_Project::v1_GivRef_SVD<_MatrixType>>
   typedef _MatrixType MatrixType;
 };
 
-#include "v1_givens_refinement.hpp"
-
-#endif  // V1_GIVENS_REFINEMENT_H
+#include "v1_givens_refinement.cpp"

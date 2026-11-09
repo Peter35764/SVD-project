@@ -1,5 +1,4 @@
-#ifndef PSEUDO_REVERSE_JACOBI_HPP
-#define PSEUDO_REVERSE_JACOBI_HPP
+#pragma once
 
 #include <Eigen/Jacobi>
 #include <boost/math/tools/minima.hpp>
@@ -188,5 +187,3 @@ PseudoRevJac_SVD<_MatrixType>& PseudoRevJac_SVD<_MatrixType>::Compute(
 };
 
 }  // namespace SVD_Project
-
-#endif  // PSEUDO_REVERSE_JACOBI_HPP

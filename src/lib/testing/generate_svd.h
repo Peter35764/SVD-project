@@ -1,5 +1,4 @@
-#ifndef GENERATE_SVD_H
-#define GENERATE_SVD_H
+#pragma once
 //
 //  SVD
 //
@@ -165,5 +164,3 @@ class SVDGenerator {
     initialMatrix = U * S * V;
   }
 };
-
-#endif  // GENERATE_SVD_H

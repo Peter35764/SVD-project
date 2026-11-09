@@ -1,5 +1,4 @@
-#ifndef NAIVE_MRRR_HPP
-#define NAIVE_MRRR_HPP
+#pragma once
 
 #include <lapacke.h>
 
@@ -124,5 +123,3 @@ NaiveMRRR_SVD<_MatrixType> &NaiveMRRR_SVD<_MatrixType>::compute_tgk(
 }
 
 };  // namespace SVD_Project
-
-#endif  // NAIVE_MRRR_HPP
