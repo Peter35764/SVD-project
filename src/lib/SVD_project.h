@@ -4,6 +4,9 @@
 #include "testing/generate_svd.h"
 
 // Standard algorithms
+#include "dbdsvdx/dbdsvdx.h"
+#include "dgesdd/dgesdd.h"
+#include "dgesvd/dgesvd.h"
 #include "dqds/dqds.h"
 #include "golub_kahan/golub_kahan.h"
 #include "iterative_refinement/iterative_refinement.h"
