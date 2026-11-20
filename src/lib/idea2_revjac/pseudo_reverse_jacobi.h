@@ -1,5 +1,4 @@
-#ifndef PSEUDO_REVERSE_JACOBI_H
-#define PSEUDO_REVERSE_JACOBI_H
+#pragma once
 
 #include <Eigen/SVD>
 #include <ostream>
@@ -57,6 +56,4 @@ struct Eigen::internal::traits<SVD_Project::PseudoRevJac_SVD<_MatrixType>>
   typedef _MatrixType MatrixType;
 };
 
-#include "pseudo_reverse_jacobi.hpp"
-
-#endif  // PSEUDO_REVERSE_JACOBI_H
+#include "pseudo_reverse_jacobi.cpp"

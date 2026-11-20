@@ -1,9 +1,7 @@
-#ifndef V0_GIVENS_REFINEMENT_H
-#define V0_GIVENS_REFINEMENT_H
+#pragma once
 
 #include <Eigen/SVD>
 #include <vector>
 
-#include "v0_givens_refinement.hpp"
-
-#endif  // V0_GIVENS_REFINEMENT_H
+#include "../../testing/generate_svd.h"
+#include "v0_givens_refinement.cpp"
