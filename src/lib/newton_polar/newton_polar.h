@@ -25,6 +25,11 @@ class Newton_Polar {
       const MatrixType& A,
       Index max_iter = 100,
       RealScalar tol = std::numeric_limits<RealScalar>::epsilon());
+
+ private:
+  static RealScalar norm1(const MatrixType& M) {
+    return M.cwiseAbs().colwise().sum().maxCoeff();
+  }
 };
 
 template <typename _MatrixType>

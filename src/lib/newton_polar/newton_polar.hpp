@@ -5,8 +5,6 @@
 #include "newton_polar.h"
 
 namespace SVD_Project {
-
-
 template <typename MatrixType>
 MatrixType Newton_Polar<MatrixType>::compute(const MatrixType& A,
                                              Index max_iter,
@@ -17,23 +15,20 @@ MatrixType Newton_Polar<MatrixType>::compute(const MatrixType& A,
                "Newton polar decomposition requires square matrix");
 
   MatrixType X = A;
-  if (X.norm() == RealScalar(0)) return X;
+  if (norm1(X) == RealScalar(0)) return X;
 
   const MatrixType I = MatrixType::Identity(m, n);
 
   for (Index k = 0; k < max_iter; ++k) {
-    MatrixType Y = X.adjoint().fullPivLu().solve(I);
+    const RealScalar nX = norm1(X);
+
+    MatrixType Y = X.adjoint().partialPivLu().solve(I);   
     if (!Y.allFinite()) return X;
 
-    MatrixType delta = RealScalar(0.5) * (Y - X);
-    MatrixType X_new = X + delta;
+    MatrixType delta = RealScalar(0.5) * (Y - X);    
+    X += delta;
 
-    RealScalar scale = X_new.norm();
-    if (scale == RealScalar(0)) scale = RealScalar(1);
-
-    X = X_new;
-
-    if (delta.norm() <= tol * scale) break;
+    if (norm1(delta) <= tol * nX) break;
   }
 
   return X;
@@ -56,7 +51,7 @@ Newton_Polar_SVD<_MatrixType>& Newton_Polar_SVD<_MatrixType>::compute(
   eigen_assert(m == n && "Newton_Polar_SVD requires square matrix");
 
   Newton_Polar<MatrixType> np;
-  MatrixType Up = np.compute(A);
+  MatrixType Up = np.compute(A);   
 
   MatrixType H = Up.adjoint() * A;
   H = Scalar(0.5) * (H + H.adjoint());
